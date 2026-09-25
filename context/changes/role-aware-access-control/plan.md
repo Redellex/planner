@@ -344,29 +344,29 @@ One extra single-row primary-key query per authenticated request (the `profiles`
 
 #### Automated
 
-- [x] 1.1 `npx supabase db reset` applies the migration and seed without errors
-- [x] 1.2 `npx supabase db lint` reports no errors for the `public` schema
-- [x] 1.3 SQL check: seeded manager has role `manager`, and a fresh signup gets an `employee` profile
-- [x] 1.6 `src/db/database.types.ts` generated, wired into `src/lib/supabase.ts`, `npx astro check` passes
+- [x] 1.1 `npx supabase db reset` applies the migration and seed without errors — d7624ca
+- [x] 1.2 `npx supabase db lint` reports no errors for the `public` schema — d7624ca
+- [x] 1.3 SQL check: seeded manager has role `manager`, and a fresh signup gets an `employee` profile — d7624ca
+- [x] 1.6 `src/db/database.types.ts` generated, wired into `src/lib/supabase.ts`, `npx astro check` passes — d7624ca
 
 #### Manual
 
-- [x] 1.4 Employee impersonation reads only own profile row and cannot update role
-- [x] 1.5 Manager impersonation reads all rows; last-manager demotion fails, demotion with a second manager succeeds
+- [x] 1.4 Employee impersonation reads only own profile row and cannot update role — d7624ca
+- [x] 1.5 Manager impersonation reads all rows; last-manager demotion fails, demotion with a second manager succeeds — d7624ca
 
 ### Phase 2: Session role enforcement
 
 #### Automated
 
-- [ ] 2.1 `npm run lint` passes
-- [ ] 2.2 `npx astro check` passes
-- [ ] 2.3 `npm run build` passes
+- [x] 2.1 `npm run lint` passes
+- [x] 2.2 `npx astro check` passes
+- [x] 2.3 `npm run build` passes
 
 #### Manual
 
-- [ ] 2.4 Employee sees role "employee", no Users link, and a 403 page with status 403 on `/manager/users`
-- [ ] 2.5 Anonymous visit to `/manager/users` redirects to `/auth/signin`
-- [ ] 2.6 Seeded manager sees role "manager" and a Users link on both the home top bar and the dashboard
+- [x] 2.4 Employee sees role "employee", no Users link, and a 403 page with status 403 on `/manager/users`
+- [x] 2.5 Anonymous visit to `/manager/users` redirects to `/auth/signin`
+- [x] 2.6 Seeded manager sees role "manager" and a Users link on both the home top bar and the dashboard
 
 ### Phase 3: Manager role management
 

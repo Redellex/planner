@@ -1,7 +1,8 @@
 ---
 import Layout from "@/layouts/Layout.astro";
+import { cn } from "@/lib/utils";
 
-const { user } = Astro.locals;
+const { user, role } = Astro.locals;
 ---
 
 <Layout title="Dashboard">
@@ -13,7 +14,21 @@ const { user } = Astro.locals;
       <p class="text-blue-100/80">
         Welcome, <span class="font-semibold text-white">{user?.email}</span>
       </p>
+      {role && (
+        <p class="mt-2 text-sm text-blue-100/70">
+          Role:{" "}
+          <span class:list={cn("font-semibold", role === "manager" ? "text-purple-200" : "text-white")}>{role}</span>
+        </p>
+      )}
       <p class="mt-2 text-sm text-blue-100/50">This page is only for authenticated users.</p>
+      {role === "manager" && (
+        <a
+          href="/manager/users"
+          class="mt-6 inline-block rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm transition-colors hover:bg-white/20"
+        >
+          Users
+        </a>
+      )}
       <form method="POST" action="/api/auth/signout" class="mt-6">
         <button
           type="submit"
