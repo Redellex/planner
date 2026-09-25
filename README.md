@@ -128,6 +128,8 @@ SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_KEY=<anon-key>
 ```
 
+`npm run dev` runs in the Cloudflare workerd runtime and reads secrets from `.dev.vars`, so that file must be present. If email confirmation is on (the production default), confirmation links go to the project's **Site URL**, not `localhost`. Confirm the account there, then sign in locally.
+
 ### Email confirmation in local development
 
 By default Supabase requires email confirmation before a user can sign in. To skip this during local development:

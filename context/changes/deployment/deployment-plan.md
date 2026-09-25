@@ -2,7 +2,9 @@
 
 ## Context
 
-`context/foundation/infrastructure.md` already recommends Cloudflare Workers (the repo is pre-wired for it: `@astrojs/cloudflare` + `wrangler` are installed, `wrangler.jsonc` exists) and documents an operational story, risk register, and getting-started steps. What's missing is the actual first production deployment: there is currently **no git repository**, **no production Supabase project**, **no deploy automation**, and the Worker is still named after the starter template rather than the project. This plan turns `infrastructure.md`'s recommendation into a concrete, sequenced, checkbox-trackable rollout, and becomes the source for `context/deployment/deploy-plan.md` once executed (per `CLAUDE.md`'s "Plan Mode deploy" hand-off).
+`context/foundation/infrastructure.md` already recommends Cloudflare Workers (the repo is pre-wired for it: `@astrojs/cloudflare` + `wrangler` are installed, `wrangler.jsonc` exists) and documents an operational story, risk register, and getting-started steps. This plan turns `infrastructure.md`'s recommendation into a concrete, sequenced, checkbox-trackable rollout, and becomes the source for `context/deployment/deploy-plan.md` once executed (per `CLAUDE.md`'s "Plan Mode deploy" hand-off).
+
+**Status update (2026-09-21):** Phase 0 (Cloudflare account + API token, GitHub repo), Phase 1 (git init/commit/push), and Phase 3 (production Supabase project) are now done. The Worker has been renamed to `planner` in `wrangler.jsonc`. Still outstanding: the `package.json` deploy script and a local build check (rest of Phase 2), secrets wiring (Phase 4), the first manual deploy (Phase 5), and Workers Builds auto-deploy (Phase 6). See the phase checklists below for the current, accurate state.
 
 Two things surfaced during research that revise `infrastructure.md`'s own content and are corrected here rather than blindly followed:
 - The GitHub issue `infrastructure.md` cites as an **open, unresolved** blocker (`supabase/supabase#37592`, dynamic `require("stream")` on Workers) is actually **closed** (2025-09-04, closed for inactivity after a maintainer asked whether `nodejs_compat` was set — no confirmed reproduction after that). The mitigation is unchanged (`nodejs_compat` + a recent `compatibility_date`, both already correctly set in `wrangler.jsonc`), but the risk's urgency should be downgraded, not treated as a live bug.
@@ -11,32 +13,33 @@ Two things surfaced during research that revise `infrastructure.md`'s own conten
 **Decisions confirmed with the user:**
 - Worker name: rename to **`planner`** (from the template default `10x-astro-starter`) before the first deploy.
 - Auto-deploy on push: use **Cloudflare Workers Builds** (native Git integration), not a custom GitHub Actions deploy job.
-- Production Supabase project: **does not exist yet** — this plan creates one.
+- Production Supabase project: created and configured (Phase 3, done 2026-09-21).
 - Production auth-flow verification: **manual check only** for sign-in/dashboard/sign-out (the automated smoke script stays local/CI-only, since hosted Supabase requires email confirmation by default and local dev config disables it).
+- Secret wiring (Phase 4): agent-assisted via non-interactive `wrangler secret put`, exact handoff mechanism (how the API token and Supabase values reach the agent) TBD at execution time.
 
 ---
 
 ## Phase 0 — Prerequisites (manual, human-gated)
 
-- [ ] Confirm/create a Cloudflare account (free tier covers this MVP's traffic — 100k requests/day free tier, ~$0/month per `infrastructure.md`'s cost analysis).
-- [ ] Create a scoped Cloudflare API token (Account → API Tokens → Create Token, "Edit Cloudflare Workers" template or custom: Workers Scripts *Edit*, no DNS zone access, no billing access, scoped to this account only). This token is for **local CLI use** (Phase 4/5 secret-setting and manual deploy) — Workers Builds (Phase 6) authenticates separately via its own GitHub App install and does not need this token. Save the value in a password manager.
-- [ ] Create a GitHub repository for this project (empty, no template). Decide public/private. Note the owner/org and clone URL — needed for Phase 1 and Phase 6.
+- [x] Confirm/create a Cloudflare account (free tier covers this MVP's traffic — 100k requests/day free tier, ~$0/month per `infrastructure.md`'s cost analysis).
+- [x] Create a scoped Cloudflare API token (Account → API Tokens → Create Token, "Edit Cloudflare Workers" template or custom: Workers Scripts *Edit*, no DNS zone access, no billing access, scoped to this account only). This token is for **local CLI use** (Phase 4/5 secret-setting and manual deploy) — Workers Builds (Phase 6) authenticates separately via its own GitHub App install and does not need this token. Save the value in a password manager.
+- [x] Create a GitHub repository for this project (empty, no template). Decide public/private. Note the owner/org and clone URL — needed for Phase 1 and Phase 6. Repo: `https://github.com/Redellex/planner.git`.
 
 ---
 
 ## Phase 1 — Git & GitHub Setup
 
-- [ ] `git init` in `E:\10xdevs\Planner` (currently not a git repo).
-- [ ] Confirm `.gitignore` already excludes `.env`, `.env.production`, `.dev.vars`, `.wrangler/`, `dist/`, `node_modules/` (already verified correct — no change expected, just a pre-commit sanity check).
-- [ ] Initial commit, `git remote add origin <url>`, `git push -u origin master`.
-- [ ] **Edge case:** double-check no `.env`/`.dev.vars` file is accidentally staged before the first commit (`git status` review) — these are gitignored but worth a manual glance given they'd contain real Supabase credentials once Phase 3/4 are done.
+- [x] `git init` in `E:\10xdevs\Planner` (currently not a git repo).
+- [x] Confirm `.gitignore` already excludes `.env`, `.env.production`, `.dev.vars`, `.wrangler/`, `dist/`, `node_modules/` (already verified correct — no change expected, just a pre-commit sanity check).
+- [x] Initial commit, `git remote add origin <url>`, `git push -u origin master`. Two commits pushed: `0ebe3bf Initial commit: Astro + Supabase auth starter with 10x-cli tooling`, `4d90e6c Renamed project to planner`; `origin/master` up to date, working tree clean.
+- [x] **Edge case:** double-check no `.env`/`.dev.vars` file is accidentally staged before the first commit (`git status` review) — these are gitignored but worth a manual glance given they'd contain real Supabase credentials once Phase 3/4 are done.
 
 ---
 
 ## Phase 2 — Local Config Verification & Small Additions
 
-- [ ] Rename `wrangler.jsonc`'s `"name"` field from `"10x-astro-starter"` to `"planner"`. This becomes the production URL: `planner.<account>.workers.dev` — note the exact predicted URL for use in Phase 3's Supabase redirect config.
-- [ ] Sanity-check (no change expected, just confirm before first deploy): `main` points at the Cloudflare adapter entrypoint, `compatibility_flags: ["nodejs_compat"]`, `compatibility_date` (`2026-05-08`) is ≥ 2024-09-23, `assets.binding: "ASSETS"` / `directory: "./dist"`, `observability.enabled: true`. All already correct.
+- [x] Rename `wrangler.jsonc`'s `"name"` field from `"10x-astro-starter"` to `"planner"`. This becomes the production URL: `planner.<account>.workers.dev` — note the exact predicted URL for use in Phase 3's Supabase redirect config. Confirmed: `wrangler.jsonc` now has `"name": "planner"`.
+- [x] Sanity-check (no change expected, just confirm before first deploy): `main` points at the Cloudflare adapter entrypoint, `compatibility_flags: ["nodejs_compat"]`, `compatibility_date` (`2026-05-08`) is ≥ 2024-09-23, `assets.binding: "ASSETS"` / `directory: "./dist"`, `observability.enabled: true`. All already correct.
 - [ ] Add a `"deploy": "astro build && wrangler deploy"` script to `package.json` — useful for the manual first deploy (Phase 5) and any future one-off manual re-deploys, even though routine deploys will run via Workers Builds after Phase 6.
 - [ ] `npm run build` locally — confirm a clean production build before touching Cloudflare at all, to isolate "build is broken" from "deploy config is broken."
 - [ ] **Edge case — Worker name collision:** before deploying, check the Cloudflare dashboard's Workers overview (or `npx wrangler deployments list` after auth in Phase 4) to confirm no existing Worker is already named `planner` on this account. `wrangler deploy` overwrites same-named Workers silently rather than erroring.
@@ -45,14 +48,18 @@ Two things surfaced during research that revise `infrastructure.md`'s own conten
 
 ## Phase 3 — Production Supabase Project
 
-- [ ] Create a new Supabase project at supabase.com (free tier; single gas station / small team traffic is well within it).
-- [ ] In the project's Auth settings, set **Site URL** to `https://planner.<account>.workers.dev` (the predicted URL from Phase 2) and add it to **Additional Redirect URLs**. This must happen *before* Phase 5's first deploy verification, or auth redirects will silently misbehave.
-- [ ] Copy the project's **URL** and **anon/public key** (Settings → API) — needed for Phase 4. Explicitly confirm this is the *anon* key, not the service-role key (the service-role key is never wired into this app or its secrets per `infrastructure.md`'s minimal-permissions posture).
-- [ ] Leave "Confirm email" **enabled** (production default) — this is intentional; local dev disables it, production doesn't, which is why Phase 7 uses manual verification instead of the automated smoke script.
+- [x] Create a new Supabase project at supabase.com (free tier; single gas station / small team traffic is well within it).
+- [x] In the project's Auth settings, set **Site URL** to `https://planner.<account>.workers.dev` (the predicted URL from Phase 2) and add it to **Additional Redirect URLs**. This must happen *before* Phase 5's first deploy verification, or auth redirects will silently misbehave.
+- [x] Copy the project's **URL** and **anon/public key** (Settings → API) — needed for Phase 4. Explicitly confirm this is the *anon* key, not the service-role key (the service-role key is never wired into this app or its secrets per `infrastructure.md`'s minimal-permissions posture).
+- [x] Leave "Confirm email" **enabled** (production default) — this is intentional; local dev disables it, production doesn't, which is why Phase 7 uses manual verification instead of the automated smoke script.
+
+*(Project confirmed created and configured by the user 2026-09-21; exact project ref/URL/key are not restated in this doc — they're only needed when Phase 4 actually runs.)*
 
 ---
 
 ## Phase 4 — Secrets Wiring
+
+**Execution note (added after a status check-in with the user, 2026-09-21):** the user wants this phase to be agent-assisted — the agent runs `wrangler secret put` non-interactively (e.g. piping the value in) instead of the user typing secrets by hand into a prompt. The exact handoff mechanism (how the Cloudflare API token and production Supabase URL/anon key reach the agent — env vars vs. some other channel) is intentionally not designed yet; design it when this phase is actually executed.
 
 - [ ] Authenticate wrangler: `npx wrangler login` (interactive/browser) — see Edge Cases for the headless alternative (`CLOUDFLARE_API_TOKEN` env var) if running from a shell with no GUI.
 - [ ] `npx wrangler secret put SUPABASE_URL` — paste the **production** Supabase project's URL from Phase 3. **Not** `http://127.0.0.1:54321` or any value from local `.env`/`supabase/config.toml`.
