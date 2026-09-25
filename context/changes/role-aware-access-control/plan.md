@@ -358,30 +358,30 @@ One extra single-row primary-key query per authenticated request (the `profiles`
 
 #### Automated
 
-- [x] 2.1 `npm run lint` passes
-- [x] 2.2 `npx astro check` passes
-- [x] 2.3 `npm run build` passes
+- [x] 2.1 `npm run lint` passes — 6f31c8b
+- [x] 2.2 `npx astro check` passes — 6f31c8b
+- [x] 2.3 `npm run build` passes — 6f31c8b
 
 #### Manual
 
-- [x] 2.4 Employee sees role "employee", no Users link, and a 403 page with status 403 on `/manager/users`
-- [x] 2.5 Anonymous visit to `/manager/users` redirects to `/auth/signin`
-- [x] 2.6 Seeded manager sees role "manager" and a Users link on both the home top bar and the dashboard
+- [x] 2.4 Employee sees role "employee", no Users link, and a 403 page with status 403 on `/manager/users` — 6f31c8b
+- [x] 2.5 Anonymous visit to `/manager/users` redirects to `/auth/signin` — 6f31c8b
+- [x] 2.6 Seeded manager sees role "manager" and a Users link on both the home top bar and the dashboard — 6f31c8b
 
 ### Phase 3: Manager role management
 
 #### Automated
 
-- [ ] 3.1 `npm run lint` passes
-- [ ] 3.2 `npx astro check` passes
-- [ ] 3.3 `npm run build` passes
+- [x] 3.1 `npm run lint` passes
+- [x] 3.2 `npx astro check` passes
+- [x] 3.3 `npm run build` passes
 
 #### Manual
 
-- [ ] 3.4 `/manager/users` lists all accounts with correct roles for the manager
-- [ ] 3.5 Promoting an employee to manager succeeds and grants the Users link
-- [ ] 3.6 Demoting the last manager shows "Cannot demote the last manager" and leaves the role unchanged
-- [ ] 3.7 Employee direct POST to `/api/manager/users/role` gets 403 and changes nothing
+- [x] 3.4 `/manager/users` lists all accounts with correct roles for the manager
+- [x] 3.5 Promoting an employee to manager succeeds and grants the Users link
+- [x] 3.6 Demoting the last manager shows "Cannot demote the last manager" and leaves the role unchanged
+- [x] 3.7 Employee direct POST to `/api/manager/users/role` gets 403 and changes nothing
 
 ### Phase 4: Smoke coverage and docs
 
