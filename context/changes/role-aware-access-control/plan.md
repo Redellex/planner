@@ -387,10 +387,10 @@ One extra single-row primary-key query per authenticated request (the `profiles`
 
 #### Automated
 
-- [ ] 4.1 `npm run smoke` passes against a freshly reset local Supabase
-- [x] 4.2 `npm run lint` and `npx astro check` pass
-- [ ] 4.3 CI `smoke` job passes on the branch
+- [x] 4.1 `npm run smoke` passes against a freshly reset local Supabase — 86945a4
+- [x] 4.2 `npm run lint` and `npx astro check` pass — 86945a4
+- [x] 4.3 CI `smoke` job passes on the branch — 86945a4
 
 #### Manual
 
-- [x] 4.4 `CLAUDE.md` accurately describes the role model and production manager bootstrap
+- [x] 4.4 `CLAUDE.md` accurately describes the role model and production manager bootstrap — 86945a4
