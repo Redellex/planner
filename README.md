@@ -55,7 +55,7 @@ npm run dev
 - `npm run lint` - Run ESLint with type-checked rules
 - `npm run lint:fix` - Auto-fix ESLint issues
 - `npm run format` - Run Prettier
-- `npm run smoke` - Smoke test the auth flow against a running server (`BASE_URL`, defaults to `http://localhost:4321`)
+- `npm run smoke` - Smoke test the auth, role and availability flows against a running server (`BASE_URL`, defaults to `http://localhost:4321`)
 
 ## Project Structure
 
@@ -66,7 +66,13 @@ npm run dev
 │ ├── pages/ # Astro pages
 │ │ └── api/ # API endpoints
 │ ├── components/ # UI components (Astro & React)
+│ ├── lib/ # Shared helpers (Supabase client, roles, availability)
+│ ├── db/ # Generated Supabase types (database.types.ts)
 │ └── assets/ # Static assets
+├── supabase/
+│ ├── migrations/ # SQL migrations (profiles/roles, availability)
+│ └── seed.sql # Local/CI seed users (never run in production)
+├── scripts/ # smoke.mjs
 ├── public/ # Public assets
 ├── wrangler.jsonc # Cloudflare Workers config
 ```
@@ -112,7 +118,16 @@ npx supabase stop
 
 The local Studio UI is available at `http://localhost:54323`.
 
-No database tables or migrations are required — this project uses Supabase Auth's built-in `auth.users` table only.
+`npx supabase start` applies the migrations in `supabase/migrations/` and `supabase/seed.sql`. Run `npx supabase db reset` to rebuild the database from scratch. The migrations create:
+
+- `public.profiles`: one row per user with a `manager` | `employee` role. New sign-ups become `employee`.
+- `public.availability_windows` and `public.availability_locks`: employee availability and the monthly lock.
+
+All of them are protected by row-level security. The seed creates two local users: `manager@example.com` / `Manager-Passw0rd!` and `employee@example.com` / `Employee-Passw0rd!`.
+
+After changing a migration, regenerate the types with `npx supabase gen types typescript --local > src/db/database.types.ts`.
+
+For a hosted project, apply migrations with `npx supabase db push`. Promote the first manager once in the SQL editor: `update public.profiles set role = 'manager' where email = '<email>';`
 
 ### Using a cloud Supabase project instead
 
@@ -140,16 +155,19 @@ By default Supabase requires email confirmation before a user can sign in. To sk
 
 Users can then sign in immediately after sign-up without clicking a confirmation link.
 
-### Auth routes
+### Routes
 
-| Route                 | Description                                                             |
-| --------------------- | ----------------------------------------------------------------------- |
-| `/auth/signin`        | Email/password sign-in form                                             |
-| `/auth/signup`        | Email/password sign-up form                                             |
-| `/auth/confirm-email` | Post-signup "check your inbox" page                                     |
-| `/dashboard`          | Example protected page (redirects to `/auth/signin` if unauthenticated) |
+| Route                 | Access    | Description                                                                           |
+| --------------------- | --------- | ------------------------------------------------------------------------------------- |
+| `/auth/signin`        | anyone    | Email/password sign-in form                                                           |
+| `/auth/signup`        | anyone    | Email/password sign-up form                                                           |
+| `/auth/confirm-email` | anyone    | Post-signup "check your inbox" page                                                   |
+| `/dashboard`          | signed in | Landing page after sign-in                                                            |
+| `/availability`       | signed in | Calendar for adding, editing and deleting your own availability for the next 3 months |
+| `/manager/users`      | manager   | Promote or demote users (the last manager cannot be demoted)                          |
+| `/manager/months`     | manager   | Lock or unlock an upcoming month's availability                                       |
 
-Route protection is handled in `src/middleware.ts`. Add paths to the `PROTECTED_ROUTES` array there to require authentication.
+Route protection is handled in `src/middleware.ts`. `PROTECTED_ROUTES` sends anonymous users to `/auth/signin`. `MANAGER_ROUTES` also returns 403 to non-managers. Postgres row-level security does the actual data enforcement.
 
 ## Deployment
 
@@ -171,14 +189,14 @@ Set `SUPABASE_URL` and `SUPABASE_KEY` as secrets in your Cloudflare dashboard or
 
 ## Smoke test
 
-`scripts/smoke.mjs` is a dependency-free Node script that walks the whole auth flow (sign-up, sign-in, protected page, sign-out) over HTTP. Run it against the dev server or the production preview after dependency upgrades:
+`scripts/smoke.mjs` is a dependency-free Node script that runs over HTTP. It walks the whole auth flow (sign-up, sign-in, protected page, sign-out). It also checks role enforcement: a new user gets 403 on `/manager/users`, and the last manager cannot be demoted. Finally, it checks the availability flow: add, overlap error, edit and delete a window, then a manager locks a month, a create in it is refused, and the manager unlocks it. Run it against the dev server or the production preview after dependency upgrades:
 
 ```bash
 npm run dev            # or: npm run build && npm run preview
 BASE_URL=http://localhost:4321 npm run smoke
 ```
 
-It needs a reachable Supabase instance (local or cloud) with email confirmation disabled.
+It needs a reachable Supabase instance with email confirmation disabled and `supabase/seed.sql` applied, because the manager steps sign in as the seeded manager. You can override that user with `SMOKE_MANAGER_EMAIL` / `SMOKE_MANAGER_PASSWORD`. If a run fails between the lock and unlock steps, see `CLAUDE.md` for how to unlock the month.
 
 > **Note:** this script exists primarily to guard the development of the starter itself — it is a fast sanity check that dependency upgrades did not break the build, the Cloudflare adapter or the Supabase auth flow. It is **not** a substitute for a real test suite. Once you build your own product on top of this starter, add proper tests (unit, integration, end-to-end) suited to your application.
 
