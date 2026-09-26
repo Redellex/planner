@@ -3,7 +3,7 @@ project: Planner
 version: 1
 status: draft
 created: 2026-09-24
-updated: 2026-09-24
+updated: 2026-09-26
 prd_version: 1
 main_goal: speed
 top_blocker: capacity
@@ -41,8 +41,8 @@ A gas-station manager currently builds the monthly shift schedule by hand in a s
 
 | ID   | Change ID                        | Outcome (user can …)                                                                  | Prerequisites | PRD refs                       | Status   |
 | ---- | -------------------------------- | ------------------------------------------------------------------------------------- | ------------- | ------------------------------ | -------- |
-| F-01 | role-aware-access-control        | (foundation) Manager/Employee roles exist and are enforced at the auth layer          | —             | Access Control, FR-001, FR-002 | ready    |
-| S-01 | employee-availability-management | Employee can create/edit their own monthly availability; locks once generation starts | F-01          | FR-001, Access Control         | proposed |
+| F-01 | role-aware-access-control        | (foundation) Manager/Employee roles exist and are enforced at the auth layer          | —             | Access Control, FR-001, FR-002 | done     |
+| S-01 | employee-availability-management | Employee can create/edit their own monthly availability; locks once generation starts | F-01          | FR-001, Access Control         | ready    |
 | S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | proposed |
 | S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | blocked  |
 | S-04 | review-override-publish-schedule | Manager reviews, overrides (with conflict warnings), and publishes the schedule       | S-03          | FR-004, FR-005, FR-006         | proposed |
@@ -72,9 +72,9 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Parallel with:** —
 - **Blockers:** —
 - **Unknowns:**
-  - How does a new account get assigned Manager vs. Employee — self-selected at signup, or does the manager invite/create employee accounts? PRD's Access Control section states the two roles but not the assignment flow. Owner: user. Block: no — `/10x-plan` can propose a reasonable default (e.g., a signup role picker) unless resolved here first.
+  - ~~How does a new account get assigned Manager vs. Employee — self-selected at signup, or does the manager invite/create employee accounts?~~ Resolved (2026-09-26, by the archived change): every signup becomes an Employee automatically; an existing Manager promotes/demotes accounts from a manager-only page, and the last Manager can never be demoted. No signup role picker, no invite flow.
 - **Risk:** Every downstream slice gates by role, so getting the role-assignment UX wrong here forces rework later — worth deciding early, but the decision is small enough not to block sequencing.
-- **Status:** ready
+- **Status:** done
 
 ## Slices
 
@@ -89,7 +89,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Unknowns:**
   - What shape is an "availability window" — one or more time ranges per day, a weekly recurring pattern, something else? PRD's Business Logic names "availability windows" without specifying the input shape. Owner: user. Block: no — `/10x-plan` can propose a schema and confirm with the user.
 - **Risk:** First slice to touch the data layer — the availability schema decided here constrains how S-02/S-03 read that data, so keep it minimal rather than over-designing ahead of need.
-- **Status:** proposed
+- **Status:** ready
 
 ### S-02: Manager availability visibility
 
@@ -145,9 +145,9 @@ Foundations below assume these are present and do NOT re-scaffold them.
 
 | Roadmap ID | Issue | Change ID                        | Suggested issue title                                           | Ready for `/10x-plan` | Notes                                     |
 | ---------- | ----- | -------------------------------- | --------------------------------------------------------------- | --------------------- | ----------------------------------------- |
-| F-01       | #1    | role-aware-access-control        | Add manager/employee roles to auth                              | yes                   | —                                         |
-| S-01       | #2    | employee-availability-management | Employee availability CRUD with monthly lock                    | no                    | Waiting on F-01                           |
-| S-02       | #3    | manager-availability-visibility  | Manager view of all employee availability                       | no                    | Waiting on F-01, S-01                     |
+| F-01       | #1    | role-aware-access-control        | Add manager/employee roles to auth                              | —                     | Done — archived 2026-09-26                |
+| S-01       | #2    | employee-availability-management | Employee availability CRUD with monthly lock                    | yes                   | Run `/10x-plan employee-availability-management` |
+| S-02       | #3    | manager-availability-visibility  | Manager view of all employee availability                       | no                    | Waiting on S-01                           |
 | S-03       | #4    | generate-monthly-schedule        | Auto-generate conflict-free, fairly-rotated monthly schedule    | no                    | Blocked — 2 unknowns need resolving first |
 | S-04       | #5    | review-override-publish-schedule | Manager review/override/publish workflow for generated schedule | no                    | Waiting on S-03                           |
 | S-05       | #6    | view-published-schedule          | Published schedule grid view for employees and managers         | no                    | Waiting on S-04                           |
@@ -171,4 +171,4 @@ Foundations below assume these are present and do NOT re-scaffold them.
 
 ## Done
 
-(Empty — `/10x-archive` appends here as changes are archived.)
+- **F-01: (foundation) Manager and Employee accounts are distinguishable at the auth layer — each account carries a role, enforced via database policy and session checks — so every downstream slice can safely gate data and UI by role.** — Archived 2026-09-26 → `context/archive/2026-09-25-role-aware-access-control/`. Lesson: —.

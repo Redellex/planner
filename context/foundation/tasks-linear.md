@@ -4,6 +4,7 @@ source: context/foundation/roadmap.md (v1)
 tracker: GitHub Issues
 repo: Redellex/planner
 migrated: 2026-09-25
+updated: 2026-09-26
 milestone: M-1 (GitHub milestone #1)
 ---
 
@@ -38,8 +39,8 @@ The roadmap's Backlog Handoff table already asks for "stable human-readable iden
 
 | Roadmap ID | Issue | Title                                                                  | Labels                                     | Milestone | Blocked by |
 | ---------- | ----- | ---------------------------------------------------------------------- | ------------------------------------------ | --------- | ---------- |
-| F-01       | #1    | [F-01] Add manager/employee roles to auth                              | roadmap, foundation, status:ready          | M-1       | —          |
-| S-01       | #2    | [S-01] Employee availability CRUD with monthly lock                    | roadmap, slice, status:proposed            | M-1       | #1         |
+| F-01       | #1    | [F-01] Add manager/employee roles to auth                              | roadmap, foundation — **closed** (done)    | M-1       | —          |
+| S-01       | #2    | [S-01] Employee availability CRUD with monthly lock                    | roadmap, slice, status:ready               | M-1       | #1         |
 | S-02       | #3    | [S-02] Manager view of all employee availability                       | roadmap, slice, status:proposed            | M-1       | #1, #2     |
 | S-03       | #4    | [S-03] Auto-generate conflict-free, fairly-rotated monthly schedule    | roadmap, slice, north-star, status:blocked | M-1       | #2         |
 | S-04       | #5    | [S-04] Manager review/override/publish workflow for generated schedule | roadmap, slice, status:proposed            | M-1       | #4         |
@@ -202,6 +203,7 @@ The temporary body files were kept in the session scratchpad and are not in the 
 
 ## What to do next
 
-1. **#1 (F-01)** is the only item marked `status:ready`. Start it with `/10x-new role-aware-access-control`.
+Status as of 2026-09-26: M-1 is 1/6 done. #1 (F-01) was delivered in PR #10 and archived to `context/archive/2026-09-25-role-aware-access-control/`.
+
+1. **#2 (S-01)** is the only item marked `status:ready`. Start it with `/10x-plan employee-availability-management`.
 2. **#4 (S-03, north star)** needs two answers before it can be planned: how "fair" long-shift rotation is defined, and what happens when no one's availability covers a shift.
-3. Commit the updated `roadmap.md` together with this file.

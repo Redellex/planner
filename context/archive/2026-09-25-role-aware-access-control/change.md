@@ -1,10 +1,10 @@
 ---
 change_id: role-aware-access-control
 title: Add Manager/Employee roles enforced at the auth layer
-status: implementing
+status: archived
 created: 2026-09-25
-updated: 2026-09-25
-archived_at: null
+updated: 2026-09-26
+archived_at: 2026-09-26T08:55:24Z
 ---
 
 ## Notes

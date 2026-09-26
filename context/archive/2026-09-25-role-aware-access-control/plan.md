@@ -372,25 +372,25 @@ One extra single-row primary-key query per authenticated request (the `profiles`
 
 #### Automated
 
-- [x] 3.1 `npm run lint` passes
-- [x] 3.2 `npx astro check` passes
-- [x] 3.3 `npm run build` passes
+- [x] 3.1 `npm run lint` passes — cc4cb44
+- [x] 3.2 `npx astro check` passes — cc4cb44
+- [x] 3.3 `npm run build` passes — cc4cb44
 
 #### Manual
 
-- [x] 3.4 `/manager/users` lists all accounts with correct roles for the manager
-- [x] 3.5 Promoting an employee to manager succeeds and grants the Users link
-- [x] 3.6 Demoting the last manager shows "Cannot demote the last manager" and leaves the role unchanged
-- [x] 3.7 Employee direct POST to `/api/manager/users/role` gets 403 and changes nothing
+- [x] 3.4 `/manager/users` lists all accounts with correct roles for the manager — cc4cb44
+- [x] 3.5 Promoting an employee to manager succeeds and grants the Users link — cc4cb44
+- [x] 3.6 Demoting the last manager shows "Cannot demote the last manager" and leaves the role unchanged — cc4cb44
+- [x] 3.7 Employee direct POST to `/api/manager/users/role` gets 403 and changes nothing — cc4cb44
 
 ### Phase 4: Smoke coverage and docs
 
 #### Automated
 
-- [ ] 4.1 `npm run smoke` passes against a freshly reset local Supabase
-- [ ] 4.2 `npm run lint` and `npx astro check` pass
-- [ ] 4.3 CI `smoke` job passes on the branch
+- [x] 4.1 `npm run smoke` passes against a freshly reset local Supabase — 86945a4
+- [x] 4.2 `npm run lint` and `npx astro check` pass — 86945a4
+- [x] 4.3 CI `smoke` job passes on the branch — 86945a4
 
 #### Manual
 
-- [ ] 4.4 `CLAUDE.md` accurately describes the role model and production manager bootstrap
+- [x] 4.4 `CLAUDE.md` accurately describes the role model and production manager bootstrap — 86945a4

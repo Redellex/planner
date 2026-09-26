@@ -6,7 +6,7 @@
 // `Date.UTC` on date parts and reads the result back with getUTC*.
 
 // Must match the 'Europe/Warsaw' literal in public.is_availability_month_editable
-// (supabase/migrations/20260926120000_create_availability.sql).
+// (supabase/migrations/20260926130000_create_availability.sql).
 export const STATION_TIME_ZONE = "Europe/Warsaw";
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
