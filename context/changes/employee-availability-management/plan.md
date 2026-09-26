@@ -434,33 +434,33 @@ The new migration is additive and runs automatically in local `db reset` and CI.
 
 #### Automated
 
-- [x] 1.1 `npx supabase db reset` applies both migrations and the seed without errors
-- [x] 1.2 `npx supabase db lint` reports no errors for the `public` schema
-- [x] 1.3 `src/db/database.types.ts` contains the new tables and `npx astro check` passes
-- [x] 1.4 SQL constraint check: overnight window inserts; 25h, zero-length and overlapping windows fail
+- [x] 1.1 `npx supabase db reset` applies both migrations and the seed without errors — 3ed1a8c
+- [x] 1.2 `npx supabase db lint` reports no errors for the `public` schema — 3ed1a8c
+- [x] 1.3 `src/db/database.types.ts` contains the new tables and `npx astro check` passes — 3ed1a8c
+- [x] 1.4 SQL constraint check: overnight window inserts; 25h, zero-length and overlapping windows fail — 3ed1a8c
 
 #### Manual
 
-- [x] 1.5 Employee impersonation: own-row insert/select only, current month and foreign `employee_id` refused, `employee_id` not updatable
-- [x] 1.6 Lock check: locked month refuses employee insert/update/delete; following month still writable
-- [x] 1.7 Manager impersonation reads all windows and can lock/unlock; employee cannot insert a lock
+- [x] 1.5 Employee impersonation: own-row insert/select only, current month and foreign `employee_id` refused, `employee_id` not updatable — 3ed1a8c
+- [x] 1.6 Lock check: locked month refuses employee insert/update/delete; following month still writable — 3ed1a8c
+- [x] 1.7 Manager impersonation reads all windows and can lock/unlock; employee cannot insert a lock — 3ed1a8c
 
 ### Phase 2: Employee availability page
 
 #### Automated
 
-- [ ] 2.1 `npm run lint` passes
-- [ ] 2.2 `npx astro check` passes
-- [ ] 2.3 `npm run build` passes
+- [x] 2.1 `npm run lint` passes
+- [x] 2.2 `npx astro check` passes
+- [x] 2.3 `npm run build` passes
 
 #### Manual
 
-- [ ] 2.4 Anonymous `/availability` redirects to sign-in; `/dashboard` still gated
-- [ ] 2.5 Employee adds, edits and deletes windows incl. overnight "(+1)" and overlap error
-- [ ] 2.6 Repeat-weekday add creates all matching windows; a clash inserts nothing
-- [ ] 2.7 SQL-locked month is read-only in the UI and replayed POSTs are refused; next month editable
-- [ ] 2.8 Manager's `/availability` shows only the manager's own windows
-- [ ] 2.9 "Availability" link shows in Topbar and dashboard for both roles
+- [x] 2.4 Anonymous `/availability` redirects to sign-in; `/dashboard` still gated
+- [x] 2.5 Employee adds, edits and deletes windows incl. overnight "(+1)" and overlap error
+- [x] 2.6 Repeat-weekday add creates all matching windows; a clash inserts nothing
+- [x] 2.7 SQL-locked month is read-only in the UI and replayed POSTs are refused; next month editable
+- [x] 2.8 Manager's `/availability` shows only the manager's own windows
+- [x] 2.9 "Availability" link shows in Topbar and dashboard for both roles
 
 ### Phase 3: Manager month lock
 

@@ -14,3 +14,4 @@ Roadmap S-01 (`context/foundation/roadmap.md`, backlog #2): Employee can create 
 - PRD refs: FR-001, Access Control (employee restricted to own data), NFR (availability visible only to that employee and the manager)
 - Prerequisite: F-01 `role-aware-access-control`
 - Open unknown (non-blocking): the shape of an "availability window". `/10x-plan` proposes a schema and confirms it with the user.
+- Phase 2 deviation (user-approved during manual testing, 2026-09-26): `/availability` renders a Monday-first calendar grid with a selected-day panel (`?month=YYYY-MM&day=YYYY-MM-DD`) instead of the planned per-day list. Edit/delete/add forms live in the panel; endpoints redirect back to the selected day.
