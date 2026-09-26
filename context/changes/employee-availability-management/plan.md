@@ -480,11 +480,11 @@ The new migration is additive and runs automatically in local `db reset` and CI.
 
 #### Automated
 
-- [x] 4.1 `npm run smoke` passes against a freshly reset local Supabase
-- [x] 4.2 `npm run smoke` passes a second time without a reset
-- [x] 4.3 `npm run lint` and `npx astro check` pass
+- [x] 4.1 `npm run smoke` passes against a freshly reset local Supabase — af1682e
+- [x] 4.2 `npm run smoke` passes a second time without a reset — af1682e
+- [x] 4.3 `npm run lint` and `npx astro check` pass — af1682e
 - [ ] 4.4 CI `smoke` job passes on the branch
 
 #### Manual
 
-- [x] 4.5 `CLAUDE.md` accurately describes the availability model, lock and station timezone rule
+- [x] 4.5 `CLAUDE.md` accurately describes the availability model, lock and station timezone rule — af1682e
