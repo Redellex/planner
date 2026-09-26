@@ -43,7 +43,7 @@ A gas-station manager currently builds the monthly shift schedule by hand in a s
 | ---- | -------------------------------- | ------------------------------------------------------------------------------------- | ------------- | ------------------------------ | -------- |
 | F-01 | role-aware-access-control        | (foundation) Manager/Employee roles exist and are enforced at the auth layer          | —             | Access Control, FR-001, FR-002 | done     |
 | S-01 | employee-availability-management | Employee can create/edit their own monthly availability; locks once generation starts | F-01          | FR-001, Access Control         | done     |
-| S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | proposed |
+| S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | ready    |
 | S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | blocked  |
 | S-04 | review-override-publish-schedule | Manager reviews, overrides (with conflict warnings), and publishes the schedule       | S-03          | FR-004, FR-005, FR-006         | proposed |
 | S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | proposed |
@@ -87,7 +87,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Parallel with:** —
 - **Blockers:** —
 - **Unknowns:**
-  - What shape is an "availability window" — one or more time ranges per day, a weekly recurring pattern, something else? PRD's Business Logic names "availability windows" without specifying the input shape. Owner: user. Block: no — `/10x-plan` can propose a schema and confirm with the user.
+  - ~~What shape is an "availability window" — one or more time ranges per day, a weekly recurring pattern, something else?~~ Resolved (2026-09-26, by the archived change): a window is a single `starts_at`–`ends_at` range (longer than 0, at most 24h, may run overnight), with no overlapping windows per employee. Employees add them per day on a calendar and can repeat one on the same weekday for the whole month. Times are Europe/Warsaw wall-clock. A month locks when a manager adds an `availability_locks` row.
 - **Risk:** First slice to touch the data layer — the availability schema decided here constrains how S-02/S-03 read that data, so keep it minimal rather than over-designing ahead of need.
 - **Status:** done
 
@@ -102,7 +102,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Unknowns:** —
 - **Risk:** Low-risk read-only view; kept parallel with S-03 (not a hard prerequisite of it) so it doesn't delay the riskier north-star slice.
 - **Handoff from S-01:** `availability_windows` has no `starts_at` index. The GiST exclusion index is led by `employee_id`, so decide whether a month-wide, all-employee query needs one.
-- **Status:** proposed
+- **Status:** ready
 
 ### S-03: Generate monthly schedule
 
@@ -149,14 +149,14 @@ Foundations below assume these are present and do NOT re-scaffold them.
 
 ## Backlog Handoff
 
-| Roadmap ID | Issue | Change ID                        | Suggested issue title                                           | Ready for `/10x-plan` | Notes                                     |
-| ---------- | ----- | -------------------------------- | --------------------------------------------------------------- | --------------------- | ----------------------------------------- |
-| F-01       | #1    | role-aware-access-control        | Add manager/employee roles to auth                              | —                     | Done — archived 2026-09-26                |
-| S-01       | #2    | employee-availability-management | Employee availability CRUD with monthly lock                    | yes                   | Run `/10x-plan employee-availability-management` |
-| S-02       | #3    | manager-availability-visibility  | Manager view of all employee availability                       | no                    | Waiting on S-01                           |
-| S-03       | #4    | generate-monthly-schedule        | Auto-generate conflict-free, fairly-rotated monthly schedule    | no                    | Blocked — 2 unknowns need resolving first |
-| S-04       | #5    | review-override-publish-schedule | Manager review/override/publish workflow for generated schedule | no                    | Waiting on S-03                           |
-| S-05       | #6    | view-published-schedule          | Published schedule grid view for employees and managers         | no                    | Waiting on S-04                           |
+| Roadmap ID | Issue | Change ID                        | Suggested issue title                                           | Ready for `/10x-plan` | Notes                                          |
+| ---------- | ----- | -------------------------------- | --------------------------------------------------------------- | --------------------- | ---------------------------------------------- |
+| F-01       | #1    | role-aware-access-control        | Add manager/employee roles to auth                              | —                     | Done — archived 2026-09-26                     |
+| S-01       | #2    | employee-availability-management | Employee availability CRUD with monthly lock                    | —                     | Done — archived 2026-09-26                     |
+| S-02       | #3    | manager-availability-visibility  | Manager view of all employee availability                       | yes                   | Run `/10x-new manager-availability-visibility` |
+| S-03       | #4    | generate-monthly-schedule        | Auto-generate conflict-free, fairly-rotated monthly schedule    | no                    | Blocked — 2 unknowns need resolving first      |
+| S-04       | #5    | review-override-publish-schedule | Manager review/override/publish workflow for generated schedule | no                    | Waiting on S-03                                |
+| S-05       | #6    | view-published-schedule          | Published schedule grid view for employees and managers         | no                    | Waiting on S-04                                |
 
 ## Open Roadmap Questions
 
