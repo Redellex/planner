@@ -12,6 +12,12 @@
       "sourceType": "github",
       "skillPath": "skills/10x-cli-setup/SKILL.md",
       "computedHash": "e40f93e08b4d4cd55206b5bd8c7c55d6fb8c0d6f4f070e9c999c91c0299f7e26"
+    },
+    "build-with-exa": {
+      "source": "exa-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/build-with-exa/SKILL.md",
+      "computedHash": "827eb52ab6ffb547145cc1f156bf2613d0eb595aa8472f806c4ecea3bbf83a7c"
     }
   }
 }
