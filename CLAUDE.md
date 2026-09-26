@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run lint` / `npm run lint:fix` — ESLint (type-checked rules)
 - `npm run format` — Prettier (includes prettier-plugin-astro and prettier-plugin-tailwindcss)
 - `npx astro check` — Astro/TypeScript type-check (not wired to a package.json script, but run in CI before build)
-- `npm run smoke` — dependency-free script (`scripts/smoke.mjs`) that walks the whole auth flow (sign-up → sign-in → protected page → sign-out) over HTTP against a running server; `BASE_URL` env, defaults to `http://localhost:4321`. Run after dependency upgrades. It is not a substitute for a real test suite — there is currently no unit/integration test runner in this repo.
+- `npm run smoke` — dependency-free script (`scripts/smoke.mjs`) that walks the whole auth flow (sign-up → sign-in → protected page → sign-out) plus the availability flow (the fresh user adds a window and gets an overlap error; the seeded manager locks a month, a create in it is refused, then unlocks) over HTTP against a running server; `BASE_URL` env, defaults to `http://localhost:4321`; manager credentials via `SMOKE_MANAGER_EMAIL`/`SMOKE_MANAGER_PASSWORD`, defaulting to the seed. It writes to the station month + 12 and can be re-run without a DB reset. Run after dependency upgrades. It is not a substitute for a real test suite — there is currently no unit/integration test runner in this repo.
 - Pre-commit (husky + lint-staged): `eslint --fix` on `*.{ts,tsx,astro}`, `prettier --write` on `*.{json,css,md}`.
 - CI (`.github/workflows/ci.yml`) runs two jobs on push/PR to `master`: `ci` (`npm ci` → `astro sync` → lint → `astro check` → build, needs `SUPABASE_URL`/`SUPABASE_KEY` secrets) and `smoke` (spins up local Supabase via its CLI, builds, serves the Cloudflare preview, runs the smoke script — no secrets needed).
 
@@ -26,6 +26,14 @@ Astro 7 SSR app (`output: "server"`, deployed via `@astrojs/cloudflare`) with Re
 - Auth pages: `src/pages/auth/{signin,signup,confirm-email}.astro`. Protected page example: `src/pages/dashboard.astro`.
 - `src/lib/config-status.ts` exposes `missingConfigs` so pages can render a "Supabase not configured" banner instead of crashing when secrets are absent (see `src/components/Banner.astro`).
 
+### Availability
+
+- Tables (`supabase/migrations/20260926120000_create_availability.sql`): `availability_windows` holds one row per window (`employee_id` defaults to `auth.uid()`, `starts_at`/`ends_at`). A check keeps a window longer than 0 and at most 24h, and the `availability_windows_no_overlap` exclusion constraint (`btree_gist`) forbids overlapping windows per employee (half-open ranges, so back-to-back is fine). A window belongs to the month of its `starts_at`. `availability_locks(month)`: a row (first day of the month) means the month is locked. Managers insert/delete it via `/manager/months`; schedule generation (S-03) will insert it too.
+- `public.is_availability_month_editable(month)` (SECURITY DEFINER) is true when the month is after the current station month and has no lock row. RLS uses it for every insert/update/delete of own windows (update checks both the old and the new row); managers can read all windows. Only `starts_at`/`ends_at` are updatable (column grant).
+- Timestamps are `timestamp without time zone` holding **Europe/Warsaw wall-clock** time. Handle them as strings/calendar parts (`"YYYY-MM-DDTHH:MM:00"`) and never pass them through `new Date(...)` (a UTC Worker shifts them). Station "now" lives in two places that must stay in sync: the `'Europe/Warsaw'` literal in the SQL helper and `STATION_TIME_ZONE` in `src/lib/availability.ts`.
+- `src/lib/availability.ts` — pure helpers shared by pages and endpoints: station month and `upcomingMonths()`, `parseMonth`/`parseDate`/`parseTime`, `buildWindow` (end ≤ start rolls to the next day, so `00:00`–`00:00` is a full day), same-weekday expansion, Monday-first `calendarWeeks`, labels, the PostgREST error-code → message mapping and redirect URLs. Calendar math uses `Date.UTC` on date parts only.
+- Routes: `/availability` (any signed-in user, `?month=YYYY-MM&day=YYYY-MM-DD`) is a Monday-first calendar grid for one of the next 3 months with a selected-day panel to add (optionally repeating on that weekday all month), edit and delete own windows; a locked month renders read-only. It filters `.eq("employee_id", user.id)` because managers can read everyone's windows. `/api/availability/{create,update,delete}` are form-POST + redirect endpoints that let RLS and the constraints decide. `/manager/months` and `/api/manager/months/lock` (manager-only via `MANAGER_ROUTES` in `src/middleware.ts`) lock and unlock upcoming months idempotently.
+
 ### Key conventions
 
 - Path alias `@/*` → `./src/*` (`tsconfig.json`).
@@ -39,7 +47,8 @@ Astro 7 SSR app (`output: "server"`, deployed via `@astrojs/cloudflare`) with Re
 
 - Node.js v22.14.0 (`.nvmrc`).
 - `SUPABASE_URL`, `SUPABASE_KEY` — copy `.env.example` to `.env` (Node/local Supabase) and to `.dev.vars` (Cloudflare local dev via `wrangler`/`astro dev`). Both are optional at the schema level; the app degrades to a "not configured" banner rather than failing, but auth routes won't work without them.
-- Local Supabase stack: `npx supabase start` (requires Docker); Studio at `http://localhost:54323`. No custom tables/migrations exist yet — only Supabase Auth's built-in `auth.users`.
+- Local Supabase stack: `npx supabase start` (requires Docker); Studio at `http://localhost:54323`. Migrations in `supabase/migrations/` create `profiles` (roles) and the availability tables; `npx supabase db reset` re-applies them plus `supabase/seed.sql`.
+- Seeded local accounts (dev/CI only): `manager@example.com` / `Manager-Passw0rd!` (manager) and `employee@example.com` / `Employee-Passw0rd!` (employee).
 - Deploy: `npm run build` then `npx wrangler deploy`; set the two Supabase secrets via the Cloudflare dashboard or `npx wrangler secret put`.
 
 ---

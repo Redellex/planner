@@ -1,10 +1,31 @@
-// Smoke test: proves the built app, the Cloudflare adapter and the Supabase auth flow still work together.
+// Smoke test: proves the built app, the Cloudflare adapter, the Supabase auth flow and the availability/lock flow
+// still work together. The manager steps need the seeded manager (supabase/seed.sql) or SMOKE_MANAGER_* env.
 // Zero dependencies on purpose. Run against a live server: BASE_URL=http://localhost:4321 node scripts/smoke.mjs
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:4321";
 const email = `smoke-${Date.now()}@example.com`;
 const password = "Smoke-Test-Passw0rd!";
+const managerEmail = process.env.SMOKE_MANAGER_EMAIL ?? "manager@example.com";
+const managerPassword = process.env.SMOKE_MANAGER_PASSWORD ?? "Manager-Passw0rd!";
 const jar = new Map();
+
+// Availability month for the smoke run: the current station month + 12, far from months used manually.
+// "Europe/Warsaw" mirrors STATION_TIME_ZONE in src/lib/availability.ts (and the SQL editability helper).
+function smokeMonth() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Warsaw",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+  const year = Number(parts.find((part) => part.type === "year").value);
+  const month = parts.find((part) => part.type === "month").value;
+  return `${year + 1}-${month}`;
+}
+
+const smokeMonthValue = smokeMonth();
+const windowForm = { date: `${smokeMonthValue}-01`, start: "08:00", end: "16:00" };
+// The create endpoint keeps the submitted date as the selected calendar day in its redirect.
+const availabilityRedirect = `/availability?month=${smokeMonthValue}&day=${smokeMonthValue}-01`;
 
 function cookieHeader() {
   return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
@@ -54,8 +75,46 @@ const steps = [
     { status: 302, location: "/" },
   ],
   ["dashboard renders for signed-in user", () => request("/dashboard"), { status: 200 }],
+  ["availability renders for signed-in user", () => request("/availability"), { status: 200 }],
+  [
+    "availability create adds a window",
+    () => request("/api/availability/create", { method: "POST", form: windowForm }),
+    { status: 302, location: `${availabilityRedirect}&updated=1` },
+  ],
+  [
+    "availability create rejects an overlapping window",
+    () => request("/api/availability/create", { method: "POST", form: windowForm }),
+    { status: 302, location: `${availabilityRedirect}&error=${encodeURIComponent("Overlaps an existing window")}` },
+  ],
   ["signout clears session", () => request("/api/auth/signout", { method: "POST" }), { status: 302, location: "/" }],
   ["dashboard redirects after signout", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
+  [
+    "signin accepts seeded manager",
+    () => {
+      jar.clear();
+      return request("/api/auth/signin", { method: "POST", form: { email: managerEmail, password: managerPassword } });
+    },
+    { status: 302, location: "/" },
+  ],
+  [
+    "manager locks the smoke month",
+    () => request("/api/manager/months/lock", { method: "POST", form: { month: smokeMonthValue, action: "lock" } }),
+    { status: 302, location: "/manager/months?updated=1" },
+  ],
+  [
+    "availability create is refused in a locked month",
+    () => request("/api/availability/create", { method: "POST", form: windowForm }),
+    {
+      status: 302,
+      location: `${availabilityRedirect}&error=${encodeURIComponent("This month is locked or no longer editable")}`,
+    },
+  ],
+  [
+    "manager unlocks the smoke month",
+    () => request("/api/manager/months/lock", { method: "POST", form: { month: smokeMonthValue, action: "unlock" } }),
+    { status: 302, location: "/manager/months?updated=1" },
+  ],
+  ["manager signout", () => request("/api/auth/signout", { method: "POST" }), { status: 302, location: "/" }],
 ];
 
 let failed = 0;

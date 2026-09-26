@@ -466,25 +466,25 @@ The new migration is additive and runs automatically in local `db reset` and CI.
 
 #### Automated
 
-- [x] 3.1 `npm run lint` passes
-- [x] 3.2 `npx astro check` passes
-- [x] 3.3 `npm run build` passes
+- [x] 3.1 `npm run lint` passes — a6ec2df
+- [x] 3.2 `npx astro check` passes — a6ec2df
+- [x] 3.3 `npm run build` passes — a6ec2df
 
 #### Manual
 
-- [x] 3.4 Employee gets 403 on `/manager/months` and sees no "Months" link
-- [x] 3.5 Manager lock makes employee view read-only; unlock restores editing with windows intact
-- [x] 3.6 Repeated lock and unlock are idempotent without errors
+- [x] 3.4 Employee gets 403 on `/manager/months` and sees no "Months" link — a6ec2df
+- [x] 3.5 Manager lock makes employee view read-only; unlock restores editing with windows intact — a6ec2df
+- [x] 3.6 Repeated lock and unlock are idempotent without errors — a6ec2df
 
 ### Phase 4: Smoke coverage and docs
 
 #### Automated
 
-- [ ] 4.1 `npm run smoke` passes against a freshly reset local Supabase
-- [ ] 4.2 `npm run smoke` passes a second time without a reset
-- [ ] 4.3 `npm run lint` and `npx astro check` pass
+- [x] 4.1 `npm run smoke` passes against a freshly reset local Supabase
+- [x] 4.2 `npm run smoke` passes a second time without a reset
+- [x] 4.3 `npm run lint` and `npx astro check` pass
 - [ ] 4.4 CI `smoke` job passes on the branch
 
 #### Manual
 
-- [ ] 4.5 `CLAUDE.md` accurately describes the availability model, lock and station timezone rule
+- [x] 4.5 `CLAUDE.md` accurately describes the availability model, lock and station timezone rule
