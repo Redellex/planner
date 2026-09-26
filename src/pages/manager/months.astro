@@ -1,0 +1,91 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { createClient } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
+import { formatMonth, formatStationInstant, monthStart, upcomingMonths } from "@/lib/availability";
+
+const updated = Astro.url.searchParams.get("updated") === "1";
+let error = Astro.url.searchParams.get("error");
+
+const months = upcomingMonths();
+// month (YYYY-MM) -> locked_at (timestamptz)
+const lockedAt = new Map<string, string>();
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+if (!supabase) {
+  error ??= "Supabase is not configured";
+} else {
+  const { data, error: queryError } = await supabase
+    .from("availability_locks")
+    .select("month, locked_at")
+    .in("month", months.map(monthStart));
+  if (queryError) {
+    error ??= queryError.message;
+  } else {
+    for (const lock of data) {
+      lockedAt.set(lock.month.slice(0, 7), lock.locked_at);
+    }
+  }
+}
+
+const buttonClass =
+  "rounded-lg border border-white/20 bg-white/10 px-3 py-1 text-sm transition-colors hover:bg-white/20";
+---
+
+<Layout title="Months">
+  <div class="bg-cosmic flex min-h-screen items-center justify-center p-4">
+    <div class="w-full max-w-2xl rounded-2xl border border-white/10 bg-white/10 p-8 text-white backdrop-blur-xl">
+      <h1 class="mb-2 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-center text-2xl font-bold text-transparent">
+        Months
+      </h1>
+      <p class="mb-6 text-center text-sm text-blue-100/60">
+        Locking a month starts scheduling: employees can no longer change their availability for it.
+      </p>
+      {error && (
+        <p role="alert" class="mb-4 rounded-lg border border-red-500/30 bg-red-900/30 px-3 py-2 text-sm text-red-300">
+          {error}
+        </p>
+      )}
+      {updated && !error && (
+        <p
+          role="status"
+          class="mb-4 rounded-lg border border-green-500/30 bg-green-900/30 px-3 py-2 text-sm text-green-300"
+        >
+          Month updated.
+        </p>
+      )}
+      <ul class="divide-y divide-white/10">
+        {months.map((month) => {
+          const locked = lockedAt.get(month);
+          const label = formatMonth(month);
+          return (
+            <li class="flex flex-wrap items-center justify-between gap-3 py-3">
+              <span class="flex flex-col">
+                <span class="text-sm font-semibold text-blue-100/90">{label}</span>
+                <span class:list={cn("text-xs", locked ? "text-purple-200" : "text-blue-100/60")}>
+                  {locked ? `Locked since ${formatStationInstant(locked)}` : "Open"}
+                </span>
+              </span>
+              <form method="POST" action="/api/manager/months/lock">
+                <input type="hidden" name="month" value={month} />
+                <input type="hidden" name="action" value={locked ? "unlock" : "lock"} />
+                <button
+                  type="submit"
+                  aria-label={locked ? `Unlock ${label}` : `Lock ${label}`}
+                  class:list={buttonClass}
+                >
+                  {locked ? "Unlock" : "Lock"}
+                </button>
+              </form>
+            </li>
+          );
+        })}
+      </ul>
+      <div class="mt-6 text-center">
+        <a href="/dashboard" class:list={cn(buttonClass, "inline-block px-4 py-2")}>
+          Back to dashboard
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>

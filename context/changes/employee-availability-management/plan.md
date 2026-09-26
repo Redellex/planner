@@ -449,32 +449,32 @@ The new migration is additive and runs automatically in local `db reset` and CI.
 
 #### Automated
 
-- [x] 2.1 `npm run lint` passes
-- [x] 2.2 `npx astro check` passes
-- [x] 2.3 `npm run build` passes
+- [x] 2.1 `npm run lint` passes — d69c149
+- [x] 2.2 `npx astro check` passes — d69c149
+- [x] 2.3 `npm run build` passes — d69c149
 
 #### Manual
 
-- [x] 2.4 Anonymous `/availability` redirects to sign-in; `/dashboard` still gated
-- [x] 2.5 Employee adds, edits and deletes windows incl. overnight "(+1)" and overlap error
-- [x] 2.6 Repeat-weekday add creates all matching windows; a clash inserts nothing
-- [x] 2.7 SQL-locked month is read-only in the UI and replayed POSTs are refused; next month editable
-- [x] 2.8 Manager's `/availability` shows only the manager's own windows
-- [x] 2.9 "Availability" link shows in Topbar and dashboard for both roles
+- [x] 2.4 Anonymous `/availability` redirects to sign-in; `/dashboard` still gated — d69c149
+- [x] 2.5 Employee adds, edits and deletes windows incl. overnight "(+1)" and overlap error — d69c149
+- [x] 2.6 Repeat-weekday add creates all matching windows; a clash inserts nothing — d69c149
+- [x] 2.7 SQL-locked month is read-only in the UI and replayed POSTs are refused; next month editable — d69c149
+- [x] 2.8 Manager's `/availability` shows only the manager's own windows — d69c149
+- [x] 2.9 "Availability" link shows in Topbar and dashboard for both roles — d69c149
 
 ### Phase 3: Manager month lock
 
 #### Automated
 
-- [ ] 3.1 `npm run lint` passes
-- [ ] 3.2 `npx astro check` passes
-- [ ] 3.3 `npm run build` passes
+- [x] 3.1 `npm run lint` passes
+- [x] 3.2 `npx astro check` passes
+- [x] 3.3 `npm run build` passes
 
 #### Manual
 
-- [ ] 3.4 Employee gets 403 on `/manager/months` and sees no "Months" link
-- [ ] 3.5 Manager lock makes employee view read-only; unlock restores editing with windows intact
-- [ ] 3.6 Repeated lock and unlock are idempotent without errors
+- [x] 3.4 Employee gets 403 on `/manager/months` and sees no "Months" link
+- [x] 3.5 Manager lock makes employee view read-only; unlock restores editing with windows intact
+- [x] 3.6 Repeated lock and unlock are idempotent without errors
 
 ### Phase 4: Smoke coverage and docs
 

@@ -200,6 +200,22 @@ export function formatMonth(month: string): string {
   return MONTH_FORMAT.format(dateToUtcMs(monthStart(month)));
 }
 
+// Unlike the wall-clock window strings, a timestamptz value (e.g. availability_locks.locked_at) is a real
+// instant, so it is parsed with Date and shown in station time.
+const STATION_INSTANT_FORMAT = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: STATION_TIME_ZONE,
+});
+
+/** `"26 Sept 2026, 14:05"` style station-time text for a timestamptz value. */
+export function formatStationInstant(timestamptz: string): string {
+  return STATION_INSTANT_FORMAT.format(new Date(timestamptz));
+}
+
 /** User-facing message for a failed availability write, keyed by PostgREST error code. */
 export function describeWriteError(error: { code: string; message: string }): string {
   switch (error.code) {
