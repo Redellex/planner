@@ -101,6 +101,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Low-risk read-only view; kept parallel with S-03 (not a hard prerequisite of it) so it doesn't delay the riskier north-star slice.
+- **Handoff from S-01:** `availability_windows` has no `starts_at` index. The GiST exclusion index is led by `employee_id`, so decide whether a month-wide, all-employee query needs one.
 - **Status:** proposed
 
 ### S-03: Generate monthly schedule
@@ -115,6 +116,11 @@ Foundations below assume these are present and do NOT re-scaffold them.
   - What exactly defines "fair" long-shift rotation — equal count over the month, a rolling window across months, something else? PRD's Business Logic says shifts should "rotate ... rather than repeatedly falling on the same person" and stay "as close to each other as possible," but doesn't define the metric precisely. Owner: user. Block: yes — the generator's core acceptance criterion can't be planned without this.
   - What should happen when no employee's availability covers a shift (insufficient coverage)? PRD doesn't specify fallback behavior. Owner: user. Block: yes — the generator needs a defined behavior for this case before it can be planned.
 - **Risk:** This is the riskiest, most complex slice in the PRD by its own admission (the FR-003 Socrates note explicitly considered and rejected cutting it) — sequenced immediately after the minimal data prerequisite (S-01) rather than deferred, so the hardest technical bet gets tested early while there's still runway to descope if needed.
+- **Handoff from S-01:**
+  - `availability_windows.employee_id` is `on delete cascade`. Deleting a user drops their windows even in locked months, so revisit this (restrict or soft-delete) once schedules are persisted.
+  - Month-wide reads may need a `starts_at` index (see S-02).
+  - A window belongs to its `starts_at` month and may spill into day 1 of the next month; writes require both months to be editable.
+  - Durations are wall-clock, with no DST correction.
 - **Status:** blocked
 
 ### S-04: Review, override, and publish schedule
