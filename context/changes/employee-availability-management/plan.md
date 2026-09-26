@@ -483,7 +483,7 @@ The new migration is additive and runs automatically in local `db reset` and CI.
 - [x] 4.1 `npm run smoke` passes against a freshly reset local Supabase — af1682e
 - [x] 4.2 `npm run smoke` passes a second time without a reset — af1682e
 - [x] 4.3 `npm run lint` and `npx astro check` pass — af1682e
-- [ ] 4.4 CI `smoke` job passes on the branch
+- [x] 4.4 CI `smoke` job passes on the branch — 5428bb9
 
 #### Manual
 
