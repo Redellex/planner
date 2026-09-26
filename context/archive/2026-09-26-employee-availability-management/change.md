@@ -1,10 +1,10 @@
 ---
 change_id: employee-availability-management
 title: Employee availability CRUD with monthly lock
-status: impl_reviewed
+status: archived
 created: 2026-09-26
 updated: 2026-09-26
-archived_at: null
+archived_at: 2026-09-26T11:42:33Z
 ---
 
 ## Notes
