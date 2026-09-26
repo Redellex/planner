@@ -1,0 +1,319 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { createClient } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
+import {
+  addMonths,
+  calendarWeeks,
+  dateOf,
+  dayOfMonth,
+  formatDay,
+  formatMonth,
+  formatWindow,
+  formatWindowCompact,
+  monthOfDate,
+  monthStart,
+  parseDate,
+  parseMonth,
+  timeOf,
+  upcomingMonths,
+  weekdayName,
+} from "@/lib/availability";
+import type { Tables } from "@/db/database.types";
+
+type WindowRow = Pick<Tables<"availability_windows">, "id" | "starts_at" | "ends_at">;
+
+const WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+
+const { user } = Astro.locals;
+const updated = Astro.url.searchParams.get("updated") === "1";
+let error = Astro.url.searchParams.get("error");
+
+const months = upcomingMonths();
+const [defaultMonth] = months;
+const requestedMonth = parseMonth(Astro.url.searchParams.get("month"));
+const month = requestedMonth && months.includes(requestedMonth) ? requestedMonth : defaultMonth;
+const requestedDay = parseDate(Astro.url.searchParams.get("day"));
+const selectedDay = requestedDay && monthOfDate(requestedDay) === month ? requestedDay : monthStart(month);
+const weeks = calendarWeeks(month);
+
+let windows: WindowRow[] = [];
+// An overnight window from the previous month's last day that runs into day 1 (at most one: windows never overlap).
+let carryOver: WindowRow | null = null;
+const lockedMonths = new Set<string>();
+// Fail closed: when the lock rows cannot be read, render the month read-only.
+let lockStateUnknown = false;
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+if (!supabase) {
+  error ??= "Supabase is not configured";
+} else if (user) {
+  const [windowsResult, carryOverResult, locksResult] = await Promise.all([
+    // Managers can read every window, so filter to the signed-in user explicitly.
+    supabase
+      .from("availability_windows")
+      .select("id, starts_at, ends_at")
+      .eq("employee_id", user.id)
+      .gte("starts_at", monthStart(month))
+      .lt("starts_at", monthStart(addMonths(month, 1)))
+      .order("starts_at", { ascending: true }),
+    supabase
+      .from("availability_windows")
+      .select("id, starts_at, ends_at")
+      .eq("employee_id", user.id)
+      .lt("starts_at", monthStart(month))
+      .gt("ends_at", monthStart(month))
+      .limit(1),
+    supabase.from("availability_locks").select("month").in("month", months.map(monthStart)),
+  ]);
+
+  if (windowsResult.error) {
+    error ??= windowsResult.error.message;
+  } else {
+    windows = windowsResult.data;
+  }
+  if (carryOverResult.error) {
+    error ??= carryOverResult.error.message;
+  } else {
+    carryOver = carryOverResult.data[0] ?? null;
+  }
+  if (locksResult.error) {
+    lockStateUnknown = true;
+    error ??= locksResult.error.message;
+  } else {
+    for (const lock of locksResult.data) {
+      lockedMonths.add(lock.month.slice(0, 7));
+    }
+  }
+}
+
+const locked = lockStateUnknown || lockedMonths.has(month);
+const windowsByDay = new Map<string, WindowRow[]>();
+for (const row of windows) {
+  const day = dateOf(row.starts_at);
+  windowsByDay.set(day, [...(windowsByDay.get(day) ?? []), row]);
+}
+const selectedWindows = windowsByDay.get(selectedDay) ?? [];
+// Shown read-only on day 1; it is edited from the day it starts on.
+const firstDay = monthStart(month);
+const carryOverLabel = carryOver
+  ? `00:00 – ${timeOf(carryOver.ends_at)} (from ${formatDay(dateOf(carryOver.starts_at))})`
+  : null;
+const selectedCarryOver = selectedDay === firstDay ? carryOverLabel : null;
+const selectedLabel = formatDay(selectedDay);
+
+const inputClass = "rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-sm text-white";
+const buttonClass =
+  "rounded-lg border border-white/20 bg-white/10 px-3 py-1 text-sm transition-colors hover:bg-white/20";
+---
+
+<Layout title="Availability">
+  <div class="bg-cosmic flex min-h-screen justify-center p-4">
+    <div class="w-full max-w-2xl self-start rounded-2xl border border-white/10 bg-white/10 p-4 text-white backdrop-blur-xl sm:p-8">
+      <h1 class="mb-6 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-center text-2xl font-bold text-transparent">
+        Availability
+      </h1>
+      {error && (
+        <p role="alert" class="mb-4 rounded-lg border border-red-500/30 bg-red-900/30 px-3 py-2 text-sm text-red-300">
+          {error}
+        </p>
+      )}
+      {updated && !error && (
+        <p
+          role="status"
+          class="mb-4 rounded-lg border border-green-500/30 bg-green-900/30 px-3 py-2 text-sm text-green-300"
+        >
+          Availability saved.
+        </p>
+      )}
+
+      <nav aria-label="Months" class="mb-6 flex flex-wrap justify-center gap-2">
+        {months.map((option) => (
+          <a
+            href={`/availability?month=${option}`}
+            aria-current={option === month ? "page" : undefined}
+            class:list={cn(
+              "rounded-lg border px-3 py-1 text-sm transition-colors",
+              option === month
+                ? "border-purple-300/60 bg-white/20 text-white"
+                : "border-white/20 bg-white/5 text-blue-100/80 hover:bg-white/15",
+            )}
+          >
+            {formatMonth(option)}
+            {lockedMonths.has(option) && <span class="ml-1 text-xs text-purple-200">(Locked)</span>}
+          </a>
+        ))}
+      </nav>
+
+      {locked && (
+        <p
+          role="status"
+          class="mb-6 rounded-lg border border-purple-300/30 bg-purple-900/30 px-3 py-2 text-sm text-purple-100"
+        >
+          {lockStateUnknown
+            ? `Could not check whether ${formatMonth(month)} is locked. Availability is read-only until the page loads normally.`
+            : `Locked — scheduling has started for ${formatMonth(month)}. Availability for this month is read-only.`}
+        </p>
+      )}
+
+      <section aria-label={`Calendar for ${formatMonth(month)}`} class="mb-6">
+        <div aria-hidden="true" class="mb-1 grid grid-cols-7 gap-1 text-center text-xs text-blue-100/60">
+          {WEEKDAY_HEADERS.map((header) => (
+            <span>{header}</span>
+          ))}
+        </div>
+        <div class="grid grid-cols-7 gap-1">
+          {weeks.flat().map((day) => {
+            if (!day) {
+              return <span aria-hidden="true" class="min-h-11 sm:min-h-16" />;
+            }
+            const dayWindows = windowsByDay.get(day) ?? [];
+            const dayCarryOver = day === firstDay ? carryOver : null;
+            const selected = day === selectedDay;
+            const windowCount = dayWindows.length + (dayCarryOver ? 1 : 0);
+            const hasWindows = windowCount > 0;
+            const labels = [
+              ...(dayCarryOver && carryOverLabel ? [carryOverLabel] : []),
+              ...dayWindows.map(formatWindow),
+            ];
+            const summary = hasWindows ? labels.join(", ") : "no windows";
+            return (
+              <a
+                href={`/availability?month=${month}&day=${day}`}
+                aria-current={selected ? "date" : undefined}
+                aria-label={`${formatDay(day)}: ${summary}`}
+                class:list={cn(
+                  "flex min-h-11 flex-col items-center gap-0.5 rounded-lg border p-1 text-xs transition-colors sm:min-h-16 sm:items-start",
+                  hasWindows ? "border-purple-300/40 bg-purple-500/15" : "border-white/10 bg-white/5",
+                  selected ? "border-purple-200 bg-white/25 ring-1 ring-purple-200" : "hover:bg-white/15",
+                )}
+              >
+                <span class="font-semibold text-white">{dayOfMonth(day)}</span>
+                {hasWindows && (
+                  <>
+                    <span class="flex items-center gap-0.5 text-[10px] text-purple-200 sm:hidden">
+                      <span class="h-1.5 w-1.5 rounded-full bg-purple-300" />
+                      {windowCount > 1 && windowCount}
+                    </span>
+                    {dayCarryOver && (
+                      <span class="hidden w-full truncate text-blue-100/60 sm:block">
+                        …–{timeOf(dayCarryOver.ends_at)}
+                      </span>
+                    )}
+                    {dayWindows.map((row) => (
+                      <span class="hidden w-full truncate text-blue-100/90 sm:block">{formatWindowCompact(row)}</span>
+                    ))}
+                  </>
+                )}
+              </a>
+            );
+          })}
+        </div>
+      </section>
+
+      <section aria-labelledby="selected-day-heading" class="rounded-xl border border-white/10 bg-white/5 p-4">
+        <h2 id="selected-day-heading" class="mb-3 text-base font-semibold text-blue-100">
+          {selectedLabel}
+        </h2>
+        {selectedWindows.length === 0 && !selectedCarryOver ? (
+          <p class="mb-3 text-sm text-blue-100/50">— No windows</p>
+        ) : (
+          <ul class="mb-3 flex flex-col gap-2">
+            {selectedCarryOver && <li class="text-sm text-blue-100/60">{selectedCarryOver}</li>}
+            {selectedWindows.map((row) => {
+              const label = formatWindow(row);
+              return (
+                <li class="flex flex-wrap items-center gap-2 text-sm">
+                  {locked ? (
+                    <span class="text-blue-100/90">{label}</span>
+                  ) : (
+                    <>
+                      <form method="POST" action="/api/availability/update" class="flex flex-wrap items-center gap-2">
+                        <input type="hidden" name="id" value={row.id} />
+                        <input type="hidden" name="date" value={selectedDay} />
+                        <label class="sr-only" for={`start-${row.id}`}>
+                          Start of {label} on {selectedLabel}
+                        </label>
+                        <input
+                          id={`start-${row.id}`}
+                          type="time"
+                          name="start"
+                          required
+                          value={timeOf(row.starts_at)}
+                          class:list={inputClass}
+                        />
+                        <span aria-hidden="true">–</span>
+                        <label class="sr-only" for={`end-${row.id}`}>
+                          End of {label} on {selectedLabel}
+                        </label>
+                        <input
+                          id={`end-${row.id}`}
+                          type="time"
+                          name="end"
+                          required
+                          value={timeOf(row.ends_at)}
+                          class:list={inputClass}
+                        />
+                        {dateOf(row.ends_at) !== selectedDay && <span class="text-xs text-blue-100/60">(+1)</span>}
+                        <button type="submit" aria-label={`Save ${label} on ${selectedLabel}`} class:list={buttonClass}>
+                          Save
+                        </button>
+                      </form>
+                      <form method="POST" action="/api/availability/delete">
+                        <input type="hidden" name="id" value={row.id} />
+                        <input type="hidden" name="month" value={month} />
+                        <input type="hidden" name="day" value={selectedDay} />
+                        <button
+                          type="submit"
+                          aria-label={`Delete ${label} on ${selectedLabel}`}
+                          class:list={buttonClass}
+                        >
+                          Delete
+                        </button>
+                      </form>
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {!locked && (
+          <form
+            method="POST"
+            action="/api/availability/create"
+            class="flex flex-col gap-3 border-t border-white/10 pt-3"
+          >
+            <h3 class="text-sm font-semibold text-blue-100/90">Add window</h3>
+            <input type="hidden" name="date" value={selectedDay} />
+            <div class="flex flex-wrap items-end gap-3">
+              <label class="flex flex-col gap-1 text-xs text-blue-100/70">
+                Start
+                <input type="time" name="start" required class:list={inputClass} />
+              </label>
+              <label class="flex flex-col gap-1 text-xs text-blue-100/70">
+                End
+                <input type="time" name="end" required class:list={inputClass} />
+              </label>
+              <button type="submit" aria-label={`Add window on ${selectedLabel}`} class:list={buttonClass}>
+                Add
+              </button>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-blue-100/80">
+              <input type="checkbox" name="repeat" value="1" />
+              Repeat every {weekdayName(selectedDay)} this month
+            </label>
+            <p class="text-xs text-blue-100/50">An end time at or before the start time ends on the next day.</p>
+          </form>
+        )}
+      </section>
+
+      <div class="mt-6 text-center">
+        <a href="/dashboard" class:list={cn(buttonClass, "inline-block px-4 py-2")}>
+          Back to dashboard
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>

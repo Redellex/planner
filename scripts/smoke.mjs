@@ -1,4 +1,6 @@
-// Smoke test: proves the built app, the Cloudflare adapter, the Supabase auth flow and role enforcement still work together.
+// Smoke test: proves the built app, the Cloudflare adapter, the Supabase auth flow, role enforcement and the
+// availability/lock flow still work together. The manager steps need the seeded manager (supabase/seed.sql) or
+// SMOKE_MANAGER_* env.
 // Zero dependencies on purpose. Run against a live server: BASE_URL=http://localhost:4321 node scripts/smoke.mjs
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:4321";
@@ -9,6 +11,33 @@ const managerEmail = process.env.SMOKE_MANAGER_EMAIL ?? "manager@example.com";
 const managerPassword = process.env.SMOKE_MANAGER_PASSWORD ?? "Manager-Passw0rd!";
 const managerId = "00000000-0000-4000-8000-000000000001";
 const jar = new Map();
+
+// The current station month + `offset`, as `YYYY-MM`.
+// "Europe/Warsaw" mirrors STATION_TIME_ZONE in src/lib/availability.ts (and the SQL editability helper).
+function stationMonthPlus(offset) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Warsaw",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+  const year = Number(parts.find((part) => part.type === "year").value);
+  const month = Number(parts.find((part) => part.type === "month").value);
+  const shifted = new Date(Date.UTC(year, month - 1 + offset, 1));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+// Availability month for the create/overlap/lock steps: far from months used manually, so a lock there is safe.
+const smokeMonthValue = stationMonthPlus(12);
+const windowForm = { date: `${smokeMonthValue}-01`, start: "08:00", end: "16:00" };
+// The create endpoint keeps the submitted date as the selected calendar day in its redirect.
+const availabilityRedirect = `/availability?month=${smokeMonthValue}&day=${smokeMonthValue}-01`;
+
+// Edit/delete steps need a window the page can show, and /availability only offers the next 3 months:
+// use the last of them. The fresh smoke user owns nothing else, so this never touches manual data.
+const crudMonth = stationMonthPlus(3);
+const crudDay = `${crudMonth}-01`;
+const crudRedirect = `/availability?month=${crudMonth}&day=${crudDay}`;
+let crudWindowId;
 
 function cookieHeader() {
   return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
@@ -36,7 +65,7 @@ async function request(path, { method = "GET", form } = {}) {
     body: form ? new URLSearchParams(form).toString() : undefined,
   });
   storeCookies(response);
-  return { status: response.status, location: response.headers.get("location") ?? "" };
+  return { status: response.status, location: response.headers.get("location") ?? "", body: await response.text() };
 }
 
 // Compare redirects on pathname + search so absolute and relative Location headers both match.
@@ -65,6 +94,52 @@ const steps = [
     { status: 302, location: "/" },
   ],
   ["dashboard renders for signed-in user", () => request("/dashboard"), { status: 200 }],
+  ["availability renders for signed-in user", () => request("/availability"), { status: 200 }],
+  [
+    "availability create adds a window",
+    () => request("/api/availability/create", { method: "POST", form: windowForm }),
+    { status: 302, location: `${availabilityRedirect}&updated=1` },
+  ],
+  [
+    "availability create rejects an overlapping window",
+    () => request("/api/availability/create", { method: "POST", form: windowForm }),
+    { status: 302, location: `${availabilityRedirect}&error=${encodeURIComponent("Overlaps an existing window")}` },
+  ],
+  [
+    "availability create adds a window in an upcoming month",
+    () =>
+      request("/api/availability/create", { method: "POST", form: { date: crudDay, start: "10:00", end: "12:00" } }),
+    { status: 302, location: `${crudRedirect}&updated=1` },
+  ],
+  [
+    "availability page lists the new window",
+    () => request(crudRedirect),
+    {
+      status: 200,
+      check: (actual) => {
+        crudWindowId = /name="id" value="([0-9a-f-]{36})"/.exec(actual.body)?.[1];
+        return crudWindowId !== undefined;
+      },
+    },
+  ],
+  [
+    "availability update changes the window times",
+    () =>
+      request("/api/availability/update", {
+        method: "POST",
+        form: { id: crudWindowId, date: crudDay, start: "11:00", end: "13:00" },
+      }),
+    { status: 302, location: `${crudRedirect}&updated=1` },
+  ],
+  [
+    "availability delete removes the window",
+    () =>
+      request("/api/availability/delete", {
+        method: "POST",
+        form: { id: crudWindowId, month: crudMonth, day: crudDay },
+      }),
+    { status: 302, location: `${crudRedirect}&updated=1` },
+  ],
   ["manager page forbidden for employee", () => request("/manager/users"), { status: 403 }],
   ["signout clears session", () => request("/api/auth/signout", { method: "POST" }), { status: 302, location: "/" }],
   ["dashboard redirects after signout", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
@@ -87,6 +162,24 @@ const steps = [
     },
   ],
   ["manager page still renders after rejected demotion", () => request("/manager/users"), { status: 200 }],
+  [
+    "manager locks the smoke month",
+    () => request("/api/manager/months/lock", { method: "POST", form: { month: smokeMonthValue, action: "lock" } }),
+    { status: 302, location: "/manager/months?updated=1" },
+  ],
+  [
+    "availability create is refused in a locked month",
+    () => request("/api/availability/create", { method: "POST", form: windowForm }),
+    {
+      status: 302,
+      location: `${availabilityRedirect}&error=${encodeURIComponent("This month is locked or no longer editable")}`,
+    },
+  ],
+  [
+    "manager unlocks the smoke month",
+    () => request("/api/manager/months/lock", { method: "POST", form: { month: smokeMonthValue, action: "unlock" } }),
+    { status: 302, location: "/manager/months?updated=1" },
+  ],
   [
     "manager signout clears session",
     () => request("/api/auth/signout", { method: "POST" }),

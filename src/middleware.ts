@@ -2,7 +2,7 @@ import { defineMiddleware } from "astro:middleware";
 import { createClient } from "@/lib/supabase";
 import { isAppRole } from "@/lib/roles";
 
-const PROTECTED_ROUTES = ["/dashboard"];
+const PROTECTED_ROUTES = ["/dashboard", "/availability", "/api/availability"];
 const MANAGER_ROUTES = ["/manager", "/api/manager"];
 
 function matchesRoute(pathname: string, routes: readonly string[]): boolean {
@@ -30,7 +30,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
-  if (PROTECTED_ROUTES.some((route) => context.url.pathname.startsWith(route))) {
+  if (matchesRoute(context.url.pathname, PROTECTED_ROUTES)) {
     if (!context.locals.user) {
       return context.redirect("/auth/signin");
     }

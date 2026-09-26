@@ -7,13 +7,80 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
+      availability_locks: {
+        Row: {
+          locked_at: string
+          month: string
+        }
+        Insert: {
+          locked_at?: string
+          month: string
+        }
+        Update: {
+          locked_at?: string
+          month?: string
+        }
+        Relationships: []
+      }
+      availability_windows: {
+        Row: {
+          created_at: string
+          employee_id: string
+          ends_at: string
+          id: string
+          starts_at: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id?: string
+          ends_at: string
+          id?: string
+          starts_at: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          ends_at?: string
+          id?: string
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "availability_windows_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -40,6 +107,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_availability_month_editable: {
+        Args: { target_month: string }
+        Returns: boolean
+      }
       is_manager: { Args: never; Returns: boolean }
     }
     Enums: {
@@ -169,9 +240,13 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["manager", "employee"],
     },
   },
 } as const
+
