@@ -10,20 +10,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run lint` / `npm run lint:fix` — ESLint (type-checked rules)
 - `npm run format` — Prettier (includes prettier-plugin-astro and prettier-plugin-tailwindcss)
 - `npx astro check` — Astro/TypeScript type-check (not wired to a package.json script, but run in CI before build)
-- `npm run smoke` — dependency-free script (`scripts/smoke.mjs`) that walks the whole auth flow (sign-up → sign-in → protected page → sign-out) over HTTP against a running server; `BASE_URL` env, defaults to `http://localhost:4321`. Run after dependency upgrades. It is not a substitute for a real test suite — there is currently no unit/integration test runner in this repo.
+- `npm run smoke` — dependency-free script (`scripts/smoke.mjs`) that walks the whole auth flow (sign-up → sign-in → protected page → sign-out) plus role enforcement (new user gets 403 on `/manager/users`; the seeded manager gets 200, cannot demote the last manager, and stays manager) over HTTP against a running server; `BASE_URL` env, defaults to `http://localhost:4321`; `SMOKE_MANAGER_EMAIL`/`SMOKE_MANAGER_PASSWORD` default to the seeded local manager, so it needs a database with `supabase/seed.sql` applied. Run after dependency upgrades. It is not a substitute for a real test suite — there is currently no unit/integration test runner in this repo.
 - Pre-commit (husky + lint-staged): `eslint --fix` on `*.{ts,tsx,astro}`, `prettier --write` on `*.{json,css,md}`.
 - CI (`.github/workflows/ci.yml`) runs two jobs on push/PR to `master`: `ci` (`npm ci` → `astro sync` → lint → `astro check` → build, needs `SUPABASE_URL`/`SUPABASE_KEY` secrets) and `smoke` (spins up local Supabase via its CLI, builds, serves the Cloudflare preview, runs the smoke script — no secrets needed).
 
 ## Architecture
 
-Astro 7 SSR app (`output: "server"`, deployed via `@astrojs/cloudflare`) with React 19 islands, Tailwind 4, and Supabase for auth. All pages are server-rendered by default; API routes must export `const prerender = false` if they need to opt out of any default.
+Astro 7 SSR app (`output: "server"`, deployed via `@astrojs/cloudflare`) with React 19 islands, Tailwind 4, and Supabase for auth and role storage. All pages are server-rendered by default; API routes must export `const prerender = false` if they need to opt out of any default.
 
 ### Auth flow
 
 - `src/lib/supabase.ts` — `createClient(headers, cookies)` builds a Supabase SSR client (`@supabase/ssr`) with cookie-based sessions, reading `SUPABASE_URL`/`SUPABASE_KEY` from `astro:env/server` (declared as optional server-only secrets in `astro.config.mjs`). Returns `null` when unconfigured — callers must handle that case (see the API routes below).
-- `src/middleware.ts` — runs on every request, resolves the current user via `createClient(...).auth.getUser()`, attaches to `context.locals.user`. Redirects unauthenticated requests to `/auth/signin` for any path listed in `PROTECTED_ROUTES`.
+- `src/middleware.ts` — runs on every request, resolves the current user via `createClient(...).auth.getUser()`, attaches to `context.locals.user`, then reads the user's role from `public.profiles` into `context.locals.role` (`AppRole | null`; `null` when anonymous, unconfigured, or no row — fail closed). Redirects unauthenticated requests to `/auth/signin` for any path listed in `PROTECTED_ROUTES`. `MANAGER_ROUTES` (`/manager`, `/api/manager`, matched on segment boundaries) redirects anonymous users to `/auth/signin` and rewrites non-managers to `src/pages/403.astro` (status 403).
 - API endpoints: `src/pages/api/auth/{signin,signup,signout}.ts` — read `FormData` directly (no schema-validation library is in use), call the corresponding Supabase auth method, and redirect with an `?error=` query param on failure. There is no JSON API convention to preserve here — auth endpoints are form-post + redirect.
 - Auth pages: `src/pages/auth/{signin,signup,confirm-email}.astro`. Protected page example: `src/pages/dashboard.astro`.
+- Roles: `public.profiles` (one row per auth user, created as `employee` by the `handle_new_user` signup trigger) holds `role` (`public.app_role` enum: `manager` | `employee`); TS side is `src/lib/roles.ts` (`AppRole`, `APP_ROLES`, `isAppRole`). Postgres is the real enforcement: RLS lets users read their own row, managers read all rows and update only the `role` column, and the `prevent_last_manager_demotion` trigger rejects demoting the last manager. Manager UI: `src/pages/manager/users.astro` + `POST src/pages/api/manager/users/role.ts` (form-post + redirect with `?updated=1` / `?error=`).
 - `src/lib/config-status.ts` exposes `missingConfigs` so pages can render a "Supabase not configured" banner instead of crashing when secrets are absent (see `src/components/Banner.astro`).
 
 ### Key conventions
@@ -33,13 +34,17 @@ Astro 7 SSR app (`output: "server"`, deployed via `@astrojs/cloudflare`) with Re
 - Use the `cn()` helper from `@/lib/utils` (clsx + tailwind-merge) for conditional/merged Tailwind classes instead of concatenating strings.
 - shadcn/ui components live in `src/components/ui/` (`components.json`: "new-york" style, neutral base color, lucide icons). Add new ones with `npx shadcn@latest add [name]`; the configured aliases are `@/components`, `@/components/ui`, `@/lib`, `@/hooks`.
 - No Next.js directives (`"use client"`, etc.) — this is plain Astro + React islands.
-- Supabase migrations (once added) go in `supabase/migrations/` as `YYYYMMDDHHmmss_short_description.sql`; enable RLS with granular per-operation, per-role policies on any new table.
+- Supabase migrations go in `supabase/migrations/` as `YYYYMMDDHHmmss_short_description.sql`; enable RLS with granular per-operation, per-role policies on any new table. Use `public.is_manager()` (SECURITY DEFINER, avoids recursion through `profiles` RLS) in policies that need a manager check.
+- After every migration, regenerate `src/db/database.types.ts` with `npx supabase gen types typescript --local` (local stack running); never hand-edit it. It is ignored by ESLint and Prettier. `src/lib/supabase.ts` types the client with it (`createServerClient<Database>`).
 
 ### Environment
 
 - Node.js v22.14.0 (`.nvmrc`).
 - `SUPABASE_URL`, `SUPABASE_KEY` — copy `.env.example` to `.env` (Node/local Supabase) and to `.dev.vars` (Cloudflare local dev via `wrangler`/`astro dev`). Both are optional at the schema level; the app degrades to a "not configured" banner rather than failing, but auth routes won't work without them.
-- Local Supabase stack: `npx supabase start` (requires Docker); Studio at `http://localhost:54323`. No custom tables/migrations exist yet — only Supabase Auth's built-in `auth.users`.
+- Local Supabase stack: `npx supabase start` (requires Docker); Studio at `http://localhost:54323`. Migrations in `supabase/migrations/` and `supabase/seed.sql` are applied on start / `npx supabase db reset`.
+- `supabase/seed.sql` is local/CI only (never run it against production): it creates a manager `manager@example.com` / `Manager-Passw0rd!` (id `00000000-0000-4000-8000-000000000001`) that the smoke script relies on.
+- Hosted project: migrations reach it via `npx supabase db push` (the project is linked).
+- Production manager bootstrap: after that person signs up, run once in the Supabase SQL editor: `update public.profiles set role = 'manager' where email = '<email>';`
 - Deploy: `npm run build` then `npx wrangler deploy`; set the two Supabase secrets via the Cloudflare dashboard or `npx wrangler secret put`.
 
 ---
@@ -48,54 +53,44 @@ Astro 7 SSR app (`output: "server"`, deployed via `@astrojs/cloudflare`) with Re
 
 <!-- BEGIN @przeprogramowani/10x-cli -->
 
-## 10xDevs AI Toolkit - Module 2, Lesson 2
+## 10xDevs AI Toolkit - Module 2, Lesson 3
 
-Turn one roadmap item into the first implementation cycle with the **change planning chain**:
+Review AI-generated code before merge with the **implementation review chain**:
 
 ```
-/10x-roadmap -> /10x-new -> /10x-plan -> /10x-plan-review -> /10x-implement
+/10x-implement -> /10x-impl-review -> triage -> (/10x-lesson | fix | skip | disagree)
 ```
 
-`/10x-new`, `/10x-plan`, `/10x-plan-review`, and `/10x-implement` are the lesson focus. `/10x-frame` and `/10x-research` are not required rituals here; they are escalation paths introduced in the next lesson.
+`/10x-impl-review` is the lesson focus. Review is a quality gate, not an instruction to fix every finding.
 
 ### Task Router - Where to start
 
 | Skill | Use it when |
 | --- | --- |
-| **Change setup (lesson focus)** | |
-| `/10x-new <change-id>` | You selected a roadmap item and need a stable change folder. Creates `context/changes/<change-id>/change.md` so planning, implementation, progress, commits, and later review all share one identity. Use AFTER roadmap selection, BEFORE `/10x-plan`. |
-| **Planning (lesson focus)** | |
-| `/10x-plan <change-id>` | You have a change folder and need a reviewable implementation plan. Reads roadmap context, foundation docs, codebase evidence, and any existing change notes; writes `plan.md` and `plan-brief.md` with phases, file contracts, success criteria, and `## Progress`. |
-| **Plan readiness (lesson focus)** | |
-| `/10x-plan-review <change-id>` | You have `plan.md` and need a light pre-code readiness check. Use it to catch missing end state, weak contracts, malformed progress, scope drift, or blind spots before code changes begin. |
-| **Implementation (lesson focus)** | |
-| `/10x-implement <change-id> phase <n>` | You have an approved plan and want to execute one phase with verification, manual gate, commit ritual, and SHA write-back to `## Progress`. |
-| **Lifecycle closure** | |
-| `/10x-archive <change-id>` | A change is merged or intentionally closed. Move it out of active `context/changes/` into archive state. |
+| **Code review (lesson focus)** | |
+| `/10x-impl-review <change-id>` | You have implemented code and want a structured review before merge. The skill checks plan adherence, scope discipline, safety and quality, architecture, pattern consistency, and success criteria, then presents findings for triage. |
+| **Recurring lesson outcome** | |
+| `/10x-lesson` | A finding reveals a recurring project rule or agent failure pattern. Record it in `context/foundation/lessons.md` instead of treating it as a one-off note. |
 
-### How the chain hands off
+### Triage discipline
 
-- `/10x-new` creates the durable change identity.
-- `/10x-plan` turns that identity into an implementation contract.
-- `/10x-plan-review` checks the plan before the agent mutates code.
-- `/10x-implement` executes one planned phase, verifies, asks for manual confirmation when needed, commits, and records progress.
+- Severity says how bad the finding is. Impact says how much the decision matters now.
+- Valid outcomes: fix now, fix differently, skip, accept as risk, record as recurring rule (`/10x-lesson`), disagree.
+- Fix critical findings. Do not burn hours on low-impact observations just because the agent found them.
+- Conscious skipping of low-impact findings is a valid review outcome, not negligence.
+- If you disagree with a finding, record why. Wrong agent reasoning is also signal.
 
-### Lesson boundaries
+### Review boundaries
 
-- Plan is the default router after roadmap selection. Start with `/10x-plan` unless the problem is unclear or external evidence is blocking.
-- Do not run `/10x-frame + /10x-research` as ceremony for every change.
-- Do not turn this lesson into a full end-to-end product build. A checkpoint with a planned and partially or fully implemented stream is valid.
-- Code review of the implemented diff belongs to Lesson 3 via `/10x-impl-review`.
-- Lifecycle closure via `/10x-archive` after a change is merged or intentionally closed.
+- This lesson reviews implemented code. It does not create the plan, execute new phases, or teach CI review.
+- Testing strategy and quality gates are introduced in Module 3.
+- Do not use `/10x-contract` as a triage outcome in this lesson.
 
 ### Paths used by this lesson
 
-- `context/foundation/roadmap.md` - upstream roadmap
-- `context/changes/<change-id>/change.md` - change identity
-- `context/changes/<change-id>/plan.md` - implementation contract
-- `context/changes/<change-id>/plan-brief.md` - compressed handoff
-- `context/foundation/lessons.md` - recurring rules and pitfalls
-- `docs/reference/contract-surfaces.md` - load-bearing names registry
+- `context/changes/<change-id>/plan.md` - expected implementation contract
+- `context/changes/<change-id>/reviews/` - review output
+- `context/foundation/lessons.md` - recurring lessons
 
 Skills must not write to `context/archive/`. Archived changes are immutable; if a resolved target path starts with `context/archive/`, abort with: "This change is archived. Open a new change with `/10x-new` instead."
 

@@ -1,12 +1,31 @@
 ---
-const { user } = Astro.locals;
+import { cn } from "@/lib/utils";
+
+const { user, role } = Astro.locals;
 ---
 
 <div class="mb-4 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80">
   {user ? (
     <>
-      <span class="text-blue-100/70">{user.email}</span>
+      <span class="flex items-center gap-2 text-blue-100/70">
+        {user.email}
+        {role && (
+          <span
+            class:list={cn(
+              "rounded-full border px-2 py-0.5 text-xs",
+              role === "manager" ? "border-purple-300/40 text-purple-200" : "border-white/20 text-blue-100/70",
+            )}
+          >
+            {role}
+          </span>
+        )}
+      </span>
       <div class="flex items-center gap-3">
+        {role === "manager" && (
+          <a href="/manager/users" class="text-purple-300 transition-colors hover:text-purple-100 hover:underline">
+            Users
+          </a>
+        )}
         <a href="/dashboard" class="text-purple-300 transition-colors hover:text-purple-100 hover:underline">
           Dashboard
         </a>

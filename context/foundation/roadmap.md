@@ -3,7 +3,7 @@ project: Planner
 version: 1
 status: draft
 created: 2026-09-24
-updated: 2026-09-24
+updated: 2026-09-25
 prd_version: 1
 main_goal: speed
 top_blocker: capacity
@@ -41,7 +41,7 @@ A gas-station manager currently builds the monthly shift schedule by hand in a s
 
 | ID   | Change ID                        | Outcome (user can …)                                                                  | Prerequisites | PRD refs                       | Status   |
 | ---- | -------------------------------- | ------------------------------------------------------------------------------------- | ------------- | ------------------------------ | -------- |
-| F-01 | role-aware-access-control        | (foundation) Manager/Employee roles exist and are enforced at the auth layer          | —             | Access Control, FR-001, FR-002 | ready    |
+| F-01 | role-aware-access-control        | (foundation) Manager/Employee roles exist and are enforced at the auth layer          | —             | Access Control, FR-001, FR-002 | in-progress |
 | S-01 | employee-availability-management | Employee can create/edit their own monthly availability; locks once generation starts | F-01          | FR-001, Access Control         | proposed |
 | S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | proposed |
 | S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | blocked  |
@@ -74,7 +74,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Unknowns:**
   - How does a new account get assigned Manager vs. Employee — self-selected at signup, or does the manager invite/create employee accounts? PRD's Access Control section states the two roles but not the assignment flow. Owner: user. Block: no — `/10x-plan` can propose a reasonable default (e.g., a signup role picker) unless resolved here first.
 - **Risk:** Every downstream slice gates by role, so getting the role-assignment UX wrong here forces rework later — worth deciding early, but the decision is small enough not to block sequencing.
-- **Status:** ready
+- **Status:** in-progress
 
 ## Slices
 
