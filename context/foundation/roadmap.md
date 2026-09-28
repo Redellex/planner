@@ -3,7 +3,7 @@ project: Planner
 version: 1
 status: draft
 created: 2026-09-24
-updated: 2026-09-26
+updated: 2026-09-28
 prd_version: 1
 main_goal: speed
 top_blocker: capacity
@@ -149,14 +149,16 @@ Foundations below assume these are present and do NOT re-scaffold them.
 
 ## Backlog Handoff
 
-| Roadmap ID | Issue | Change ID                        | Suggested issue title                                           | Ready for `/10x-plan` | Notes                                          |
-| ---------- | ----- | -------------------------------- | --------------------------------------------------------------- | --------------------- | ---------------------------------------------- |
-| F-01       | #1    | role-aware-access-control        | Add manager/employee roles to auth                              | —                     | Done — archived 2026-09-26                     |
-| S-01       | #2    | employee-availability-management | Employee availability CRUD with monthly lock                    | —                     | Done — archived 2026-09-26                     |
-| S-02       | #3    | manager-availability-visibility  | Manager view of all employee availability                       | yes                   | Run `/10x-new manager-availability-visibility` |
-| S-03       | #4    | generate-monthly-schedule        | Auto-generate conflict-free, fairly-rotated monthly schedule    | no                    | Blocked — 2 unknowns need resolving first      |
-| S-04       | #5    | review-override-publish-schedule | Manager review/override/publish workflow for generated schedule | no                    | Waiting on S-03                                |
-| S-05       | #6    | view-published-schedule          | Published schedule grid view for employees and managers         | no                    | Waiting on S-04                                |
+| Roadmap ID       | Issue    | Change ID                        | Suggested issue title                                                             | Ready for `/10x-plan` | Notes                                                                               |
+| ---------------- | -------- | -------------------------------- | --------------------------------------------------------------------------------- | --------------------- | ----------------------------------------------------------------------------------- |
+| F-01             | #1       | role-aware-access-control        | Add manager/employee roles to auth                                                | —                     | Done — archived 2026-09-26                                                          |
+| S-01             | #2       | employee-availability-management | Employee availability CRUD with monthly lock                                      | —                     | Done — archived 2026-09-26                                                          |
+| S-01 (follow-up) | #15 (PR) | availability-ui-tokens           | `/availability` on the shadcn design tokens (UI only)                             | —                     | Done — archived 2026-09-28                                                          |
+| S-01 (follow-up) | #16      | availability-same-day-windows    | Second same-day availability window replaces the first or reports a false overlap | no                    | Bug; change opened 2026-09-28, run `/10x-frame availability-same-day-windows` first |
+| S-02             | #3       | manager-availability-visibility  | Manager view of all employee availability                                         | yes                   | Run `/10x-new manager-availability-visibility`                                      |
+| S-03             | #4       | generate-monthly-schedule        | Auto-generate conflict-free, fairly-rotated monthly schedule                      | no                    | Blocked — 2 unknowns need resolving first                                           |
+| S-04             | #5       | review-override-publish-schedule | Manager review/override/publish workflow for generated schedule                   | no                    | Waiting on S-03                                                                     |
+| S-05             | #6       | view-published-schedule          | Published schedule grid view for employees and managers                           | no                    | Waiting on S-04                                                                     |
 
 ## Open Roadmap Questions
 

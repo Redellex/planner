@@ -216,17 +216,65 @@ export function formatStationInstant(timestamptz: string): string {
   return STATION_INSTANT_FORMAT.format(new Date(timestamptz));
 }
 
+// Every message /api/availability/* can put in `?error=`. The redirect URLs (and smoke.mjs) depend on the
+// exact text, so change a message only together with its callers.
+export const INVALID_DATE_ERROR = "Invalid date";
+export const INVALID_TIME_ERROR = "Invalid time";
+export const INVALID_WINDOW_ID_ERROR = "Invalid window id";
+export const INVALID_MONTH_ERROR = "Invalid month";
+export const NOT_FOUND_ERROR = "Not found, locked or not permitted";
+export const SUPABASE_NOT_CONFIGURED_ERROR = "Supabase is not configured";
+export const OVERLAP_ERROR = "Overlaps an existing window";
+export const INVALID_WINDOW_ERROR = "Invalid window (must be at most 24h)";
+export const MONTH_LOCKED_ERROR = "This month is locked or no longer editable";
+/** Shown for any write failure without a specific message; the raw error is logged, never shown. */
+export const GENERIC_WRITE_ERROR = "Could not save your availability. Try again.";
+/** Shown when /availability cannot read its data; the raw error is logged, never shown. */
+export const GENERIC_LOAD_ERROR = "Could not load your availability. Reload the page.";
+
+/** The `?error=` values /availability shows as-is; anything else is replaced by GENERIC_WRITE_ERROR. */
+export const AVAILABILITY_FEEDBACK_ERRORS: ReadonlySet<string> = new Set([
+  INVALID_DATE_ERROR,
+  INVALID_TIME_ERROR,
+  INVALID_WINDOW_ID_ERROR,
+  INVALID_MONTH_ERROR,
+  NOT_FOUND_ERROR,
+  SUPABASE_NOT_CONFIGURED_ERROR,
+  OVERLAP_ERROR,
+  INVALID_WINDOW_ERROR,
+  MONTH_LOCKED_ERROR,
+  GENERIC_WRITE_ERROR,
+]);
+
+/**
+ * Safe text for the `?error=` query param: null when absent or empty, the param itself when it is a known
+ * message, GENERIC_WRITE_ERROR otherwise (the URL is user-controlled, so unknown text is never rendered).
+ */
+export function resolveFeedbackError(param: string | null): string | null {
+  if (!param) {
+    return null;
+  }
+  return AVAILABILITY_FEEDBACK_ERRORS.has(param) ? param : GENERIC_WRITE_ERROR;
+}
+
+/** Logs a raw availability error server-side; its text is never shown to the user. */
+export function logAvailabilityError(context: string, error: unknown): void {
+  // eslint-disable-next-line no-console -- the only record of a raw database error is the Worker log
+  console.error(`Availability: ${context}`, error);
+}
+
 /** User-facing message for a failed availability write, keyed by PostgREST error code. */
 export function describeWriteError(error: { code: string; message: string }): string {
   switch (error.code) {
     case "23P01":
-      return "Overlaps an existing window";
+      return OVERLAP_ERROR;
     case "23514":
-      return "Invalid window (must be at most 24h)";
+      return INVALID_WINDOW_ERROR;
     case "42501":
-      return "This month is locked or no longer editable";
+      return MONTH_LOCKED_ERROR;
     default:
-      return error.message;
+      logAvailabilityError("write failed", { code: error.code, message: error.message });
+      return GENERIC_WRITE_ERROR;
   }
 }
 

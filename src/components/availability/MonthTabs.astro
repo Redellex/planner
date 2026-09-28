@@ -1,0 +1,33 @@
+---
+import { buttonVariants } from "@/components/ui/button";
+import { formatMonth } from "@/lib/availability";
+import { cn } from "@/lib/utils";
+
+interface Props {
+  months: string[];
+  current: string;
+  lockedMonths: Set<string>;
+}
+
+const { months, current, lockedMonths } = Astro.props;
+---
+
+<nav aria-label="Months" class="mb-6 flex flex-wrap justify-center gap-2">
+  {months.map((option) => {
+    const isCurrent = option === current;
+    return (
+      <a
+        href={`/availability?month=${option}`}
+        aria-current={isCurrent ? "page" : undefined}
+        class:list={buttonVariants({ variant: isCurrent ? "default" : "outline", size: "sm" })}
+      >
+        {formatMonth(option)}
+        {lockedMonths.has(option) && (
+          <span class:list={cn("text-xs", isCurrent ? "text-primary-foreground/70" : "text-muted-foreground")}>
+            (Locked)
+          </span>
+        )}
+      </a>
+    );
+  })}
+</nav>
