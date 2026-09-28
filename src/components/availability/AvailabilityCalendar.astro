@@ -51,9 +51,13 @@ const firstDay = monthStart(month);
           aria-current={selected ? "date" : undefined}
           aria-label={`${formatDay(day)}: ${summary}`}
           class:list={cn(
-            "flex min-h-11 flex-col items-center gap-0.5 rounded-md border p-1 text-xs transition-colors sm:min-h-16 sm:items-start",
+            "flex min-h-11 flex-col items-center gap-0.5 rounded-md border p-1 text-xs transition-colors outline-none sm:min-h-16 sm:items-start",
+            // Focus is a ring, never a fill, so it stays distinct from the selected day.
+            "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
             hasWindows && "bg-secondary text-secondary-foreground",
-            selected && "border-primary bg-primary text-primary-foreground",
+            selected
+              ? "border-primary bg-primary text-primary-foreground"
+              : "hover:bg-accent hover:text-accent-foreground",
           )}
         >
           <span class="font-semibold">{dayOfMonth(day)}</span>

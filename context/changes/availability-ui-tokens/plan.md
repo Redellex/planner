@@ -487,32 +487,32 @@ No data or schema change. Globally adding `.dark` affects only token-reading cod
 
 #### Automated
 
-- [x] 3.1 Lint passes: `npm run lint`
-- [x] 3.2 Type check passes: `npx astro check`
-- [x] 3.3 Build passes: `npm run build`
-- [x] 3.4 Smoke passes: `npm run smoke`
-- [x] 3.5 No literal colours in the view: `grep -nE '(bg|text|border|ring|from|via|to)-(white|black)\b|(purple|blue|red|green|gray|slate|zinc|neutral)-[0-9]|#[0-9a-fA-F]{3,8}\b|bg-cosmic|text-transparent|bg-gradient|inputClass|buttonClass' src/pages/availability.astro src/components/availability/*.astro` returns nothing
-- [x] 3.6 No hydration directives on the view: `grep -n 'client:' src/pages/availability.astro src/components/availability/*.astro` returns nothing
+- [x] 3.1 Lint passes: `npm run lint` — 5076dd9
+- [x] 3.2 Type check passes: `npx astro check` — 5076dd9
+- [x] 3.3 Build passes: `npm run build` — 5076dd9
+- [x] 3.4 Smoke passes: `npm run smoke` — 5076dd9
+- [x] 3.5 No literal colours in the view: `grep -nE '(bg|text|border|ring|from|via|to)-(white|black)\b|(purple|blue|red|green|gray|slate|zinc|neutral)-[0-9]|#[0-9a-fA-F]{3,8}\b|bg-cosmic|text-transparent|bg-gradient|inputClass|buttonClass' src/pages/availability.astro src/components/availability/*.astro` returns nothing — 5076dd9
+- [x] 3.6 No hydration directives on the view: `grep -n 'client:' src/pages/availability.astro src/components/availability/*.astro` returns nothing — 5076dd9
 
 #### Manual
 
-- [x] 3.7 `/availability` renders in the neutral dark theme at 1280px and 390px; selected day and days with windows are distinguishable at a glance
-- [x] 3.8 Delete is visually distinct from Save; error and success feedback appears inside the day panel after a create that overlaps and a create that succeeds
-- [x] 3.9 A locked month shows the locked notice and no forms; the mobile layout keeps the dot/count indicators and does not scroll horizontally
+- [x] 3.7 `/availability` renders in the neutral dark theme at 1280px and 390px; selected day and days with windows are distinguishable at a glance — 5076dd9
+- [x] 3.8 Delete is visually distinct from Save; error and success feedback appears inside the day panel after a create that overlaps and a create that succeeds — 5076dd9
+- [x] 3.9 A locked month shows the locked notice and no forms; the mobile layout keeps the dot/count indicators and does not scroll horizontally — 5076dd9
 
 ### Phase 4: States and visual gate
 
 #### Automated
 
-- [ ] 4.1 Lint passes: `npm run lint`
-- [ ] 4.2 Type check passes: `npx astro check`
-- [ ] 4.3 Build passes: `npm run build`
-- [ ] 4.4 Smoke passes: `npm run smoke`
-- [ ] 4.5 The kitchen sink returns 404 in the production preview: `curl -s -o /dev/null -w '%{http_code}' http://localhost:4321/dev/availability-states` prints `404` against `npm run preview`
+- [x] 4.1 Lint passes: `npm run lint`
+- [x] 4.2 Type check passes: `npx astro check`
+- [x] 4.3 Build passes: `npm run build`
+- [x] 4.4 Smoke passes: `npm run smoke`
+- [x] 4.5 The kitchen sink returns 404 in the production preview: `curl -s -o /dev/null -w '%{http_code}' http://localhost:4321/dev/availability-states` prints `404` against `npm run preview`
 
 #### Manual
 
-- [ ] 4.6 The kitchen sink shows all listed states side by side at 1280px and 390px, with screenshots saved in `screenshots/after/`
-- [ ] 4.7 Tabbing through `/availability` shows a visible focus ring on month tabs, day cells, inputs, checkbox and buttons, and focus is distinguishable from the selected day
-- [ ] 4.8 Double-clicking Add on a free slot saves once and shows "Availability saved." (no false overlap error); Back after a submit leaves buttons enabled
-- [ ] 4.9 `screenshots/README.md` explains the before→after delta for every captured route; `/`, `/dashboard` and `/auth/signin` show no unexplained change
+- [x] 4.6 The kitchen sink shows all listed states side by side at 1280px and 390px, with screenshots saved in `screenshots/after/`
+- [x] 4.7 Tabbing through `/availability` shows a visible focus ring on month tabs, day cells, inputs, checkbox and buttons, and focus is distinguishable from the selected day
+- [x] 4.8 Double-clicking Add on a free slot saves once and shows "Availability saved." (no false overlap error); Back after a submit leaves buttons enabled
+- [x] 4.9 `screenshots/README.md` explains the before→after delta for every captured route; `/`, `/dashboard` and `/auth/signin` show no unexplained change

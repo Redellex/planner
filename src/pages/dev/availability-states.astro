@@ -1,0 +1,204 @@
+---
+// Kitchen sink for /availability: every state of the view, side by side, rendered by the real components from
+// fixture data. Dev only (the visual gate for context/changes/availability-ui-tokens); 404 in production.
+// No database access and no user data: the fixtures below are wall-clock strings, never passed through Date.
+import { CircleAlert } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import AvailabilityCalendar from "@/components/availability/AvailabilityCalendar.astro";
+import DayPanel from "@/components/availability/DayPanel.astro";
+import MonthTabs from "@/components/availability/MonthTabs.astro";
+import type { WindowRow } from "@/components/availability/types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  calendarWeeks,
+  dateOf,
+  formatDay,
+  GENERIC_LOAD_ERROR,
+  monthStart,
+  OVERLAP_ERROR,
+  timeOf,
+} from "@/lib/availability";
+
+// Outside dev: 404 with an empty body (the template below renders only in dev). A frontmatter `return` would do,
+// but it crashes @typescript-eslint/no-misused-promises in .astro files.
+const isDev = import.meta.env.DEV;
+if (!isDev) {
+  Astro.response.status = 404;
+}
+
+// A fixed past month keeps the screenshots stable; every write to it is refused by RLS anyway.
+const month = "2026-04";
+const months = ["2026-04", "2026-05", "2026-06"];
+const lockedMonths = new Set(["2026-05"]);
+const weeks = calendarWeeks(month);
+const firstDay = monthStart(month);
+
+// Overnight window from the previous month's last day that runs into day 1.
+const carryOver: WindowRow = {
+  id: "00000000-0000-4000-8000-00000000f001",
+  starts_at: "2026-03-31T22:00:00",
+  ends_at: "2026-04-01T06:00:00",
+};
+const singleDay = "2026-04-08";
+const multipleDay = "2026-04-15";
+const emptyDay = "2026-04-02";
+const windows: WindowRow[] = [
+  { id: "00000000-0000-4000-8000-00000000f002", starts_at: "2026-04-08T08:00:00", ends_at: "2026-04-08T16:00:00" },
+  { id: "00000000-0000-4000-8000-00000000f003", starts_at: "2026-04-15T06:00:00", ends_at: "2026-04-15T10:00:00" },
+  { id: "00000000-0000-4000-8000-00000000f004", starts_at: "2026-04-15T14:00:00", ends_at: "2026-04-15T18:30:00" },
+  { id: "00000000-0000-4000-8000-00000000f005", starts_at: "2026-04-15T20:00:00", ends_at: "2026-04-16T04:00:00" },
+  { id: "00000000-0000-4000-8000-00000000f006", starts_at: "2026-04-22T00:00:00", ends_at: "2026-04-23T00:00:00" },
+];
+
+const windowsByDay = new Map<string, WindowRow[]>();
+for (const row of windows) {
+  const day = dateOf(row.starts_at);
+  windowsByDay.set(day, [...(windowsByDay.get(day) ?? []), row]);
+}
+const windowsOn = (day: string) => windowsByDay.get(day) ?? [];
+const carryOverLabel = `00:00 – ${timeOf(carryOver.ends_at)} (from ${formatDay(dateOf(carryOver.starts_at))})`;
+
+const panels = [
+  {
+    title: "Default, with windows",
+    selectedDay: multipleDay,
+    carryOverText: null,
+    locked: false,
+    lockStateUnknown: false,
+    feedback: null,
+  },
+  {
+    title: "Empty day",
+    selectedDay: emptyDay,
+    carryOverText: null,
+    locked: false,
+    lockStateUnknown: false,
+    feedback: null,
+  },
+  {
+    title: "Error feedback",
+    selectedDay: singleDay,
+    carryOverText: null,
+    locked: false,
+    lockStateUnknown: false,
+    feedback: { kind: "error" as const, message: OVERLAP_ERROR },
+  },
+  {
+    title: "Success feedback",
+    selectedDay: singleDay,
+    carryOverText: null,
+    locked: false,
+    lockStateUnknown: false,
+    feedback: { kind: "success" as const, message: "Availability saved." },
+  },
+  {
+    title: "Locked month",
+    selectedDay: multipleDay,
+    carryOverText: null,
+    locked: true,
+    lockStateUnknown: false,
+    feedback: null,
+  },
+  {
+    title: "Lock state unknown",
+    selectedDay: multipleDay,
+    carryOverText: null,
+    locked: true,
+    lockStateUnknown: true,
+    feedback: null,
+  },
+  {
+    title: "Pending (Add in flight), carry-over on day 1",
+    selectedDay: firstDay,
+    carryOverText: carryOverLabel,
+    locked: false,
+    lockStateUnknown: false,
+    feedback: null,
+    pending: true,
+  },
+];
+---
+
+{isDev && (
+  <Layout title="Availability states">
+    <div class="min-h-screen bg-background p-4">
+      <div class="mx-auto flex w-full max-w-6xl flex-col gap-10">
+        <header class="flex flex-col gap-1">
+          <h1 class="text-2xl font-semibold">Availability states</h1>
+          <p class="text-sm text-muted-foreground">
+            Dev-only kitchen sink. Fixture data for {month}; forms on this page do not submit.
+          </p>
+        </header>
+
+        <section aria-labelledby="states-tabs" class="flex flex-col gap-3">
+          <h2 id="states-tabs" class="text-sm font-medium text-muted-foreground">
+            Month tabs, one month locked
+          </h2>
+          <div class="mx-auto w-full max-w-2xl">
+            <MonthTabs months={months} current={month} lockedMonths={lockedMonths} />
+          </div>
+        </section>
+
+        <section aria-labelledby="states-calendar" class="flex flex-col gap-3">
+          <h2 id="states-calendar" class="text-sm font-medium text-muted-foreground">
+            Calendar: carry-over on day 1, empty days, a single window (8th), multiple windows (15th, selected), a full
+            day (22nd)
+          </h2>
+          <div class="mx-auto w-full max-w-2xl">
+            <AvailabilityCalendar
+              month={month}
+              weeks={weeks}
+              windowsByDay={windowsByDay}
+              carryOver={carryOver}
+              carryOverLabel={carryOverLabel}
+              selectedDay={multipleDay}
+            />
+          </div>
+        </section>
+
+        <section aria-labelledby="states-load-error" class="flex flex-col gap-3">
+          <h2 id="states-load-error" class="text-sm font-medium text-muted-foreground">
+            Load error (page top)
+          </h2>
+          <div class="mx-auto w-full max-w-2xl">
+            <Alert variant="destructive">
+              <CircleAlert />
+              <AlertDescription>{GENERIC_LOAD_ERROR}</AlertDescription>
+            </Alert>
+          </div>
+        </section>
+
+        <section aria-labelledby="states-panels" class="flex flex-col gap-3">
+          <h2 id="states-panels" class="text-sm font-medium text-muted-foreground">
+            Day panel
+          </h2>
+          <div class="grid gap-6 lg:grid-cols-2">
+            {panels.map((panel) => (
+              <div class="flex flex-col gap-2">
+                <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">{panel.title}</h3>
+                <DayPanel
+                  month={month}
+                  selectedDay={panel.selectedDay}
+                  selectedLabel={formatDay(panel.selectedDay)}
+                  windows={windowsOn(panel.selectedDay)}
+                  carryOverText={panel.carryOverText}
+                  locked={panel.locked}
+                  lockStateUnknown={panel.lockStateUnknown}
+                  feedback={panel.feedback}
+                  pending={panel.pending}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  </Layout>
+)}
+
+<script>
+  // Fixture forms: keep them inert so a click here never reaches /api/availability/*.
+  document.addEventListener("submit", (event) => {
+    event.preventDefault();
+  });
+</script>

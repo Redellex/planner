@@ -15,9 +15,21 @@ interface Props {
   locked: boolean;
   lockStateUnknown: boolean;
   feedback: { kind: "error" | "success"; message: string } | null;
+  /** Renders Add in its in-flight state; only the kitchen sink sets it (the page's script does this live). */
+  pending?: boolean;
 }
 
-const { month, selectedDay, selectedLabel, windows, carryOverText, locked, lockStateUnknown, feedback } = Astro.props;
+const {
+  month,
+  selectedDay,
+  selectedLabel,
+  windows,
+  carryOverText,
+  locked,
+  lockStateUnknown,
+  feedback,
+  pending = false,
+} = Astro.props;
 
 const lockNotice = lockStateUnknown
   ? `Could not check whether ${formatMonth(month)} is locked. Availability is read-only until the page loads normally.`
@@ -130,7 +142,13 @@ const lockNotice = lockStateUnknown
           </label>
           <Input id="add-end" type="time" name="end" required className="w-auto" />
         </div>
-        <Button type="submit" size="sm" aria-label={`Add window on ${selectedLabel}`}>
+        <Button
+          type="submit"
+          size="sm"
+          aria-label={`Add window on ${selectedLabel}`}
+          disabled={pending}
+          aria-busy={pending ? true : undefined}
+        >
           Add
         </Button>
       </div>
