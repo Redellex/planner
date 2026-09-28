@@ -456,32 +456,32 @@ No data or schema change. Globally adding `.dark` affects only token-reading cod
 
 #### Automated
 
-- [x] 1.1 Lint passes: `npm run lint`
-- [x] 1.2 Type check passes: `npx astro check`
-- [x] 1.3 Build passes: `npm run build`
-- [x] 1.4 No new dependencies: `git diff --quiet -- package.json`
-- [x] 1.5 `src/components/ui/input.tsx` and `src/components/ui/alert.tsx` exist and `src/components/ui/button.tsx` is unchanged: `git diff --quiet -- src/components/ui/button.tsx`
+- [x] 1.1 Lint passes: `npm run lint` — a350310
+- [x] 1.2 Type check passes: `npx astro check` — a350310
+- [x] 1.3 Build passes: `npm run build` — a350310
+- [x] 1.4 No new dependencies: `git diff --quiet -- package.json` — a350310
+- [x] 1.5 `src/components/ui/input.tsx` and `src/components/ui/alert.tsx` exist and `src/components/ui/button.tsx` is unchanged: `git diff --quiet -- src/components/ui/button.tsx` — a350310
 
 #### Manual
 
-- [x] 1.6 Baseline screenshots exist in `screenshots/before/` for the 4 routes at 1280px and 390px
-- [x] 1.7 `/`, `/dashboard` and `/auth/signin` look unchanged against the baseline in dev
-- [x] 1.8 On current `/availability`, the native time inputs and checkbox now render with dark chrome
+- [x] 1.6 Baseline screenshots exist in `screenshots/before/` for the 4 routes at 1280px and 390px — a350310
+- [x] 1.7 `/`, `/dashboard` and `/auth/signin` look unchanged against the baseline in dev — a350310
+- [x] 1.8 On current `/availability`, the native time inputs and checkbox now render with dark chrome — a350310
 
 ### Phase 2: Message contract
 
 #### Automated
 
-- [ ] 2.1 Lint passes: `npm run lint`
-- [ ] 2.2 Type check passes: `npx astro check`
-- [ ] 2.3 Build passes: `npm run build`
-- [ ] 2.4 Smoke passes against a local server with the seeded DB: `npm run smoke`
-- [ ] 2.5 No raw `.message` reaches a redirect or the page: `grep -nE 'error\.message|readError\.message' src/pages/availability.astro src/pages/api/availability/*.ts` returns nothing
+- [x] 2.1 Lint passes: `npm run lint`
+- [x] 2.2 Type check passes: `npx astro check`
+- [x] 2.3 Build passes: `npm run build`
+- [x] 2.4 Smoke passes against a local server with the seeded DB: `npm run smoke`
+- [x] 2.5 No raw `.message` reaches a redirect or the page: `grep -nE 'error\.message|readError\.message' src/pages/availability.astro src/pages/api/availability/*.ts` returns nothing
 
 #### Manual
 
-- [ ] 2.6 `/availability?error=Your%20account%20is%20suspended` shows "Could not save your availability. Try again."
-- [ ] 2.7 `/availability?error=Overlaps%20an%20existing%20window` shows "Overlaps an existing window"
+- [x] 2.6 `/availability?error=Your%20account%20is%20suspended` shows "Could not save your availability. Try again."
+- [x] 2.7 `/availability?error=Overlaps%20an%20existing%20window` shows "Overlaps an existing window"
 
 ### Phase 3: The view on tokens and shared components
 

@@ -11,10 +11,14 @@ import {
   formatMonth,
   formatWindow,
   formatWindowCompact,
+  GENERIC_LOAD_ERROR,
+  logAvailabilityError,
   monthOfDate,
   monthStart,
   parseDate,
   parseMonth,
+  resolveFeedbackError,
+  SUPABASE_NOT_CONFIGURED_ERROR,
   timeOf,
   upcomingMonths,
   weekdayName,
@@ -26,8 +30,9 @@ type WindowRow = Pick<Tables<"availability_windows">, "id" | "starts_at" | "ends
 const WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
 const { user } = Astro.locals;
-const updated = Astro.url.searchParams.get("updated") === "1";
-let error = Astro.url.searchParams.get("error");
+// Result of the user's last write, from the redirect URL; only known messages are shown as-is.
+const feedbackError = resolveFeedbackError(Astro.url.searchParams.get("error"));
+const saved = Astro.url.searchParams.get("updated") === "1" && !feedbackError;
 
 const months = upcomingMonths();
 const [defaultMonth] = months;
@@ -43,10 +48,12 @@ let carryOver: WindowRow | null = null;
 const lockedMonths = new Set<string>();
 // Fail closed: when the lock rows cannot be read, render the month read-only.
 let lockStateUnknown = false;
+// This page failed to read its data; independent of the URL, so a URL error cannot hide it.
+let loadError: string | null = null;
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 if (!supabase) {
-  error ??= "Supabase is not configured";
+  loadError = SUPABASE_NOT_CONFIGURED_ERROR;
 } else if (user) {
   const [windowsResult, carryOverResult, locksResult] = await Promise.all([
     // Managers can read every window, so filter to the signed-in user explicitly.
@@ -68,18 +75,21 @@ if (!supabase) {
   ]);
 
   if (windowsResult.error) {
-    error ??= windowsResult.error.message;
+    logAvailabilityError("could not load windows", windowsResult.error);
+    loadError = GENERIC_LOAD_ERROR;
   } else {
     windows = windowsResult.data;
   }
   if (carryOverResult.error) {
-    error ??= carryOverResult.error.message;
+    logAvailabilityError("could not load the carry-over window", carryOverResult.error);
+    loadError = GENERIC_LOAD_ERROR;
   } else {
     carryOver = carryOverResult.data[0] ?? null;
   }
   if (locksResult.error) {
     lockStateUnknown = true;
-    error ??= locksResult.error.message;
+    logAvailabilityError("could not load month locks", locksResult.error);
+    loadError = GENERIC_LOAD_ERROR;
   } else {
     for (const lock of locksResult.data) {
       lockedMonths.add(lock.month.slice(0, 7));
@@ -105,6 +115,8 @@ const selectedLabel = formatDay(selectedDay);
 const inputClass = "rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-sm text-white";
 const buttonClass =
   "rounded-lg border border-white/20 bg-white/10 px-3 py-1 text-sm transition-colors hover:bg-white/20";
+// Until Phase 3 moves feedback into the day panel, one box shows a load error first, else the write result.
+const error = loadError ?? feedbackError;
 ---
 
 <Layout title="Availability">
@@ -118,7 +130,7 @@ const buttonClass =
           {error}
         </p>
       )}
-      {updated && !error && (
+      {saved && !error && (
         <p
           role="status"
           class="mb-4 rounded-lg border border-green-500/30 bg-green-900/30 px-3 py-2 text-sm text-green-300"

@@ -5,9 +5,15 @@ import {
   buildWindow,
   dateOf,
   describeWriteError,
+  GENERIC_WRITE_ERROR,
+  INVALID_TIME_ERROR,
+  INVALID_WINDOW_ID_ERROR,
+  logAvailabilityError,
   monthOfDate,
+  NOT_FOUND_ERROR,
   parseDate,
   parseTime,
+  SUPABASE_NOT_CONFIGURED_ERROR,
 } from "@/lib/availability";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -24,15 +30,15 @@ export const POST: APIRoute = async (context) => {
   const end = parseTime(form.get("end"));
 
   if (typeof id !== "string" || !UUID_PATTERN.test(id)) {
-    return redirectWithError("Invalid window id");
+    return redirectWithError(INVALID_WINDOW_ID_ERROR);
   }
   if (!start || !end) {
-    return redirectWithError("Invalid time");
+    return redirectWithError(INVALID_TIME_ERROR);
   }
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
-    return redirectWithError("Supabase is not configured");
+    return redirectWithError(SUPABASE_NOT_CONFIGURED_ERROR);
   }
 
   // Editing never moves a window to another date: rebuild the times on the date it already starts on.
@@ -43,10 +49,11 @@ export const POST: APIRoute = async (context) => {
     .maybeSingle();
 
   if (readError) {
-    return redirectWithError(readError.message);
+    logAvailabilityError("could not read the window to update", readError);
+    return redirectWithError(GENERIC_WRITE_ERROR);
   }
   if (!existing) {
-    return redirectWithError("Not found, locked or not permitted");
+    return redirectWithError(NOT_FOUND_ERROR);
   }
 
   const date = dateOf(existing.starts_at);
@@ -64,7 +71,7 @@ export const POST: APIRoute = async (context) => {
     return context.redirect(availabilityUrl(month, { error: describeWriteError(error) }, date));
   }
   if (data.length === 0) {
-    return context.redirect(availabilityUrl(month, { error: "Not found, locked or not permitted" }, date));
+    return context.redirect(availabilityUrl(month, { error: NOT_FOUND_ERROR }, date));
   }
 
   return context.redirect(availabilityUrl(month, { updated: true }, date));

@@ -4,24 +4,27 @@ import {
   availabilityUrl,
   buildWindow,
   describeWriteError,
+  INVALID_DATE_ERROR,
+  INVALID_TIME_ERROR,
   monthOfDate,
   parseDate,
   parseTime,
   sameWeekdayDatesInMonth,
+  SUPABASE_NOT_CONFIGURED_ERROR,
 } from "@/lib/availability";
 
 export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
   const date = parseDate(form.get("date"));
   if (!date) {
-    return context.redirect(availabilityUrl(null, { error: "Invalid date" }));
+    return context.redirect(availabilityUrl(null, { error: INVALID_DATE_ERROR }));
   }
 
   const month = monthOfDate(date);
   const start = parseTime(form.get("start"));
   const end = parseTime(form.get("end"));
   if (!start || !end) {
-    return context.redirect(availabilityUrl(month, { error: "Invalid time" }, date));
+    return context.redirect(availabilityUrl(month, { error: INVALID_TIME_ERROR }, date));
   }
 
   const dates = form.has("repeat") ? sameWeekdayDatesInMonth(date) : [date];
@@ -29,7 +32,7 @@ export const POST: APIRoute = async (context) => {
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
-    return context.redirect(availabilityUrl(month, { error: "Supabase is not configured" }, date));
+    return context.redirect(availabilityUrl(month, { error: SUPABASE_NOT_CONFIGURED_ERROR }, date));
   }
 
   // One statement: employee_id defaults to auth.uid(), and RLS (own row, editable month) plus the
