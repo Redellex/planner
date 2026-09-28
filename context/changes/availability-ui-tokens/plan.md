@@ -472,33 +472,33 @@ No data or schema change. Globally adding `.dark` affects only token-reading cod
 
 #### Automated
 
-- [x] 2.1 Lint passes: `npm run lint`
-- [x] 2.2 Type check passes: `npx astro check`
-- [x] 2.3 Build passes: `npm run build`
-- [x] 2.4 Smoke passes against a local server with the seeded DB: `npm run smoke`
-- [x] 2.5 No raw `.message` reaches a redirect or the page: `grep -nE 'error\.message|readError\.message' src/pages/availability.astro src/pages/api/availability/*.ts` returns nothing
+- [x] 2.1 Lint passes: `npm run lint` — 6cd5dbd
+- [x] 2.2 Type check passes: `npx astro check` — 6cd5dbd
+- [x] 2.3 Build passes: `npm run build` — 6cd5dbd
+- [x] 2.4 Smoke passes against a local server with the seeded DB: `npm run smoke` — 6cd5dbd
+- [x] 2.5 No raw `.message` reaches a redirect or the page: `grep -nE 'error\.message|readError\.message' src/pages/availability.astro src/pages/api/availability/*.ts` returns nothing — 6cd5dbd
 
 #### Manual
 
-- [x] 2.6 `/availability?error=Your%20account%20is%20suspended` shows "Could not save your availability. Try again."
-- [x] 2.7 `/availability?error=Overlaps%20an%20existing%20window` shows "Overlaps an existing window"
+- [x] 2.6 `/availability?error=Your%20account%20is%20suspended` shows "Could not save your availability. Try again." — 6cd5dbd
+- [x] 2.7 `/availability?error=Overlaps%20an%20existing%20window` shows "Overlaps an existing window" — 6cd5dbd
 
 ### Phase 3: The view on tokens and shared components
 
 #### Automated
 
-- [ ] 3.1 Lint passes: `npm run lint`
-- [ ] 3.2 Type check passes: `npx astro check`
-- [ ] 3.3 Build passes: `npm run build`
-- [ ] 3.4 Smoke passes: `npm run smoke`
-- [ ] 3.5 No literal colours in the view: `grep -nE '(bg|text|border|ring|from|via|to)-(white|black)\b|(purple|blue|red|green|gray|slate|zinc|neutral)-[0-9]|#[0-9a-fA-F]{3,8}\b|bg-cosmic|text-transparent|bg-gradient|inputClass|buttonClass' src/pages/availability.astro src/components/availability/*.astro` returns nothing
-- [ ] 3.6 No hydration directives on the view: `grep -n 'client:' src/pages/availability.astro src/components/availability/*.astro` returns nothing
+- [x] 3.1 Lint passes: `npm run lint`
+- [x] 3.2 Type check passes: `npx astro check`
+- [x] 3.3 Build passes: `npm run build`
+- [x] 3.4 Smoke passes: `npm run smoke`
+- [x] 3.5 No literal colours in the view: `grep -nE '(bg|text|border|ring|from|via|to)-(white|black)\b|(purple|blue|red|green|gray|slate|zinc|neutral)-[0-9]|#[0-9a-fA-F]{3,8}\b|bg-cosmic|text-transparent|bg-gradient|inputClass|buttonClass' src/pages/availability.astro src/components/availability/*.astro` returns nothing
+- [x] 3.6 No hydration directives on the view: `grep -n 'client:' src/pages/availability.astro src/components/availability/*.astro` returns nothing
 
 #### Manual
 
-- [ ] 3.7 `/availability` renders in the neutral dark theme at 1280px and 390px; selected day and days with windows are distinguishable at a glance
-- [ ] 3.8 Delete is visually distinct from Save; error and success feedback appears inside the day panel after a create that overlaps and a create that succeeds
-- [ ] 3.9 A locked month shows the locked notice and no forms; the mobile layout keeps the dot/count indicators and does not scroll horizontally
+- [x] 3.7 `/availability` renders in the neutral dark theme at 1280px and 390px; selected day and days with windows are distinguishable at a glance
+- [x] 3.8 Delete is visually distinct from Save; error and success feedback appears inside the day panel after a create that overlaps and a create that succeeds
+- [x] 3.9 A locked month shows the locked notice and no forms; the mobile layout keeps the dot/count indicators and does not scroll horizontally
 
 ### Phase 4: States and visual gate
 

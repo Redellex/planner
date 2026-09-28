@@ -1,0 +1,85 @@
+---
+import type { WindowRow } from "@/components/availability/types";
+import {
+  dayOfMonth,
+  formatDay,
+  formatMonth,
+  formatWindow,
+  formatWindowCompact,
+  monthStart,
+  timeOf,
+} from "@/lib/availability";
+import { cn } from "@/lib/utils";
+
+interface Props {
+  month: string;
+  weeks: (string | null)[][];
+  windowsByDay: Map<string, WindowRow[]>;
+  carryOver: WindowRow | null;
+  carryOverLabel: string | null;
+  selectedDay: string;
+}
+
+const { month, weeks, windowsByDay, carryOver, carryOverLabel, selectedDay } = Astro.props;
+
+const WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+// The carry-over window is shown on day 1; it is edited from the day it starts on.
+const firstDay = monthStart(month);
+---
+
+<section aria-label={`Calendar for ${formatMonth(month)}`} class="mb-6">
+  <div aria-hidden="true" class="mb-1 grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
+    {WEEKDAY_HEADERS.map((header) => (
+      <span>{header}</span>
+    ))}
+  </div>
+  <div class="grid grid-cols-7 gap-1">
+    {weeks.flat().map((day) => {
+      if (!day) {
+        return <span aria-hidden="true" class="min-h-11 sm:min-h-16" />;
+      }
+      const dayWindows = windowsByDay.get(day) ?? [];
+      const dayCarryOver = day === firstDay ? carryOver : null;
+      const selected = day === selectedDay;
+      const windowCount = dayWindows.length + (dayCarryOver ? 1 : 0);
+      const hasWindows = windowCount > 0;
+      const labels = [...(dayCarryOver && carryOverLabel ? [carryOverLabel] : []), ...dayWindows.map(formatWindow)];
+      const summary = hasWindows ? labels.join(", ") : "no windows";
+      return (
+        <a
+          href={`/availability?month=${month}&day=${day}`}
+          aria-current={selected ? "date" : undefined}
+          aria-label={`${formatDay(day)}: ${summary}`}
+          class:list={cn(
+            "flex min-h-11 flex-col items-center gap-0.5 rounded-md border p-1 text-xs transition-colors sm:min-h-16 sm:items-start",
+            hasWindows && "bg-secondary text-secondary-foreground",
+            selected && "border-primary bg-primary text-primary-foreground",
+          )}
+        >
+          <span class="font-semibold">{dayOfMonth(day)}</span>
+          {hasWindows && (
+            <>
+              <span class="flex items-center gap-0.5 text-[10px] sm:hidden">
+                <span class:list={cn("size-1.5 rounded-full", selected ? "bg-primary-foreground" : "bg-primary")} />
+                {windowCount > 1 && windowCount}
+              </span>
+              {dayCarryOver && (
+                <span
+                  class:list={cn(
+                    "hidden w-full truncate sm:block",
+                    selected ? "text-primary-foreground/70" : "text-muted-foreground",
+                  )}
+                >
+                  …–{timeOf(dayCarryOver.ends_at)}
+                </span>
+              )}
+              {dayWindows.map((row) => (
+                <span class="hidden w-full truncate sm:block">{formatWindowCompact(row)}</span>
+              ))}
+            </>
+          )}
+        </a>
+      );
+    })}
+  </div>
+</section>

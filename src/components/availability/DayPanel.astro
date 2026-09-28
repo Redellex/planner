@@ -1,0 +1,144 @@
+---
+import { CircleAlert, CircleCheck, Lock } from "lucide-react";
+import type { WindowRow } from "@/components/availability/types";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { dateOf, formatMonth, formatWindow, timeOf, weekdayName } from "@/lib/availability";
+
+interface Props {
+  month: string;
+  selectedDay: string;
+  selectedLabel: string;
+  windows: WindowRow[];
+  carryOverText: string | null;
+  locked: boolean;
+  lockStateUnknown: boolean;
+  feedback: { kind: "error" | "success"; message: string } | null;
+}
+
+const { month, selectedDay, selectedLabel, windows, carryOverText, locked, lockStateUnknown, feedback } = Astro.props;
+
+const lockNotice = lockStateUnknown
+  ? `Could not check whether ${formatMonth(month)} is locked. Availability is read-only until the page loads normally.`
+  : `Locked — scheduling has started for ${formatMonth(month)}. Availability for this month is read-only.`;
+---
+
+<section aria-labelledby="selected-day-heading" class="rounded-xl border bg-card p-4 text-card-foreground">
+  <h2 id="selected-day-heading" class="mb-3 text-base font-semibold">
+    {selectedLabel}
+  </h2>
+
+  {feedback?.kind === "error" && (
+    <Alert variant="destructive" className="mb-3">
+      <CircleAlert />
+      <AlertDescription>{feedback.message}</AlertDescription>
+    </Alert>
+  )}
+  {feedback?.kind === "success" && (
+    <Alert role="status" className="mb-3">
+      <CircleCheck />
+      <AlertTitle>{feedback.message}</AlertTitle>
+    </Alert>
+  )}
+  {locked && (
+    <Alert role="status" className="mb-3">
+      <Lock />
+      <AlertDescription>{lockNotice}</AlertDescription>
+    </Alert>
+  )}
+
+  {windows.length === 0 && !carryOverText ? (
+    <p class="mb-3 text-sm text-muted-foreground">— No windows</p>
+  ) : (
+    <ul class="mb-3 flex flex-col gap-2">
+      {carryOverText && <li class="text-sm text-muted-foreground">{carryOverText}</li>}
+      {windows.map((row) => {
+        const label = formatWindow(row);
+        return (
+          <li class="flex flex-wrap items-center gap-2 text-sm">
+            {locked ? (
+              <span>{label}</span>
+            ) : (
+              <>
+                <form method="POST" action="/api/availability/update" class="flex flex-wrap items-center gap-2">
+                  <input type="hidden" name="id" value={row.id} />
+                  <input type="hidden" name="date" value={selectedDay} />
+                  <label class="sr-only" for={`start-${row.id}`}>
+                    Start of {label} on {selectedLabel}
+                  </label>
+                  <Input
+                    id={`start-${row.id}`}
+                    type="time"
+                    name="start"
+                    required
+                    defaultValue={timeOf(row.starts_at)}
+                    className="w-auto"
+                  />
+                  <span aria-hidden="true">–</span>
+                  <label class="sr-only" for={`end-${row.id}`}>
+                    End of {label} on {selectedLabel}
+                  </label>
+                  <Input
+                    id={`end-${row.id}`}
+                    type="time"
+                    name="end"
+                    required
+                    defaultValue={timeOf(row.ends_at)}
+                    className="w-auto"
+                  />
+                  {dateOf(row.ends_at) !== selectedDay && <span class="text-xs text-muted-foreground">(+1)</span>}
+                  <Button type="submit" variant="secondary" size="sm" aria-label={`Save ${label} on ${selectedLabel}`}>
+                    Save
+                  </Button>
+                </form>
+                <form method="POST" action="/api/availability/delete">
+                  <input type="hidden" name="id" value={row.id} />
+                  <input type="hidden" name="month" value={month} />
+                  <input type="hidden" name="day" value={selectedDay} />
+                  <Button
+                    type="submit"
+                    variant="destructive"
+                    size="sm"
+                    aria-label={`Delete ${label} on ${selectedLabel}`}
+                  >
+                    Delete
+                  </Button>
+                </form>
+              </>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  )}
+
+  {!locked && (
+    <form method="POST" action="/api/availability/create" class="flex flex-col gap-3 border-t pt-3">
+      <h3 class="text-sm font-semibold">Add window</h3>
+      <input type="hidden" name="date" value={selectedDay} />
+      <div class="flex flex-wrap items-end gap-3">
+        <div class="flex flex-col gap-1">
+          <label for="add-start" class="text-xs text-muted-foreground">
+            Start
+          </label>
+          <Input id="add-start" type="time" name="start" required className="w-auto" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label for="add-end" class="text-xs text-muted-foreground">
+            End
+          </label>
+          <Input id="add-end" type="time" name="end" required className="w-auto" />
+        </div>
+        <Button type="submit" size="sm" aria-label={`Add window on ${selectedLabel}`}>
+          Add
+        </Button>
+      </div>
+      <label class="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="repeat" value="1" class="size-4 accent-primary" />
+        Repeat every {weekdayName(selectedDay)} this month
+      </label>
+      <p class="text-xs text-muted-foreground">An end time at or before the start time ends on the next day.</p>
+    </form>
+  )}
+</section>
