@@ -1,7 +1,7 @@
 ---
 change_id: availability-ui-tokens
 title: Make the /availability view read the shadcn design tokens
-status: implemented
+status: impl_reviewed
 created: 2026-09-28
 updated: 2026-09-28
 archived_at: null

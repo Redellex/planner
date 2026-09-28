@@ -57,7 +57,10 @@ const firstDay = monthStart(month);
             hasWindows && "bg-secondary text-secondary-foreground",
             selected
               ? "border-primary bg-primary text-primary-foreground"
-              : "hover:bg-accent hover:text-accent-foreground",
+              : // --accent equals --secondary in the dark set, so a day with windows hovers like Button secondary.
+                hasWindows
+                ? "hover:bg-secondary/80"
+                : "hover:bg-accent hover:text-accent-foreground",
           )}
         >
           <span class="font-semibold">{dayOfMonth(day)}</span>

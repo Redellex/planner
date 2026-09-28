@@ -37,13 +37,15 @@ Checked against the captured images on 2026-09-28.
 - **Pending.** A clicked submit button is disabled with `aria-busy="true"` until navigation. It is only visible in the kitchen sink (the "Pending" panel), because the live state lasts only as long as the POST.
 - **Narrow width.** Same grid and dot indicators as before, with no horizontal scroll at 390px.
 - **Observed in the captures.**
-  - The neutral palette makes the selected day, the current month tab and the Add button near-white (`--primary`). A violet/navy re-tint of the `.dark` token values is planned as a follow-up change.
+  - The neutral palette makes the selected day, the current month tab and the Add button near-white (`--primary`). This neutral look was accepted after the captures; a violet/navy re-tint of the `.dark` values would be a separate change, made only on request.
   - The focus ring (`--ring` at 50%) is visible but subtle on the dark cells.
-  - Days with windows show no hover change, because `--accent` equals `--secondary` in the dark set; only empty days visibly hover.
+  - Days with windows showed no hover change, because `--accent` equals `--secondary` in the dark set. Fixed in the implementation review: they now hover to `bg-secondary/80`, like `Button` secondary. The captures predate that fix.
 
 ### `/dev/availability-states` (new, no before)
 
 Dev-only kitchen sink, which returns 404 in production builds. It renders from fixture data (April 2026, forms inert):
+
+> The 404 sets `Astro.response.status` and renders an empty template instead of the planned `new Response(null, { status: 404 })`, because a frontmatter `return` crashes ESLint in `.astro` files. Astro still emits the page's hoisted script, so the production 404 body is a bare doctype plus that inert script (158 bytes), with no fixture data.
 
 - the month tabs with one locked month;
 - the calendar with a carry-over on day 1, empty days, a single window, multiple windows (selected) and a full day;
