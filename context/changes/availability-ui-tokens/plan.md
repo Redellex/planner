@@ -504,15 +504,15 @@ No data or schema change. Globally adding `.dark` affects only token-reading cod
 
 #### Automated
 
-- [x] 4.1 Lint passes: `npm run lint`
-- [x] 4.2 Type check passes: `npx astro check`
-- [x] 4.3 Build passes: `npm run build`
-- [x] 4.4 Smoke passes: `npm run smoke`
-- [x] 4.5 The kitchen sink returns 404 in the production preview: `curl -s -o /dev/null -w '%{http_code}' http://localhost:4321/dev/availability-states` prints `404` against `npm run preview`
+- [x] 4.1 Lint passes: `npm run lint` — 6006713
+- [x] 4.2 Type check passes: `npx astro check` — 6006713
+- [x] 4.3 Build passes: `npm run build` — 6006713
+- [x] 4.4 Smoke passes: `npm run smoke` — 6006713
+- [x] 4.5 The kitchen sink returns 404 in the production preview: `curl -s -o /dev/null -w '%{http_code}' http://localhost:4321/dev/availability-states` prints `404` against `npm run preview` — 6006713
 
 #### Manual
 
-- [x] 4.6 The kitchen sink shows all listed states side by side at 1280px and 390px, with screenshots saved in `screenshots/after/`
-- [x] 4.7 Tabbing through `/availability` shows a visible focus ring on month tabs, day cells, inputs, checkbox and buttons, and focus is distinguishable from the selected day
-- [x] 4.8 Double-clicking Add on a free slot saves once and shows "Availability saved." (no false overlap error); Back after a submit leaves buttons enabled
-- [x] 4.9 `screenshots/README.md` explains the before→after delta for every captured route; `/`, `/dashboard` and `/auth/signin` show no unexplained change
+- [x] 4.6 The kitchen sink shows all listed states side by side at 1280px and 390px, with screenshots saved in `screenshots/after/` — 6006713
+- [x] 4.7 Tabbing through `/availability` shows a visible focus ring on month tabs, day cells, inputs, checkbox and buttons, and focus is distinguishable from the selected day — 6006713
+- [x] 4.8 Double-clicking Add on a free slot saves once and shows "Availability saved." (no false overlap error); Back after a submit leaves buttons enabled — 6006713
+- [x] 4.9 `screenshots/README.md` explains the before→after delta for every captured route; `/`, `/dashboard` and `/auth/signin` show no unexplained change — 6006713
