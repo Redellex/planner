@@ -556,32 +556,32 @@ No schema change and no type regeneration. The `&user=` param is additive; old `
 
 #### Automated
 
-- [x] 4.1 Lint passes: `npm run lint`
-- [x] 4.2 Type check passes: `npx astro check`
-- [x] 4.3 Build passes: `npm run build`
-- [x] 4.4 Smoke passes: `npm run smoke`
-- [x] 4.5 The kitchen sink returns 404 under `npm run preview`
-- [x] 4.6 No literal colours in the kitchen sink (grep returns nothing)
+- [x] 4.1 Lint passes: `npm run lint` — 7a71bca
+- [x] 4.2 Type check passes: `npx astro check` — 7a71bca
+- [x] 4.3 Build passes: `npm run build` — 7a71bca
+- [x] 4.4 Smoke passes: `npm run smoke` — 7a71bca
+- [x] 4.5 The kitchen sink returns 404 under `npm run preview` — 7a71bca
+- [x] 4.6 No literal colours in the kitchen sink (grep returns nothing) — 7a71bca
 
 #### Manual
 
-- [x] 4.7 `/dev/manager-users-states` shows every row and page-level state at 1280px and 390px
-- [x] 4.8 Visible token focus ring on select, Save and back link; tab order row by row
-- [x] 4.9 Save disables until redirect; double click sends one POST; Back restores an enabled Save
-- [x] 4.10 `screenshots/after/` and `README.md` exist with every 7-state cell shown or marked N/A
+- [x] 4.7 `/dev/manager-users-states` shows every row and page-level state at 1280px and 390px — 7a71bca
+- [x] 4.8 Visible token focus ring on select, Save and back link; tab order row by row — 7a71bca
+- [x] 4.9 Save disables until redirect; double click sends one POST; Back restores an enabled Save — 7a71bca
+- [x] 4.10 `screenshots/after/` and `README.md` exist with every 7-state cell shown or marked N/A — 7a71bca
 
 ### Phase 5: Make it stick
 
 #### Automated
 
-- [ ] 5.1 Lint passes: `npm run lint`
-- [ ] 5.2 Type check passes: `npx astro check`
-- [ ] 5.3 Build passes: `npm run build`
-- [ ] 5.4 `npm run check:ui` exits 0 on the whole scope
-- [ ] 5.5 A probe file with `text-red-300` makes `npm run check:ui` exit 1
-- [ ] 5.6 Files outside the scope are ignored by the check
+- [x] 5.1 Lint passes: `npm run lint`
+- [x] 5.2 Type check passes: `npx astro check`
+- [x] 5.3 Build passes: `npm run build`
+- [x] 5.4 `npm run check:ui` exits 0 on the whole scope
+- [x] 5.5 A probe file with `text-red-300` makes `npm run check:ui` exit 1
+- [x] 5.6 Files outside the scope are ignored by the check
 
 #### Manual
 
-- [ ] 5.7 The `### UI` block sits above the 10x-cli managed block and reads as a complete contract
+- [x] 5.7 The `### UI` block sits above the 10x-cli managed block and reads as a complete contract
 - [ ] 5.8 The pre-commit hook rejects a staged scoped file containing `bg-white/10`

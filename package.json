@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "check:ui": "node scripts/check-ui-literals.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.10",
@@ -58,6 +59,9 @@
   "lint-staged": {
     "*.{ts,tsx,astro}": [
       "eslint --fix"
+    ],
+    "*.{astro,tsx}": [
+      "node scripts/check-ui-literals.mjs"
     ],
     "*.{json,css,md}": [
       "prettier --write"
