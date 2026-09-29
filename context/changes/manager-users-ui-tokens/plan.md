@@ -522,35 +522,35 @@ No schema change and no type regeneration. The `&user=` param is additive; old `
 
 #### Automated
 
-- [x] 2.1 Lint passes: `npm run lint`
-- [x] 2.2 Type check passes: `npx astro check`
-- [x] 2.3 Build passes: `npm run build`
-- [x] 2.4 Smoke passes against a local server with the seeded DB: `npm run smoke`
-- [x] 2.5 No raw message reaches a redirect or the page (grep returns nothing)
+- [x] 2.1 Lint passes: `npm run lint` — 06c43ad
+- [x] 2.2 Type check passes: `npx astro check` — 06c43ad
+- [x] 2.3 Build passes: `npm run build` — 06c43ad
+- [x] 2.4 Smoke passes against a local server with the seeded DB: `npm run smoke` — 06c43ad
+- [x] 2.5 No raw message reaches a redirect or the page (grep returns nothing) — 06c43ad
 
 #### Manual
 
-- [x] 2.6 An unknown `?error=` shows "Could not update the role. Try again."
-- [x] 2.7 Last-manager demotion shows "Cannot demote the last manager" with `&user=<id>` in the URL
-- [x] 2.8 Promoting the seeded employee shows "Role updated." with `&user=<employee id>`
+- [x] 2.6 An unknown `?error=` shows "Could not update the role. Try again." — 06c43ad
+- [x] 2.7 Last-manager demotion shows "Cannot demote the last manager" with `&user=<id>` in the URL — 06c43ad
+- [x] 2.8 Promoting the seeded employee shows "Role updated." with `&user=<employee id>` — 06c43ad
 
 ### Phase 3: The view on tokens and shared components
 
 #### Automated
 
-- [ ] 3.1 Lint passes: `npm run lint`
-- [ ] 3.2 Type check passes: `npx astro check`
-- [ ] 3.3 Build passes: `npm run build`
-- [ ] 3.4 Smoke passes: `npm run smoke`
-- [ ] 3.5 No literal colours in the view (grep returns nothing)
-- [ ] 3.6 No hydration directives (grep returns nothing)
+- [x] 3.1 Lint passes: `npm run lint`
+- [x] 3.2 Type check passes: `npx astro check`
+- [x] 3.3 Build passes: `npm run build`
+- [x] 3.4 Smoke passes: `npm run smoke`
+- [x] 3.5 No literal colours in the view (grep returns nothing)
+- [x] 3.6 No hydration directives (grep returns nothing)
 
 #### Manual
 
-- [ ] 3.7 `/manager/users` renders in the neutral dark theme at 1280px and 390px with no horizontal scroll
-- [ ] 3.8 Page source shows `selected` on the current role option and no slot wrapper inside `<select>`
-- [ ] 3.9 Error and success feedback appear inside the affected row
-- [ ] 3.10 Self row shows the "You" pill; a blank-email row shows "No email · <short id>" with named controls
+- [x] 3.7 `/manager/users` renders in the neutral dark theme at 1280px and 390px with no horizontal scroll
+- [x] 3.8 Page source shows `selected` on the current role option and no slot wrapper inside `<select>`
+- [x] 3.9 Error and success feedback appear inside the affected row
+- [x] 3.10 Self row shows the "You" pill; a blank-email row shows "No email · <short id>" with named controls
 
 ### Phase 4: States and visual gate
 
