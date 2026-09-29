@@ -1,10 +1,10 @@
 ---
 change_id: manager-users-ui-tokens
 title: Make the /manager/users view read the shadcn design tokens
-status: implemented
+status: archived
 created: 2026-09-29
 updated: 2026-09-29
-archived_at: null
+archived_at: 2026-09-29T12:08:33Z
 ---
 
 ## Notes
