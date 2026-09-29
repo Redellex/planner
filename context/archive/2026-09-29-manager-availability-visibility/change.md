@@ -1,10 +1,10 @@
 ---
 change_id: manager-availability-visibility
 title: Manager availability visibility
-status: impl_reviewed
+status: archived
 created: 2026-09-29
 updated: 2026-09-29
-archived_at: null
+archived_at: 2026-09-29T12:45:21Z
 ---
 
 ## Notes

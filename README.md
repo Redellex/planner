@@ -157,15 +157,16 @@ Users can then sign in immediately after sign-up without clicking a confirmation
 
 ### Routes
 
-| Route                 | Access    | Description                                                                           |
-| --------------------- | --------- | ------------------------------------------------------------------------------------- |
-| `/auth/signin`        | anyone    | Email/password sign-in form                                                           |
-| `/auth/signup`        | anyone    | Email/password sign-up form                                                           |
-| `/auth/confirm-email` | anyone    | Post-signup "check your inbox" page                                                   |
-| `/dashboard`          | signed in | Landing page after sign-in                                                            |
-| `/availability`       | signed in | Calendar for adding, editing and deleting your own availability for the next 3 months |
-| `/manager/users`      | manager   | Promote or demote users (the last manager cannot be demoted)                          |
-| `/manager/months`     | manager   | Lock or unlock an upcoming month's availability                                       |
+| Route                   | Access    | Description                                                                                                                |
+| ----------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `/auth/signin`          | anyone    | Email/password sign-in form                                                                                                |
+| `/auth/signup`          | anyone    | Email/password sign-up form                                                                                                |
+| `/auth/confirm-email`   | anyone    | Post-signup "check your inbox" page                                                                                        |
+| `/dashboard`            | signed in | Landing page after sign-in                                                                                                 |
+| `/availability`         | signed in | Calendar for adding, editing and deleting your own availability for the next 3 months                                      |
+| `/manager/users`        | manager   | Promote or demote users (the last manager cannot be demoted)                                                               |
+| `/manager/months`       | manager   | Lock or unlock an upcoming month's availability                                                                            |
+| `/manager/availability` | manager   | Read-only team calendar: who is available each day, lock status and per-person totals for the current month and the next 3 |
 
 Route protection is handled in `src/middleware.ts`. `PROTECTED_ROUTES` sends anonymous users to `/auth/signin`. `MANAGER_ROUTES` also returns 403 to non-managers. Postgres row-level security does the actual data enforcement.
 
@@ -189,7 +190,7 @@ Set `SUPABASE_URL` and `SUPABASE_KEY` as secrets in your Cloudflare dashboard or
 
 ## Smoke test
 
-`scripts/smoke.mjs` is a dependency-free Node script that runs over HTTP. It walks the whole auth flow (sign-up, sign-in, protected page, sign-out). It also checks role enforcement: a new user gets 403 on `/manager/users`, and the last manager cannot be demoted. Finally, it checks the availability flow: add, overlap error, edit and delete a window, then a manager locks a month, a create in it is refused, and the manager unlocks it. Run it against the dev server or the production preview after dependency upgrades:
+`scripts/smoke.mjs` is a dependency-free Node script that runs over HTTP. It walks the whole auth flow (sign-up, sign-in, protected page, sign-out). It also checks role enforcement: a new user gets 403 on `/manager/users`, and the last manager cannot be demoted. Finally, it checks the availability flow: add, overlap error, edit and delete a window, then a manager locks a month, a create in it is refused, and the manager unlocks it. It also checks the manager team view: a new user gets 403 on `/manager/availability`, and the manager sees the window that user left. Run it against the dev server or the production preview after dependency upgrades:
 
 ```bash
 npm run dev            # or: npm run build && npm run preview
