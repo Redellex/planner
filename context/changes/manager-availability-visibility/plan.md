@@ -315,27 +315,27 @@ None. No schema changes; `src/db/database.types.ts` is unchanged.
 
 #### Automated
 
-- [x] 2.1 Lint passes: `npm run lint`
-- [x] 2.2 Type check passes: `npx astro check`
-- [x] 2.3 Production build succeeds: `npm run build`
+- [x] 2.1 Lint passes: `npm run lint` — 40d5527
+- [x] 2.2 Type check passes: `npx astro check` — 40d5527
+- [x] 2.3 Production build succeeds: `npm run build` — 40d5527
 
 #### Manual
 
-- [x] 2.4 The summary lists every account (including the manager), with window counts and totals matching the created windows (e.g. 08:00–16:00 plus 22:00–06:00 (+1) = "16h")
-- [x] 2.5 An account with no window in the month shows "No availability submitted"; an account whose only window is a previous-month overnight window running into day 1 is also flagged
-- [x] 2.6 "Show only" narrows the calendar cells to that person's compact windows and the day panel to that person; switching months and days keeps the filter; "Show everyone" clears it
-- [x] 2.7 A bogus `?employee=` value (random text or an unknown uuid) is ignored and the page shows everyone without an error
+- [x] 2.4 The summary lists every account (including the manager), with window counts and totals matching the created windows (e.g. 08:00–16:00 plus 22:00–06:00 (+1) = "16h") — 40d5527
+- [x] 2.5 An account with no window in the month shows "No availability submitted"; an account whose only window is a previous-month overnight window running into day 1 is also flagged — 40d5527
+- [x] 2.6 "Show only" narrows the calendar cells to that person's compact windows and the day panel to that person; switching months and days keeps the filter; "Show everyone" clears it — 40d5527
+- [x] 2.7 A bogus `?employee=` value (random text or an unknown uuid) is ignored and the page shows everyone without an error — 40d5527
 
 ### Phase 3: Navigation, smoke coverage and docs
 
 #### Automated
 
-- [ ] 3.1 Lint passes: `npm run lint`
-- [ ] 3.2 Type check passes: `npx astro check`
-- [ ] 3.3 Production build succeeds: `npm run build`
-- [ ] 3.4 Smoke passes including the new team-availability steps: `npm run smoke`
+- [x] 3.1 Lint passes: `npm run lint`
+- [x] 3.2 Type check passes: `npx astro check`
+- [x] 3.3 Production build succeeds: `npm run build`
+- [x] 3.4 Smoke passes including the new team-availability steps: `npm run smoke`
 
 #### Manual
 
-- [ ] 3.5 The dashboard and the top bar show "Team availability" for the manager only, and the link opens the page
-- [ ] 3.6 CLAUDE.md describes the new route and the updated smoke steps
+- [x] 3.5 The dashboard and the top bar show "Team availability" for the manager only, and the link opens the page
+- [x] 3.6 CLAUDE.md describes the new route and the updated smoke steps
