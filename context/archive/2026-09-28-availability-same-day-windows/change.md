@@ -1,10 +1,10 @@
 ---
 change_id: availability-same-day-windows
 title: Fix a second same-day availability window replacing the first or reporting a false overlap
-status: preparing
+status: archived
 created: 2026-09-28
 updated: 2026-09-29
-archived_at: null
+archived_at: 2026-09-29T10:43:28Z
 ---
 
 ## Notes
