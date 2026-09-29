@@ -39,14 +39,14 @@ A gas-station manager currently builds the monthly shift schedule by hand in a s
 
 ## At a glance
 
-| ID   | Change ID                        | Outcome (user can …)                                                                  | Prerequisites | PRD refs                       | Status      |
-| ---- | -------------------------------- | ------------------------------------------------------------------------------------- | ------------- | ------------------------------ | ----------- |
-| F-01 | role-aware-access-control        | (foundation) Manager/Employee roles exist and are enforced at the auth layer          | —             | Access Control, FR-001, FR-002 | done        |
-| S-01 | employee-availability-management | Employee can create/edit their own monthly availability; locks once generation starts | F-01          | FR-001, Access Control         | done        |
-| S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | done |
-| S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | blocked     |
-| S-04 | review-override-publish-schedule | Manager reviews, overrides (with conflict warnings), and publishes the schedule       | S-03          | FR-004, FR-005, FR-006         | proposed    |
-| S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | proposed    |
+| ID   | Change ID                        | Outcome (user can …)                                                                  | Prerequisites | PRD refs                       | Status   |
+| ---- | -------------------------------- | ------------------------------------------------------------------------------------- | ------------- | ------------------------------ | -------- |
+| F-01 | role-aware-access-control        | (foundation) Manager/Employee roles exist and are enforced at the auth layer          | —             | Access Control, FR-001, FR-002 | done     |
+| S-01 | employee-availability-management | Employee can create/edit their own monthly availability; locks once generation starts | F-01          | FR-001, Access Control         | done     |
+| S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | done     |
+| S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | blocked  |
+| S-04 | review-override-publish-schedule | Manager reviews, overrides (with conflict warnings), and publishes the schedule       | S-03          | FR-004, FR-005, FR-006         | proposed |
+| S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | proposed |
 
 ## Baseline
 
@@ -101,7 +101,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Low-risk read-only view; kept parallel with S-03 (not a hard prerequisite of it) so it doesn't delay the riskier north-star slice.
-- **Handoff from S-01:** `availability_windows` has no `starts_at` index. The GiST exclusion index is led by `employee_id`, so decide whether a month-wide, all-employee query needs one.
+- **Handoff from S-01:** ~~`availability_windows` has no `starts_at` index. The GiST exclusion index is led by `employee_id`, so decide whether a month-wide, all-employee query needs one.~~ Resolved (2026-09-29, by the archived change): no index added. At single-station scale the month-wide scan covers a few hundred rows; revisit if S-03's generator reads are slow.
 - **Status:** done
 
 ### S-03: Generate monthly schedule
@@ -118,7 +118,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Risk:** This is the riskiest, most complex slice in the PRD by its own admission (the FR-003 Socrates note explicitly considered and rejected cutting it) — sequenced immediately after the minimal data prerequisite (S-01) rather than deferred, so the hardest technical bet gets tested early while there's still runway to descope if needed.
 - **Handoff from S-01:**
   - `availability_windows.employee_id` is `on delete cascade`. Deleting a user drops their windows even in locked months, so revisit this (restrict or soft-delete) once schedules are persisted.
-  - Month-wide reads may need a `starts_at` index (see S-02).
+  - Month-wide reads have no `starts_at` index (S-02 decided none is needed at single-station scale); add one if the generator's reads are slow. PostgREST silently caps a read at 1000 rows, so page month-wide reads (S-02 does this in `loadMonthWindows` with `.range()`).
   - A window belongs to its `starts_at` month and may spill into day 1 of the next month; writes require both months to be editable.
   - Durations are wall-clock, with no DST correction.
 - **Status:** blocked
@@ -156,7 +156,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 | S-01             | #2       | employee-availability-management | Employee availability CRUD with monthly lock                                      | —                     | Done — archived 2026-09-26                                      |
 | S-01 (follow-up) | #15 (PR) | availability-ui-tokens           | `/availability` on the shadcn design tokens (UI only)                             | —                     | Done — archived 2026-09-28                                      |
 | S-01 (follow-up) | #16      | availability-same-day-windows    | Second same-day availability window replaces the first or reports a false overlap | —                     | Not a bug (edit form used instead of Add) — archived 2026-09-29 |
-| S-02             | #3       | manager-availability-visibility  | Manager view of all employee availability                                         | yes                   | Run `/10x-new manager-availability-visibility`                  |
+| S-02             | #3       | manager-availability-visibility  | Manager view of all employee availability                                         | —                     | Done in PR #21 — archived 2026-09-29                            |
 | S-03             | #4       | generate-monthly-schedule        | Auto-generate conflict-free, fairly-rotated monthly schedule                      | no                    | Blocked — 2 unknowns need resolving first                       |
 | S-04             | #5       | review-override-publish-schedule | Manager review/override/publish workflow for generated schedule                   | no                    | Waiting on S-03                                                 |
 | S-05             | #6       | view-published-schedule          | Published schedule grid view for employees and managers                           | no                    | Waiting on S-04                                                 |

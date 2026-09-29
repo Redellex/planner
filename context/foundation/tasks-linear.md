@@ -4,7 +4,7 @@ source: context/foundation/roadmap.md (v1)
 tracker: GitHub Issues
 repo: Redellex/planner
 migrated: 2026-09-25
-updated: 2026-09-26
+updated: 2026-09-29
 milestone: M-1 (GitHub milestone #1)
 ---
 
@@ -41,7 +41,7 @@ The roadmap's Backlog Handoff table already asks for "stable human-readable iden
 | ---------- | ----- | ---------------------------------------------------------------------- | ------------------------------------------ | --------- | ---------- |
 | F-01       | #1    | [F-01] Add manager/employee roles to auth                              | roadmap, foundation — **closed** (done)    | M-1       | —          |
 | S-01       | #2    | [S-01] Employee availability CRUD with monthly lock                    | roadmap, slice — **closed** (done)         | M-1       | #1         |
-| S-02       | #3    | [S-02] Manager view of all employee availability                       | roadmap, slice, status:ready               | M-1       | #1, #2     |
+| S-02       | #3    | [S-02] Manager view of all employee availability                       | roadmap, slice — **closed** (done)         | M-1       | #1, #2     |
 | S-03       | #4    | [S-03] Auto-generate conflict-free, fairly-rotated monthly schedule    | roadmap, slice, north-star, status:blocked | M-1       | #2         |
 | S-04       | #5    | [S-04] Manager review/override/publish workflow for generated schedule | roadmap, slice, status:proposed            | M-1       | #4         |
 | S-05       | #6    | [S-05] Published schedule grid view for employees and managers         | roadmap, slice, status:proposed            | M-1       | #5         |
@@ -203,10 +203,10 @@ The temporary body files were kept in the session scratchpad and are not in the 
 
 ## What to do next
 
-Status as of 2026-09-26: M-1 is 2/6 done.
+Status as of 2026-09-29: M-1 is 3/6 done.
 
 - #1 (F-01) was delivered in PR #10 and archived to `context/archive/2026-09-25-role-aware-access-control/`.
 - #2 (S-01) was delivered in PR #12 (review reports in PR #13) and archived to `context/archive/2026-09-26-employee-availability-management/`.
+- #3 (S-02) was delivered in PR #21 and archived to `context/archive/2026-09-29-manager-availability-visibility/`.
 
-1. **#3 (S-02)** is now `status:ready`, because both its prerequisites are closed. Start it with `/10x-new manager-availability-visibility`.
-2. **#4 (S-03, north star)** no longer waits on S-01, but it stays `status:blocked` until two questions are answered: how "fair" long-shift rotation is defined, and what happens when no one's availability covers a shift. It can run in parallel with S-02.
+1. **#4 (S-03, north star)** is the only open slice that can start. It stays `status:blocked` until two questions are answered: how "fair" long-shift rotation is defined, and what happens when no one's availability covers a shift. #5 (S-04) and #6 (S-05) wait on it.
