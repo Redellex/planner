@@ -1,6 +1,15 @@
 ---
 import type { DayEntry } from "@/components/availability/types";
-import { dayOfMonth, formatDay, formatMonth, teamAvailabilityUrl } from "@/lib/availability";
+import {
+  dayOfMonth,
+  formatCarryOver,
+  formatDay,
+  formatMonth,
+  formatWindow,
+  formatWindowCompact,
+  teamAvailabilityUrl,
+  timeOf,
+} from "@/lib/availability";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -9,13 +18,21 @@ interface Props {
   selectedDay: string;
   /** The filtered account's profile id, kept in every day link; null shows everyone. */
   employee: string | null;
-  /** Entries per day, including the previous month's overnight windows on day 1. */
+  /**
+   * Entries per day, including the previous month's overnight windows on day 1; already narrowed to `employee`
+   * while filtered, when cells show that person's windows instead of a count.
+   */
   entriesByDay: Map<string, DayEntry[]>;
 }
 
 const { month, weeks, selectedDay, employee, entriesByDay } = Astro.props;
 
 const WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+
+// Same wording as /availability: a previous-month window shows only its part on day 1.
+function entryLabel(entry: DayEntry): string {
+  return entry.carryOver ? formatCarryOver(entry.window) : formatWindow(entry.window);
+}
 ---
 
 <section aria-label={`Team calendar for ${formatMonth(month)}`} class="mb-6">
@@ -34,7 +51,15 @@ const WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
       const people = new Set(entries.map((entry) => entry.member.id)).size;
       const selected = day === selectedDay;
       const hasWindows = people > 0;
-      const summary = hasWindows ? `${people} ${people === 1 ? "person" : "people"} available` : "no one available";
+      const summary = employee
+        ? hasWindows
+          ? entries.map(entryLabel).join(", ")
+          : "no windows"
+        : hasWindows
+          ? `${people} ${people === 1 ? "person" : "people"} available`
+          : "no one available";
+      // The phone dot counts windows while filtered, people otherwise.
+      const dotCount = employee ? entries.length : people;
       return (
         <a
           href={teamAvailabilityUrl({ month, day, employee })}
@@ -58,9 +83,26 @@ const WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
             <>
               <span class="flex items-center gap-0.5 text-[10px] sm:hidden">
                 <span class:list={cn("size-1.5 rounded-full", selected ? "bg-primary-foreground" : "bg-primary")} />
-                {people > 1 && people}
+                {dotCount > 1 && dotCount}
               </span>
-              <span class="hidden w-full truncate sm:block">{people} available</span>
+              {employee ? (
+                entries.map((entry) =>
+                  entry.carryOver ? (
+                    <span
+                      class:list={cn(
+                        "hidden w-full truncate sm:block",
+                        selected ? "text-primary-foreground/70" : "text-muted-foreground",
+                      )}
+                    >
+                      …–{timeOf(entry.window.ends_at)}
+                    </span>
+                  ) : (
+                    <span class="hidden w-full truncate sm:block">{formatWindowCompact(entry.window)}</span>
+                  ),
+                )
+              ) : (
+                <span class="hidden w-full truncate sm:block">{people} available</span>
+              )}
             </>
           )}
         </a>

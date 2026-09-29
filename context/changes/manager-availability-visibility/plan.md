@@ -298,33 +298,33 @@ None. No schema changes; `src/db/database.types.ts` is unchanged.
 
 #### Automated
 
-- [x] 1.1 Lint passes: `npm run lint`
-- [x] 1.2 Type check passes: `npx astro check`
-- [x] 1.3 Production build succeeds: `npm run build`
-- [x] 1.4 Existing smoke steps still pass: `npm run smoke`
+- [x] 1.1 Lint passes: `npm run lint` — 8a2f32d
+- [x] 1.2 Type check passes: `npx astro check` — 8a2f32d
+- [x] 1.3 Production build succeeds: `npm run build` — 8a2f32d
+- [x] 1.4 Existing smoke steps still pass: `npm run smoke` — 8a2f32d
 
 #### Manual
 
-- [x] 1.5 As the seeded manager, `/manager/availability` defaults to next month and shows the correct per-day counts for windows created by two different accounts
-- [x] 1.6 The day panel lists each account's windows sorted by start time, marks overnight windows `(+1)`, and lists the accounts without a window that day
-- [x] 1.7 An overnight window created on the last day of the previous month shows on day 1 as `00:00 – HH:MM (from …)` and counts toward day 1
-- [x] 1.8 The current month tab reads "In progress"; locking and unlocking an upcoming month in `/manager/months` changes its status line; `/availability` month tabs look and link exactly as before
-- [x] 1.9 As the seeded employee, `/manager/availability` returns the 403 page
+- [x] 1.5 As the seeded manager, `/manager/availability` defaults to next month and shows the correct per-day counts for windows created by two different accounts — 8a2f32d
+- [x] 1.6 The day panel lists each account's windows sorted by start time, marks overnight windows `(+1)`, and lists the accounts without a window that day — 8a2f32d
+- [x] 1.7 An overnight window created on the last day of the previous month shows on day 1 as `00:00 – HH:MM (from …)` and counts toward day 1 — 8a2f32d
+- [x] 1.8 The current month tab reads "In progress"; locking and unlocking an upcoming month in `/manager/months` changes its status line; `/availability` month tabs look and link exactly as before — 8a2f32d
+- [x] 1.9 As the seeded employee, `/manager/availability` returns the 403 page — 8a2f32d
 
 ### Phase 2: Team summary and employee filter
 
 #### Automated
 
-- [ ] 2.1 Lint passes: `npm run lint`
-- [ ] 2.2 Type check passes: `npx astro check`
-- [ ] 2.3 Production build succeeds: `npm run build`
+- [x] 2.1 Lint passes: `npm run lint`
+- [x] 2.2 Type check passes: `npx astro check`
+- [x] 2.3 Production build succeeds: `npm run build`
 
 #### Manual
 
-- [ ] 2.4 The summary lists every account (including the manager), with window counts and totals matching the created windows (e.g. 08:00–16:00 plus 22:00–06:00 (+1) = "16h")
-- [ ] 2.5 An account with no window in the month shows "No availability submitted"; an account whose only window is a previous-month overnight window running into day 1 is also flagged
-- [ ] 2.6 "Show only" narrows the calendar cells to that person's compact windows and the day panel to that person; switching months and days keeps the filter; "Show everyone" clears it
-- [ ] 2.7 A bogus `?employee=` value (random text or an unknown uuid) is ignored and the page shows everyone without an error
+- [x] 2.4 The summary lists every account (including the manager), with window counts and totals matching the created windows (e.g. 08:00–16:00 plus 22:00–06:00 (+1) = "16h")
+- [x] 2.5 An account with no window in the month shows "No availability submitted"; an account whose only window is a previous-month overnight window running into day 1 is also flagged
+- [x] 2.6 "Show only" narrows the calendar cells to that person's compact windows and the day panel to that person; switching months and days keeps the filter; "Show everyone" clears it
+- [x] 2.7 A bogus `?employee=` value (random text or an unknown uuid) is ignored and the page shows everyone without an error
 
 ### Phase 3: Navigation, smoke coverage and docs
 

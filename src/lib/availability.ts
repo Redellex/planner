@@ -170,6 +170,23 @@ export function calendarWeeks(month: string): (string | null)[][] {
   return Array.from({ length: cells.length / 7 }, (_, week) => cells.slice(week * 7, week * 7 + 7));
 }
 
+function timestampToUtcMs(timestamp: string): number {
+  const [hours, minutes] = timeOf(timestamp).split(":").map(Number);
+  return dateToUtcMs(dateOf(timestamp)) + (hours * 60 + minutes) * 60 * 1000;
+}
+
+/** Wall-clock length of a window in minutes, with no DST correction (00:00–00:00 is always 24h). */
+export function windowMinutes(row: WindowTimes): number {
+  return (timestampToUtcMs(row.ends_at) - timestampToUtcMs(row.starts_at)) / 60000;
+}
+
+/** `"0h"`, `"8h"`, `"37h 20m"` style text for a number of minutes. */
+export function formatDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+}
+
 /** Time part (`HH:MM`) of a wall-clock timestamp string. */
 export function timeOf(timestamp: string): string {
   return timestamp.slice(11, 16);
@@ -203,6 +220,11 @@ export function formatDay(date: string): string {
 /** `"October 2026"` for a `YYYY-MM` month. */
 export function formatMonth(month: string): string {
   return MONTH_FORMAT.format(dateToUtcMs(monthStart(month)));
+}
+
+/** `"00:00 – 04:00 (from Sat 31 Oct)"`: the day-1 part of an overnight window from the previous month. */
+export function formatCarryOver(row: WindowTimes): string {
+  return `00:00 – ${timeOf(row.ends_at)} (from ${formatDay(dateOf(row.starts_at))})`;
 }
 
 // Unlike the wall-clock window strings, a timestamptz value (e.g. availability_locks.locked_at) is a real

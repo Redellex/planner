@@ -1,0 +1,76 @@
+---
+import type { TeamMember } from "@/components/availability/types";
+import { buttonVariants } from "@/components/ui/button";
+import { formatDuration, formatMonth, teamAvailabilityUrl } from "@/lib/availability";
+import { cn } from "@/lib/utils";
+
+interface Props {
+  members: TeamMember[];
+  /** employee_id -> windows starting in the month and their total wall-clock minutes. */
+  totals: Map<string, { windows: number; minutes: number }>;
+  month: string;
+  day: string;
+  /** The filtered account's profile id; null shows everyone. */
+  employee: string | null;
+}
+
+const { members, totals, month, day, employee } = Astro.props;
+const headingId = "team-summary-heading";
+---
+
+<section aria-labelledby={headingId} class="mt-6 rounded-xl border bg-card p-4 text-card-foreground">
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <h2 id={headingId} class="text-base font-semibold">
+      Team summary — {formatMonth(month)}
+    </h2>
+    {employee && (
+      <a href={teamAvailabilityUrl({ month, day })} class:list={buttonVariants({ variant: "outline", size: "sm" })}>
+        Show everyone
+      </a>
+    )}
+  </div>
+  {members.length === 0 ? (
+    <p class="text-sm text-muted-foreground">No accounts to show.</p>
+  ) : (
+    <ul class="divide-y">
+      {members.map((member) => {
+        const total = totals.get(member.id);
+        const active = member.id === employee;
+        return (
+          <li
+            aria-current={active ? "true" : undefined}
+            class:list={cn(
+              "flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm",
+              active && "-mx-2 rounded-md bg-secondary px-2 text-secondary-foreground",
+            )}
+          >
+            <span class="flex min-w-0 flex-col">
+              <span class="truncate font-medium">{member.email}</span>
+              <span class="text-xs text-muted-foreground capitalize">{member.role}</span>
+            </span>
+            <span class="flex flex-wrap items-center gap-3">
+              {total ? (
+                <span>
+                  {total.windows} {total.windows === 1 ? "window" : "windows"} · {formatDuration(total.minutes)}
+                </span>
+              ) : (
+                <span class="rounded-md border border-destructive/40 px-2 py-0.5 text-xs text-destructive">
+                  No availability submitted
+                </span>
+              )}
+              {!active && (
+                <a
+                  href={teamAvailabilityUrl({ month, day, employee: member.id })}
+                  aria-label={`Show only ${member.email}`}
+                  class:list={buttonVariants({ variant: "ghost", size: "sm" })}
+                >
+                  Show only
+                </a>
+              )}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  )}
+</section>

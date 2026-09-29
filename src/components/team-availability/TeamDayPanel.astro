@@ -1,6 +1,6 @@
 ---
 import type { DayEntry, TeamMember } from "@/components/availability/types";
-import { dateOf, formatDay, formatWindow, timeOf } from "@/lib/availability";
+import { formatCarryOver, formatWindow } from "@/lib/availability";
 
 interface Props {
   selectedLabel: string;
@@ -15,9 +15,7 @@ const headingId = "team-selected-day-heading";
 
 // Same wording as /availability: a previous-month window shows only its part on day 1.
 function entryLabel(entry: DayEntry): string {
-  return entry.carryOver
-    ? `00:00 – ${timeOf(entry.window.ends_at)} (from ${formatDay(dateOf(entry.window.starts_at))})`
-    : formatWindow(entry.window);
+  return entry.carryOver ? formatCarryOver(entry.window) : formatWindow(entry.window);
 }
 ---
 

@@ -5,9 +5,11 @@ import MonthTabs from "@/components/availability/MonthTabs.astro";
 import type { DayEntry, TeamMember, TeamWindowRow } from "@/components/availability/types";
 import TeamCalendar from "@/components/team-availability/TeamCalendar.astro";
 import TeamDayPanel from "@/components/team-availability/TeamDayPanel.astro";
+import TeamSummary from "@/components/team-availability/TeamSummary.astro";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 import {
   addMonths,
   calendarWeeks,
@@ -26,6 +28,7 @@ import {
   teamAvailabilityUrl,
   timeOf,
   upcomingMonths,
+  windowMinutes,
 } from "@/lib/availability";
 
 // Manager-only through MANAGER_ROUTES in src/middleware.ts; RLS lets managers read every profile and window.
@@ -98,12 +101,24 @@ if (!supabase) {
 }
 
 const membersById = new Map(members.map((member) => [member.id, member]));
+// Untrusted: honoured only when it is the id of a loaded profile, so it never reaches a query or the page as-is.
+const filteredMember = membersById.get(Astro.url.searchParams.get("employee") ?? "") ?? null;
+const employee = filteredMember?.id ?? null;
+const listedMembers = filteredMember ? [filteredMember] : members;
+
+// Totals count windows starting in the month only; a previous-month window belongs to its own month.
+const totals = new Map<string, { windows: number; minutes: number }>();
+for (const row of windows) {
+  const total = totals.get(row.employee_id) ?? { windows: 0, minutes: 0 };
+  totals.set(row.employee_id, { windows: total.windows + 1, minutes: total.minutes + windowMinutes(row) });
+}
+
 const firstDay = monthStart(month);
 // A window is grouped under the day it starts; a previous-month window is shown on day 1 only.
 const entriesByDay = new Map<string, DayEntry[]>();
 function addEntry(day: string, row: TeamWindowRow, carryOver: boolean) {
   const member = membersById.get(row.employee_id);
-  if (!member) {
+  if (!member || (employee && member.id !== employee)) {
     return;
   }
   entriesByDay.set(day, [...(entriesByDay.get(day) ?? []), { member, window: row, carryOver }]);
@@ -121,7 +136,7 @@ const selectedEntries = [...(entriesByDay.get(selectedDay) ?? [])].sort(
   (a, b) => entryStart(a).localeCompare(entryStart(b)) || a.member.email.localeCompare(b.member.email),
 );
 const withWindowIds = new Set(selectedEntries.map((entry) => entry.member.id));
-const withoutWindows = members.filter((member) => !withWindowIds.has(member.id));
+const withoutWindows = listedMembers.filter((member) => !withWindowIds.has(member.id));
 
 const lockedMonths = new Set(lockedAt.keys());
 const monthLockedAt = lockedAt.get(month);
@@ -134,13 +149,16 @@ const lockStatus = isCurrentMonth
       ? `Locked since ${formatStationInstant(monthLockedAt)}`
       : "Open — employees can still edit";
 const selectedLabel = formatDay(selectedDay);
-const monthHref = (option: string): string => teamAvailabilityUrl({ month: option });
+const monthHref = (option: string): string => teamAvailabilityUrl({ month: option, employee });
 ---
 
 <Layout title="Team availability">
   <div class="min-h-screen bg-background p-4">
     <div class="mx-auto w-full max-w-2xl">
-      <h1 class="mb-6 text-center text-2xl font-semibold">Team availability</h1>
+      <h1 class:list={cn("text-center text-2xl font-semibold", filteredMember ? "mb-1" : "mb-6")}>Team availability</h1>
+      {filteredMember && (
+        <p class="mb-6 truncate text-center text-sm text-muted-foreground">Showing: {filteredMember.email}</p>
+      )}
       {loadError && (
         <Alert variant="destructive" className="mb-4">
           <CircleAlert />
@@ -162,9 +180,17 @@ const monthHref = (option: string): string => teamAvailabilityUrl({ month: optio
         )}
       </p>
 
-      <TeamCalendar month={month} weeks={weeks} selectedDay={selectedDay} employee={null} entriesByDay={entriesByDay} />
+      <TeamCalendar
+        month={month}
+        weeks={weeks}
+        selectedDay={selectedDay}
+        employee={employee}
+        entriesByDay={entriesByDay}
+      />
 
       <TeamDayPanel selectedLabel={selectedLabel} entries={selectedEntries} withoutWindows={withoutWindows} />
+
+      <TeamSummary members={members} totals={totals} month={month} day={selectedDay} employee={employee} />
 
       <div class="mt-6 text-center">
         <a href="/dashboard" class:list={buttonVariants({ variant: "outline" })}>
