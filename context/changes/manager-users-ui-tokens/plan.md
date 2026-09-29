@@ -538,37 +538,37 @@ No schema change and no type regeneration. The `&user=` param is additive; old `
 
 #### Automated
 
-- [x] 3.1 Lint passes: `npm run lint`
-- [x] 3.2 Type check passes: `npx astro check`
-- [x] 3.3 Build passes: `npm run build`
-- [x] 3.4 Smoke passes: `npm run smoke`
-- [x] 3.5 No literal colours in the view (grep returns nothing)
-- [x] 3.6 No hydration directives (grep returns nothing)
+- [x] 3.1 Lint passes: `npm run lint` — 23248c1
+- [x] 3.2 Type check passes: `npx astro check` — 23248c1
+- [x] 3.3 Build passes: `npm run build` — 23248c1
+- [x] 3.4 Smoke passes: `npm run smoke` — 23248c1
+- [x] 3.5 No literal colours in the view (grep returns nothing) — 23248c1
+- [x] 3.6 No hydration directives (grep returns nothing) — 23248c1
 
 #### Manual
 
-- [x] 3.7 `/manager/users` renders in the neutral dark theme at 1280px and 390px with no horizontal scroll
-- [x] 3.8 Page source shows `selected` on the current role option and no slot wrapper inside `<select>`
-- [x] 3.9 Error and success feedback appear inside the affected row
-- [x] 3.10 Self row shows the "You" pill; a blank-email row shows "No email · <short id>" with named controls
+- [x] 3.7 `/manager/users` renders in the neutral dark theme at 1280px and 390px with no horizontal scroll — 23248c1
+- [x] 3.8 Page source shows `selected` on the current role option and no slot wrapper inside `<select>` — 23248c1
+- [x] 3.9 Error and success feedback appear inside the affected row — 23248c1
+- [x] 3.10 Self row shows the "You" pill; a blank-email row shows "No email · <short id>" with named controls — 23248c1
 
 ### Phase 4: States and visual gate
 
 #### Automated
 
-- [ ] 4.1 Lint passes: `npm run lint`
-- [ ] 4.2 Type check passes: `npx astro check`
-- [ ] 4.3 Build passes: `npm run build`
-- [ ] 4.4 Smoke passes: `npm run smoke`
-- [ ] 4.5 The kitchen sink returns 404 under `npm run preview`
-- [ ] 4.6 No literal colours in the kitchen sink (grep returns nothing)
+- [x] 4.1 Lint passes: `npm run lint`
+- [x] 4.2 Type check passes: `npx astro check`
+- [x] 4.3 Build passes: `npm run build`
+- [x] 4.4 Smoke passes: `npm run smoke`
+- [x] 4.5 The kitchen sink returns 404 under `npm run preview`
+- [x] 4.6 No literal colours in the kitchen sink (grep returns nothing)
 
 #### Manual
 
-- [ ] 4.7 `/dev/manager-users-states` shows every row and page-level state at 1280px and 390px
-- [ ] 4.8 Visible token focus ring on select, Save and back link; tab order row by row
-- [ ] 4.9 Save disables until redirect; double click sends one POST; Back restores an enabled Save
-- [ ] 4.10 `screenshots/after/` and `README.md` exist with every 7-state cell shown or marked N/A
+- [x] 4.7 `/dev/manager-users-states` shows every row and page-level state at 1280px and 390px
+- [x] 4.8 Visible token focus ring on select, Save and back link; tab order row by row
+- [x] 4.9 Save disables until redirect; double click sends one POST; Back restores an enabled Save
+- [x] 4.10 `screenshots/after/` and `README.md` exist with every 7-state cell shown or marked N/A
 
 ### Phase 5: Make it stick
 

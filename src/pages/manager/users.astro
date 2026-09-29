@@ -97,3 +97,34 @@ const topFeedback = !loadError && !feedbackInRow ? feedback : null;
     </div>
   </div>
 </Layout>
+
+<script>
+  // Pending state: disable the clicked Save while its POST is in flight, so a double click cannot send the same
+  // role update twice. Disabling the submitter here does not cancel native submission, and Save carries no `name`,
+  // so no form data is lost.
+  const WRITE_ACTION_PREFIX = "/api/manager/users/";
+
+  document.addEventListener("submit", (event) => {
+    const form = event.target;
+    // `form.action` is the absolute URL; the attribute is the path as written.
+    if (!(form instanceof HTMLFormElement) || !form.getAttribute("action")?.startsWith(WRITE_ACTION_PREFIX)) {
+      return;
+    }
+    const submitter = event.submitter;
+    if (submitter instanceof HTMLButtonElement) {
+      submitter.disabled = true;
+      submitter.setAttribute("aria-busy", "true");
+    }
+  });
+
+  // Back from the redirect target can restore this page from the bfcache with its Save buttons still disabled.
+  window.addEventListener("pageshow", (event) => {
+    if (!event.persisted) {
+      return;
+    }
+    document.querySelectorAll<HTMLButtonElement>(`form[action^="${WRITE_ACTION_PREFIX}"] button`).forEach((button) => {
+      button.disabled = false;
+      button.removeAttribute("aria-busy");
+    });
+  });
+</script>
