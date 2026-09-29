@@ -72,6 +72,11 @@ export function upcomingMonths(count = 3): string[] {
   return Array.from({ length: count }, (_, index) => addMonths(current, index + 1));
 }
 
+/** The months /manager/availability offers: the current station month plus the upcoming ones, as `YYYY-MM`. */
+export function teamAvailabilityMonths(): string[] {
+  return [currentStationMonth(), ...upcomingMonths()];
+}
+
 export function parseMonth(value: unknown): string | null {
   return typeof value === "string" && MONTH_PATTERN.test(value) ? value : null;
 }
@@ -231,6 +236,8 @@ export const MONTH_LOCKED_ERROR = "This month is locked or no longer editable";
 export const GENERIC_WRITE_ERROR = "Could not save your availability. Try again.";
 /** Shown when /availability cannot read its data; the raw error is logged, never shown. */
 export const GENERIC_LOAD_ERROR = "Could not load your availability. Reload the page.";
+/** Shown when /manager/availability cannot read its data; the raw error is logged, never shown. */
+export const TEAM_LOAD_ERROR = "Could not load team availability. Reload the page.";
 
 /** The `?error=` values /availability shows as-is; anything else is replaced by GENERIC_WRITE_ERROR. */
 export const AVAILABILITY_FEEDBACK_ERRORS: ReadonlySet<string> = new Set([
@@ -292,4 +299,20 @@ export function availabilityUrl(
     return `/availability?${status}`;
   }
   return day ? `/availability?month=${month}&day=${day}&${status}` : `/availability?month=${month}&${status}`;
+}
+
+/**
+ * `/manager/availability` link for a month, optionally keeping the selected day and the employee filter.
+ * `employee` must be a profile id the page loaded, never raw URL input.
+ */
+export function teamAvailabilityUrl(params: { month: string; day?: string | null; employee?: string | null }): string {
+  const { month, day, employee } = params;
+  const query = [`month=${month}`];
+  if (day) {
+    query.push(`day=${day}`);
+  }
+  if (employee) {
+    query.push(`employee=${encodeURIComponent(employee)}`);
+  }
+  return `/manager/availability?${query.join("&")}`;
 }

@@ -1,0 +1,52 @@
+---
+import type { DayEntry, TeamMember } from "@/components/availability/types";
+import { dateOf, formatDay, formatWindow, timeOf } from "@/lib/availability";
+
+interface Props {
+  selectedLabel: string;
+  /** The selected day's windows, already sorted by start time, then email. */
+  entries: DayEntry[];
+  /** The listed accounts with no window on the selected day. */
+  withoutWindows: TeamMember[];
+}
+
+const { selectedLabel, entries, withoutWindows } = Astro.props;
+const headingId = "team-selected-day-heading";
+
+// Same wording as /availability: a previous-month window shows only its part on day 1.
+function entryLabel(entry: DayEntry): string {
+  return entry.carryOver
+    ? `00:00 – ${timeOf(entry.window.ends_at)} (from ${formatDay(dateOf(entry.window.starts_at))})`
+    : formatWindow(entry.window);
+}
+---
+
+<section aria-labelledby={headingId} class="rounded-xl border bg-card p-4 text-card-foreground">
+  <h2 id={headingId} class="mb-3 text-base font-semibold">
+    {selectedLabel}
+  </h2>
+
+  {entries.length === 0 ? (
+    <p class="mb-3 text-sm text-muted-foreground">No one has availability on this day.</p>
+  ) : (
+    <ul class="mb-3 flex flex-col gap-2">
+      {entries.map((entry) => (
+        <li class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">
+          <span class="min-w-0 truncate font-medium">{entry.member.email}</span>
+          <span class:list={entry.carryOver ? "text-muted-foreground" : undefined}>{entryLabel(entry)}</span>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  {withoutWindows.length > 0 && (
+    <div class="border-t pt-3">
+      <h3 class="mb-2 text-sm font-semibold">No windows on this day</h3>
+      <ul class="flex flex-col gap-1">
+        {withoutWindows.map((member) => (
+          <li class="truncate text-sm text-muted-foreground">{member.email}</li>
+        ))}
+      </ul>
+    </div>
+  )}
+</section>

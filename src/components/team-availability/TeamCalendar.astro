@@ -1,0 +1,70 @@
+---
+import type { DayEntry } from "@/components/availability/types";
+import { dayOfMonth, formatDay, formatMonth, teamAvailabilityUrl } from "@/lib/availability";
+import { cn } from "@/lib/utils";
+
+interface Props {
+  month: string;
+  weeks: (string | null)[][];
+  selectedDay: string;
+  /** The filtered account's profile id, kept in every day link; null shows everyone. */
+  employee: string | null;
+  /** Entries per day, including the previous month's overnight windows on day 1. */
+  entriesByDay: Map<string, DayEntry[]>;
+}
+
+const { month, weeks, selectedDay, employee, entriesByDay } = Astro.props;
+
+const WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+---
+
+<section aria-label={`Team calendar for ${formatMonth(month)}`} class="mb-6">
+  <div aria-hidden="true" class="mb-1 grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
+    {WEEKDAY_HEADERS.map((header) => (
+      <span>{header}</span>
+    ))}
+  </div>
+  <div class="grid grid-cols-7 gap-1">
+    {weeks.flat().map((day) => {
+      if (!day) {
+        return <span aria-hidden="true" class="min-h-11 sm:min-h-16" />;
+      }
+      const entries = entriesByDay.get(day) ?? [];
+      // An account with two windows on one day is still one available person.
+      const people = new Set(entries.map((entry) => entry.member.id)).size;
+      const selected = day === selectedDay;
+      const hasWindows = people > 0;
+      const summary = hasWindows ? `${people} ${people === 1 ? "person" : "people"} available` : "no one available";
+      return (
+        <a
+          href={teamAvailabilityUrl({ month, day, employee })}
+          aria-current={selected ? "date" : undefined}
+          aria-label={`${formatDay(day)}: ${summary}`}
+          class:list={cn(
+            "flex min-h-11 flex-col items-center gap-0.5 rounded-md border p-1 text-xs transition-colors outline-none sm:min-h-16 sm:items-start",
+            // Focus is a ring, never a fill, so it stays distinct from the selected day.
+            "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+            hasWindows && "bg-secondary text-secondary-foreground",
+            selected
+              ? "border-primary bg-primary text-primary-foreground"
+              : // --accent equals --secondary in the dark set, so a day with windows hovers like Button secondary.
+                hasWindows
+                ? "hover:bg-secondary/80"
+                : "hover:bg-accent hover:text-accent-foreground",
+          )}
+        >
+          <span class="font-semibold">{dayOfMonth(day)}</span>
+          {hasWindows && (
+            <>
+              <span class="flex items-center gap-0.5 text-[10px] sm:hidden">
+                <span class:list={cn("size-1.5 rounded-full", selected ? "bg-primary-foreground" : "bg-primary")} />
+                {people > 1 && people}
+              </span>
+              <span class="hidden w-full truncate sm:block">{people} available</span>
+            </>
+          )}
+        </a>
+      );
+    })}
+  </div>
+</section>
