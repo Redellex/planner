@@ -7,9 +7,11 @@ interface Props {
   months: string[];
   current: string;
   lockedMonths: Set<string>;
+  /** Link for a month tab; /manager/availability passes its own so the employee filter is kept. */
+  hrefFor?: (month: string) => string;
 }
 
-const { months, current, lockedMonths } = Astro.props;
+const { months, current, lockedMonths, hrefFor = (month: string) => `/availability?month=${month}` } = Astro.props;
 ---
 
 <nav aria-label="Months" class="mb-6 flex flex-wrap justify-center gap-2">
@@ -17,7 +19,7 @@ const { months, current, lockedMonths } = Astro.props;
     const isCurrent = option === current;
     return (
       <a
-        href={`/availability?month=${option}`}
+        href={hrefFor(option)}
         aria-current={isCurrent ? "page" : undefined}
         class:list={buttonVariants({ variant: isCurrent ? "default" : "outline", size: "sm" })}
       >

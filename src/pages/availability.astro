@@ -12,6 +12,7 @@ import {
   addMonths,
   calendarWeeks,
   dateOf,
+  formatCarryOver,
   formatDay,
   GENERIC_LOAD_ERROR,
   logAvailabilityError,
@@ -21,7 +22,6 @@ import {
   parseMonth,
   resolveFeedbackError,
   SUPABASE_NOT_CONFIGURED_ERROR,
-  timeOf,
   upcomingMonths,
 } from "@/lib/availability";
 
@@ -102,9 +102,7 @@ for (const row of windows) {
 const selectedWindows = windowsByDay.get(selectedDay) ?? [];
 // Shown read-only on day 1; it is edited from the day it starts on.
 const firstDay = monthStart(month);
-const carryOverLabel = carryOver
-  ? `00:00 – ${timeOf(carryOver.ends_at)} (from ${formatDay(dateOf(carryOver.starts_at))})`
-  : null;
+const carryOverLabel = carryOver ? formatCarryOver(carryOver) : null;
 const selectedCarryOver = selectedDay === firstDay ? carryOverLabel : null;
 const selectedLabel = formatDay(selectedDay);
 // Write feedback belongs to the day panel; a load failure is shown separately at the top.

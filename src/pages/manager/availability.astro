@@ -1,0 +1,230 @@
+---
+import { CircleAlert } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import MonthTabs from "@/components/availability/MonthTabs.astro";
+import type { DayEntry, TeamMember, TeamWindowRow } from "@/components/availability/types";
+import TeamCalendar from "@/components/team-availability/TeamCalendar.astro";
+import TeamDayPanel from "@/components/team-availability/TeamDayPanel.astro";
+import TeamSummary from "@/components/team-availability/TeamSummary.astro";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
+import {
+  addMonths,
+  calendarWeeks,
+  currentStationMonth,
+  dateOf,
+  formatDay,
+  formatStationInstant,
+  logAvailabilityError,
+  monthOfDate,
+  monthStart,
+  parseDate,
+  parseMonth,
+  SUPABASE_NOT_CONFIGURED_ERROR,
+  TEAM_LOAD_ERROR,
+  teamAvailabilityMonths,
+  teamAvailabilityUrl,
+  timeOf,
+  upcomingMonths,
+  windowMinutes,
+} from "@/lib/availability";
+
+// Manager-only through MANAGER_ROUTES in src/middleware.ts; RLS lets managers read every profile and window.
+const months = teamAvailabilityMonths();
+const stationMonth = currentStationMonth();
+const [defaultMonth] = upcomingMonths();
+const requestedMonth = parseMonth(Astro.url.searchParams.get("month"));
+const month = requestedMonth && months.includes(requestedMonth) ? requestedMonth : defaultMonth;
+const requestedDay = parseDate(Astro.url.searchParams.get("day"));
+const selectedDay = requestedDay && monthOfDate(requestedDay) === month ? requestedDay : monthStart(month);
+const weeks = calendarWeeks(month);
+
+let members: TeamMember[] = [];
+let windows: TeamWindowRow[] = [];
+// Overnight windows from the previous month's last day that run into day 1 (one per account at most).
+let carryOvers: TeamWindowRow[] = [];
+// month (YYYY-MM) -> locked_at (timestamptz)
+const lockedAt = new Map<string, string>();
+let lockStateUnknown = false;
+// Set when a window read fails, so empty lists are not mistaken for "nobody submitted".
+let windowsUnknown = false;
+let loadError: string | null = null;
+
+// PostgREST silently caps each response at max_rows (1000 locally and on hosted Supabase; keep the page size no
+// larger), so a busy month is read page by page until a short page. `id` breaks starts_at ties so pages never
+// overlap or skip rows.
+const WINDOWS_PAGE_SIZE = 1000;
+async function loadMonthWindows(client: NonNullable<ReturnType<typeof createClient>>) {
+  const rows: TeamWindowRow[] = [];
+  for (let from = 0; ; from += WINDOWS_PAGE_SIZE) {
+    // No employee_id filter: this is the team view.
+    const { data, error } = await client
+      .from("availability_windows")
+      .select("id, employee_id, starts_at, ends_at")
+      .gte("starts_at", monthStart(month))
+      .lt("starts_at", monthStart(addMonths(month, 1)))
+      .order("starts_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + WINDOWS_PAGE_SIZE - 1);
+    if (error) {
+      return { data: null, error };
+    }
+    rows.push(...data);
+    if (data.length < WINDOWS_PAGE_SIZE) {
+      return { data: rows, error: null };
+    }
+  }
+}
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+if (!supabase) {
+  loadError = SUPABASE_NOT_CONFIGURED_ERROR;
+} else {
+  const [membersResult, windowsResult, carryOverResult, locksResult] = await Promise.all([
+    supabase.from("profiles").select("id, email, role").order("email", { ascending: true }),
+    loadMonthWindows(supabase),
+    supabase
+      .from("availability_windows")
+      .select("id, employee_id, starts_at, ends_at")
+      .lt("starts_at", monthStart(month))
+      .gt("ends_at", monthStart(month)),
+    supabase.from("availability_locks").select("month, locked_at").in("month", months.map(monthStart)),
+  ]);
+
+  if (membersResult.error) {
+    logAvailabilityError("could not load team members", membersResult.error);
+    loadError = TEAM_LOAD_ERROR;
+  } else {
+    members = membersResult.data;
+  }
+  if (windowsResult.error) {
+    windowsUnknown = true;
+    logAvailabilityError("could not load team windows", windowsResult.error);
+    loadError = TEAM_LOAD_ERROR;
+  } else {
+    windows = windowsResult.data;
+  }
+  if (carryOverResult.error) {
+    windowsUnknown = true;
+    logAvailabilityError("could not load team carry-over windows", carryOverResult.error);
+    loadError = TEAM_LOAD_ERROR;
+  } else {
+    carryOvers = carryOverResult.data;
+  }
+  if (locksResult.error) {
+    lockStateUnknown = true;
+    logAvailabilityError("could not load month locks", locksResult.error);
+    loadError = TEAM_LOAD_ERROR;
+  } else {
+    for (const lock of locksResult.data) {
+      lockedAt.set(lock.month.slice(0, 7), lock.locked_at);
+    }
+  }
+}
+
+const membersById = new Map(members.map((member) => [member.id, member]));
+// Untrusted: honoured only when it is the id of a loaded profile, so it never reaches a query or the page as-is.
+const filteredMember = membersById.get(Astro.url.searchParams.get("employee") ?? "") ?? null;
+const employee = filteredMember?.id ?? null;
+const listedMembers = filteredMember ? [filteredMember] : members;
+
+// Totals count windows starting in the month only; a previous-month window belongs to its own month.
+const totals = new Map<string, { windows: number; minutes: number }>();
+for (const row of windows) {
+  const total = totals.get(row.employee_id) ?? { windows: 0, minutes: 0 };
+  totals.set(row.employee_id, { windows: total.windows + 1, minutes: total.minutes + windowMinutes(row) });
+}
+
+const firstDay = monthStart(month);
+// A window is grouped under the day it starts; a previous-month window is shown on day 1 only.
+const entriesByDay = new Map<string, DayEntry[]>();
+function addEntry(day: string, row: TeamWindowRow, carryOver: boolean) {
+  const member = membersById.get(row.employee_id);
+  if (!member || (employee && member.id !== employee)) {
+    return;
+  }
+  entriesByDay.set(day, [...(entriesByDay.get(day) ?? []), { member, window: row, carryOver }]);
+}
+for (const row of carryOvers) {
+  addEntry(firstDay, row, true);
+}
+for (const row of windows) {
+  addEntry(dateOf(row.starts_at), row, false);
+}
+
+// A previous-month window starts at 00:00 on day 1, so it sorts first.
+const entryStart = (entry: DayEntry) => (entry.carryOver ? "00:00" : timeOf(entry.window.starts_at));
+const selectedEntries = [...(entriesByDay.get(selectedDay) ?? [])].sort(
+  (a, b) => entryStart(a).localeCompare(entryStart(b)) || a.member.email.localeCompare(b.member.email),
+);
+const withWindowIds = new Set(selectedEntries.map((entry) => entry.member.id));
+const withoutWindows = listedMembers.filter((member) => !withWindowIds.has(member.id));
+
+const lockedMonths = new Set(lockedAt.keys());
+const monthLockedAt = lockedAt.get(month);
+const isCurrentMonth = month === stationMonth;
+const lockStatus = isCurrentMonth
+  ? "In progress — employees can no longer edit this month"
+  : lockStateUnknown
+    ? "Lock state unknown — the month locks could not be loaded"
+    : monthLockedAt
+      ? `Locked since ${formatStationInstant(monthLockedAt)}`
+      : "Open — employees can still edit";
+const selectedLabel = formatDay(selectedDay);
+const monthHref = (option: string): string => teamAvailabilityUrl({ month: option, employee });
+---
+
+<Layout title="Team availability">
+  <div class="min-h-screen bg-background p-4">
+    <div class="mx-auto w-full max-w-2xl">
+      <h1 class:list={cn("text-center text-2xl font-semibold", filteredMember ? "mb-1" : "mb-6")}>Team availability</h1>
+      {filteredMember && (
+        <p class="mb-6 truncate text-center text-sm text-muted-foreground">Showing: {filteredMember.email}</p>
+      )}
+      {loadError && (
+        <Alert variant="destructive" className="mb-4">
+          <CircleAlert />
+          <AlertDescription>{loadError}</AlertDescription>
+        </Alert>
+      )}
+
+      <MonthTabs months={months} current={month} lockedMonths={lockedMonths} hrefFor={monthHref} />
+
+      <p class="mb-6 text-center text-sm text-muted-foreground">
+        {lockStatus}
+        {!isCurrentMonth && (
+          <>
+            {" · "}
+            <a href="/manager/months" class="text-primary underline-offset-4 hover:underline">
+              Manage month locks
+            </a>
+          </>
+        )}
+      </p>
+
+      <TeamCalendar
+        month={month}
+        weeks={weeks}
+        selectedDay={selectedDay}
+        employee={employee}
+        entriesByDay={entriesByDay}
+      />
+
+      {!windowsUnknown && (
+        <>
+          <TeamDayPanel selectedLabel={selectedLabel} entries={selectedEntries} withoutWindows={withoutWindows} />
+
+          <TeamSummary members={members} totals={totals} month={month} day={selectedDay} employee={employee} />
+        </>
+      )}
+
+      <div class="mt-6 text-center">
+        <a href="/dashboard" class:list={buttonVariants({ variant: "outline" })}>
+          Back to dashboard
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>

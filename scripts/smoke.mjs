@@ -1,6 +1,6 @@
-// Smoke test: proves the built app, the Cloudflare adapter, the Supabase auth flow, role enforcement and the
-// availability/lock flow still work together. The manager steps need the seeded manager (supabase/seed.sql) or
-// SMOKE_MANAGER_* env.
+// Smoke test: proves the built app, the Cloudflare adapter, the Supabase auth flow, role enforcement, the
+// availability/lock flow and the manager's team availability view still work together. The manager steps need
+// the seeded manager (supabase/seed.sql) or SMOKE_MANAGER_* env.
 // Zero dependencies on purpose. Run against a live server: BASE_URL=http://localhost:4321 node scripts/smoke.mjs
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:4321";
@@ -38,6 +38,8 @@ const crudMonth = stationMonthPlus(3);
 const crudDay = `${crudMonth}-01`;
 const crudRedirect = `/availability?month=${crudMonth}&day=${crudDay}`;
 let crudWindowId;
+// Left in place for the manager's team view; the smoke user is fresh on every run, so each run adds one.
+const teamDay = `${crudMonth}-02`;
 
 function cookieHeader() {
   return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
@@ -66,6 +68,11 @@ async function request(path, { method = "GET", form } = {}) {
   });
   storeCookies(response);
   return { status: response.status, location: response.headers.get("location") ?? "", body: await response.text() };
+}
+
+// Visible text of an HTML page with whitespace collapsed, so assertions do not depend on markup.
+function pageText(html) {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 }
 
 // Compare redirects on pathname + search so absolute and relative Location headers both match.
@@ -140,7 +147,14 @@ const steps = [
       }),
     { status: 302, location: `${crudRedirect}&updated=1` },
   ],
+  [
+    "availability create leaves a window for the manager view",
+    () =>
+      request("/api/availability/create", { method: "POST", form: { date: teamDay, start: "10:00", end: "12:00" } }),
+    { status: 302, location: `/availability?month=${crudMonth}&day=${teamDay}&updated=1` },
+  ],
   ["manager page forbidden for employee", () => request("/manager/users"), { status: 403 }],
+  ["team availability forbidden for employee", () => request("/manager/availability"), { status: 403 }],
   ["signout clears session", () => request("/api/auth/signout", { method: "POST" }), { status: 302, location: "/" }],
   ["dashboard redirects after signout", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
   [
@@ -152,6 +166,15 @@ const steps = [
     { status: 302, location: "/" },
   ],
   ["manager page renders for manager", () => request("/manager/users"), { status: 200 }],
+  [
+    "team availability shows the employee's window",
+    () => request(`/manager/availability?month=${crudMonth}&day=${teamDay}`),
+    {
+      status: 200,
+      // The email alone also appears in the summary; the day panel pairs it with the window text.
+      check: (actual) => pageText(actual.body).includes(`${email} 10:00 – 12:00`),
+    },
+  ],
   [
     "last manager cannot be demoted",
     () => request("/api/manager/users/role", { method: "POST", form: { userId: managerId, role: "employee" } }),

@@ -72,6 +72,11 @@ export function upcomingMonths(count = 3): string[] {
   return Array.from({ length: count }, (_, index) => addMonths(current, index + 1));
 }
 
+/** The months /manager/availability offers: the current station month plus the upcoming ones, as `YYYY-MM`. */
+export function teamAvailabilityMonths(): string[] {
+  return [currentStationMonth(), ...upcomingMonths()];
+}
+
 export function parseMonth(value: unknown): string | null {
   return typeof value === "string" && MONTH_PATTERN.test(value) ? value : null;
 }
@@ -165,6 +170,23 @@ export function calendarWeeks(month: string): (string | null)[][] {
   return Array.from({ length: cells.length / 7 }, (_, week) => cells.slice(week * 7, week * 7 + 7));
 }
 
+function timestampToUtcMs(timestamp: string): number {
+  const [hours, minutes] = timeOf(timestamp).split(":").map(Number);
+  return dateToUtcMs(dateOf(timestamp)) + (hours * 60 + minutes) * 60 * 1000;
+}
+
+/** Wall-clock length of a window in minutes, with no DST correction (00:00–00:00 is always 24h). */
+export function windowMinutes(row: WindowTimes): number {
+  return (timestampToUtcMs(row.ends_at) - timestampToUtcMs(row.starts_at)) / 60000;
+}
+
+/** `"0h"`, `"8h"`, `"37h 20m"` style text for a number of minutes. */
+export function formatDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+}
+
 /** Time part (`HH:MM`) of a wall-clock timestamp string. */
 export function timeOf(timestamp: string): string {
   return timestamp.slice(11, 16);
@@ -200,6 +222,11 @@ export function formatMonth(month: string): string {
   return MONTH_FORMAT.format(dateToUtcMs(monthStart(month)));
 }
 
+/** `"00:00 – 04:00 (from Sat 31 Oct)"`: the day-1 part of an overnight window from the previous month. */
+export function formatCarryOver(row: WindowTimes): string {
+  return `00:00 – ${timeOf(row.ends_at)} (from ${formatDay(dateOf(row.starts_at))})`;
+}
+
 // Unlike the wall-clock window strings, a timestamptz value (e.g. availability_locks.locked_at) is a real
 // instant, so it is parsed with Date and shown in station time.
 const STATION_INSTANT_FORMAT = new Intl.DateTimeFormat("en-GB", {
@@ -231,6 +258,8 @@ export const MONTH_LOCKED_ERROR = "This month is locked or no longer editable";
 export const GENERIC_WRITE_ERROR = "Could not save your availability. Try again.";
 /** Shown when /availability cannot read its data; the raw error is logged, never shown. */
 export const GENERIC_LOAD_ERROR = "Could not load your availability. Reload the page.";
+/** Shown when /manager/availability cannot read its data; the raw error is logged, never shown. */
+export const TEAM_LOAD_ERROR = "Could not load team availability. Reload the page.";
 
 /** The `?error=` values /availability shows as-is; anything else is replaced by GENERIC_WRITE_ERROR. */
 export const AVAILABILITY_FEEDBACK_ERRORS: ReadonlySet<string> = new Set([
@@ -292,4 +321,20 @@ export function availabilityUrl(
     return `/availability?${status}`;
   }
   return day ? `/availability?month=${month}&day=${day}&${status}` : `/availability?month=${month}&${status}`;
+}
+
+/**
+ * `/manager/availability` link for a month, optionally keeping the selected day and the employee filter.
+ * `employee` must be a profile id the page loaded, never raw URL input.
+ */
+export function teamAvailabilityUrl(params: { month: string; day?: string | null; employee?: string | null }): string {
+  const { month, day, employee } = params;
+  const query = [`month=${month}`];
+  if (day) {
+    query.push(`day=${day}`);
+  }
+  if (employee) {
+    query.push(`employee=${encodeURIComponent(employee)}`);
+  }
+  return `/manager/availability?${query.join("&")}`;
 }
