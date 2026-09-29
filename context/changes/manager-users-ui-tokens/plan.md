@@ -574,14 +574,14 @@ No schema change and no type regeneration. The `&user=` param is additive; old `
 
 #### Automated
 
-- [x] 5.1 Lint passes: `npm run lint`
-- [x] 5.2 Type check passes: `npx astro check`
-- [x] 5.3 Build passes: `npm run build`
-- [x] 5.4 `npm run check:ui` exits 0 on the whole scope
-- [x] 5.5 A probe file with `text-red-300` makes `npm run check:ui` exit 1
-- [x] 5.6 Files outside the scope are ignored by the check
+- [x] 5.1 Lint passes: `npm run lint` — 68e8cec
+- [x] 5.2 Type check passes: `npx astro check` — 68e8cec
+- [x] 5.3 Build passes: `npm run build` — 68e8cec
+- [x] 5.4 `npm run check:ui` exits 0 on the whole scope — 68e8cec
+- [x] 5.5 A probe file with `text-red-300` makes `npm run check:ui` exit 1 — 68e8cec
+- [x] 5.6 Files outside the scope are ignored by the check — 68e8cec
 
 #### Manual
 
-- [x] 5.7 The `### UI` block sits above the 10x-cli managed block and reads as a complete contract
-- [ ] 5.8 The pre-commit hook rejects a staged scoped file containing `bg-white/10`
+- [x] 5.7 The `### UI` block sits above the 10x-cli managed block and reads as a complete contract — 68e8cec
+- [x] 5.8 The pre-commit hook rejects a staged scoped file containing `bg-white/10` — 68e8cec
