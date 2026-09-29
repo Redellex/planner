@@ -43,7 +43,7 @@ A gas-station manager currently builds the monthly shift schedule by hand in a s
 | ---- | -------------------------------- | ------------------------------------------------------------------------------------- | ------------- | ------------------------------ | -------- |
 | F-01 | role-aware-access-control        | (foundation) Manager/Employee roles exist and are enforced at the auth layer          | —             | Access Control, FR-001, FR-002 | done     |
 | S-01 | employee-availability-management | Employee can create/edit their own monthly availability; locks once generation starts | F-01          | FR-001, Access Control         | done     |
-| S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | ready    |
+| S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | in-progress |
 | S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | blocked  |
 | S-04 | review-override-publish-schedule | Manager reviews, overrides (with conflict warnings), and publishes the schedule       | S-03          | FR-004, FR-005, FR-006         | proposed |
 | S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | proposed |
@@ -102,7 +102,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Unknowns:** —
 - **Risk:** Low-risk read-only view; kept parallel with S-03 (not a hard prerequisite of it) so it doesn't delay the riskier north-star slice.
 - **Handoff from S-01:** `availability_windows` has no `starts_at` index. The GiST exclusion index is led by `employee_id`, so decide whether a month-wide, all-employee query needs one.
-- **Status:** ready
+- **Status:** in-progress
 
 ### S-03: Generate monthly schedule
 
