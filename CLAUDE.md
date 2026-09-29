@@ -11,7 +11,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run format` — Prettier (includes prettier-plugin-astro and prettier-plugin-tailwindcss)
 - `npx astro check` — Astro/TypeScript type-check (not wired to a package.json script, but run in CI before build)
 - `npm run smoke` — dependency-free script (`scripts/smoke.mjs`) that walks the whole auth flow (sign-up → sign-in → protected page → sign-out) plus role enforcement (new user gets 403 on `/manager/users`; the seeded manager gets 200, cannot demote the last manager, and stays manager) and the availability flow (the fresh user adds a window and gets an overlap error, then adds, edits and deletes a window in the last upcoming month; the manager locks a month, a create in it is refused, then unlocks) and the manager team view (the fresh user gets 403 on `/manager/availability` and leaves a 10:00–12:00 window on day 2 of station month + 3, which the manager then sees there) over HTTP against a running server; `BASE_URL` env, defaults to `http://localhost:4321`; `SMOKE_MANAGER_EMAIL`/`SMOKE_MANAGER_PASSWORD` default to the seeded local manager, so it needs a database with `supabase/seed.sql` applied. The lock steps use the station month + 12, so it can be re-run without a DB reset; the edit/delete steps use station month + 3 (the last month `/availability` offers), which must not be locked locally. Each run leaves one window (owned by that run's fresh smoke user) on day 2 of that month. If a run dies between the lock and unlock steps, that month stays locked and later runs fail at "availability create adds a window"; recover with `delete from public.availability_locks where month = '<YYYY-MM of station month + 12>-01';` in Studio. Run after dependency upgrades. It is not a substitute for a real test suite — there is currently no unit/integration test runner in this repo.
-- Pre-commit (husky + lint-staged): `eslint --fix` on `*.{ts,tsx,astro}`, `prettier --write` on `*.{json,css,md}`.
+- `npm run check:ui` — dependency-free script (`scripts/check-ui-literals.mjs`) that fails on colour literals (palette classes, hex/rgb/hsl/oklch, `bg-cosmic`, gradient text, `backdrop-blur`) in the views already on design tokens; the scoped file list lives in the script. With file arguments it checks only those inside the scope.
+- Pre-commit (husky + lint-staged): `eslint --fix` on `*.{ts,tsx,astro}`, `node scripts/check-ui-literals.mjs` on `*.{astro,tsx}`, `prettier --write` on `*.{json,css,md}`.
 - CI (`.github/workflows/ci.yml`) runs two jobs on push/PR to `master`: `ci` (`npm ci` → `astro sync` → lint → `astro check` → build, needs `SUPABASE_URL`/`SUPABASE_KEY` secrets) and `smoke` (spins up local Supabase via its CLI, builds, serves the Cloudflare preview, runs the smoke script — no secrets needed).
 
 ## Architecture
@@ -24,7 +25,7 @@ Astro 7 SSR app (`output: "server"`, deployed via `@astrojs/cloudflare`) with Re
 - `src/middleware.ts` — runs on every request, resolves the current user via `createClient(...).auth.getUser()`, attaches to `context.locals.user`, then reads the user's role from `public.profiles` into `context.locals.role` (`AppRole | null`; `null` when anonymous, unconfigured, or no row — fail closed). Redirects unauthenticated requests to `/auth/signin` for any path listed in `PROTECTED_ROUTES`. `MANAGER_ROUTES` (`/manager`, `/api/manager`, matched on segment boundaries) redirects anonymous users to `/auth/signin` and rewrites non-managers to `src/pages/403.astro` (status 403).
 - API endpoints: `src/pages/api/auth/{signin,signup,signout}.ts` — read `FormData` directly (no schema-validation library is in use), call the corresponding Supabase auth method, and redirect with an `?error=` query param on failure. There is no JSON API convention to preserve here — auth endpoints are form-post + redirect.
 - Auth pages: `src/pages/auth/{signin,signup,confirm-email}.astro`. Protected page example: `src/pages/dashboard.astro`.
-- Roles: `public.profiles` (one row per auth user, created as `employee` by the `handle_new_user` signup trigger) holds `role` (`public.app_role` enum: `manager` | `employee`); TS side is `src/lib/roles.ts` (`AppRole`, `APP_ROLES`, `isAppRole`). Postgres is the real enforcement: RLS lets users read their own row, managers read all rows and update only the `role` column, and the `prevent_last_manager_demotion` trigger rejects demoting the last manager. Manager UI: `src/pages/manager/users.astro` + `POST src/pages/api/manager/users/role.ts` (form-post + redirect with `?updated=1` / `?error=`).
+- Roles: `public.profiles` (one row per auth user, created as `employee` by the `handle_new_user` signup trigger) holds `role` (`public.app_role` enum: `manager` | `employee`); TS side is `src/lib/roles.ts` (`AppRole`, `APP_ROLES`, `isAppRole`). Postgres is the real enforcement: RLS lets users read their own row, managers read all rows and update only the `role` column, and the `prevent_last_manager_demotion` trigger rejects demoting the last manager. Manager UI: `src/pages/manager/users.astro` + `POST src/pages/api/manager/users/role.ts` (form-post + redirect with `?updated=1&user=<id>` / `?error=…&user=<id>`; messages are allow-listed in `src/lib/manager-users.ts`).
 - `src/lib/config-status.ts` exposes `missingConfigs` so pages can render a "Supabase not configured" banner instead of crashing when secrets are absent (see `src/components/Banner.astro`).
 
 ### Availability
@@ -44,6 +45,17 @@ Astro 7 SSR app (`output: "server"`, deployed via `@astrojs/cloudflare`) with Re
 - No Next.js directives (`"use client"`, etc.) — this is plain Astro + React islands.
 - Supabase migrations go in `supabase/migrations/` as `YYYYMMDDHHmmss_short_description.sql`; enable RLS with granular per-operation, per-role policies on any new table. Use `public.is_manager()` (SECURITY DEFINER, avoids recursion through `profiles` RLS) in policies that need a manager check.
 - After every migration, regenerate `src/db/database.types.ts` with `npx supabase gen types typescript --local` (local stack running); never hand-edit it. It is ignored by ESLint and Prettier. `src/lib/supabase.ts` types the client with it (`createServerClient<Database>`).
+
+### UI
+
+- **Tokens.** shadcn new-york neutral values in `src/styles/global.css` (`:root` / `.dark`), published to Tailwind via `@theme inline`. The app is dark via `class="dark"` on `<html>` (`src/layouts/Layout.astro`). Do not change token values as part of a view change.
+- **Role map.** Page `bg-background text-foreground` (`min-h-screen p-4` > `mx-auto max-w-2xl`); panel `rounded-xl border bg-card p-4 text-card-foreground`; secondary text `text-muted-foreground`; focus comes from the components (`ring-ring/50`); error `Alert variant="destructive"` + `CircleAlert`; success/notice `Alert role="status"` + icon; actions `Button` / `buttonVariants` (links too); text fields `Input`; selects `NativeSelect` via a React wrapper (`src/components/manager/RoleSelect.tsx`); small markers like the "You" pill are `rounded-md bg-secondary px-1.5 py-0.5 text-xs font-medium text-secondary-foreground`. Full maps: `context/archive/*-ui-tokens/tokens.md`.
+- **Components first.** Check `src/components/ui/` before building a control; add a missing one with `npx shadcn@latest add <name>` (check its imports afterwards: the CLI can resolve `cn` to the npm package `cn` instead of `@/lib/utils`).
+- **No hydration by default.** Render ui components from `.astro` without `client:*`. Pass `<option>`s or other structured children from a React wrapper, never as Astro children (they arrive as a static slot wrapper).
+- **No literals.** No palette classes (`text-red-300`, `bg-white/10`), hex/rgb/hsl/oklch values, `bg-cosmic`, gradient text or one-off arbitrary values (`-[Npx]`) in views; shadcn's own `ring-[3px]` stays inside the components. `npm run check:ui` enforces the colour part on the scoped views (pre-commit too); add a view to its scope list once it is clean.
+- **Feedback.** Show write results next to the control they concern, only from an allow-list (`src/lib/availability.ts`, `src/lib/manager-users.ts`); log raw database errors, never render them or unknown `?error=` text.
+- **Kitchen sinks.** Every cleaned view has a dev-only state page at `src/pages/dev/<view>-states.astro` (404 outside dev, fixtures only, forms inert).
+- **Legacy.** Views still on `bg-cosmic` (`/manager/months`, `/dashboard`, auth pages, 403, `Welcome`) are legacy: do not copy their markup.
 
 ### Environment
 
@@ -73,17 +85,17 @@ The lesson focus is safe throughput: isolated contexts, choosing the right execu
 
 ### Task Router - Where to start
 
-| Skill | Use it when |
-| --- | --- |
-| **Code isolation** | |
-| `git worktree add` | You need a separate working directory for a parallel change. One change per worktree, one fresh agent context per worktree. |
-| **Complex changes** | |
-| `/10x-implement <change-id> phase <n>` | The change has multiple phases, needs manual gates, or benefits from interactive decision-making during execution. |
-| **Simple changes** | |
-| `/goal` | You have a clear, bounded task and want goal-directed delegation. The agent works autonomously toward the stated goal with a stop condition. |
-| `claude -p` | You want headless execution for a well-defined task. The Ralph Wiggum loop (run, check, retry) is the universal autonomous pattern. |
-| **Multi-session orchestration** | |
-| Superset / Conductor / Antigravity / VS Code Agent View | You are running multiple agent sessions in parallel and need visibility, coordination, or session management across them. |
+| Skill                                                   | Use it when                                                                                                                                  |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Code isolation**                                      |                                                                                                                                              |
+| `git worktree add`                                      | You need a separate working directory for a parallel change. One change per worktree, one fresh agent context per worktree.                  |
+| **Complex changes**                                     |                                                                                                                                              |
+| `/10x-implement <change-id> phase <n>`                  | The change has multiple phases, needs manual gates, or benefits from interactive decision-making during execution.                           |
+| **Simple changes**                                      |                                                                                                                                              |
+| `/goal`                                                 | You have a clear, bounded task and want goal-directed delegation. The agent works autonomously toward the stated goal with a stop condition. |
+| `claude -p`                                             | You want headless execution for a well-defined task. The Ralph Wiggum loop (run, check, retry) is the universal autonomous pattern.          |
+| **Multi-session orchestration**                         |                                                                                                                                              |
+| Superset / Conductor / Antigravity / VS Code Agent View | You are running multiple agent sessions in parallel and need visibility, coordination, or session management across them.                    |
 
 ### Parallel work rules
 

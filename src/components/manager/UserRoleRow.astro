@@ -1,0 +1,67 @@
+---
+import { CircleAlert, CircleCheck } from "lucide-react";
+import { RoleSelect } from "@/components/manager/RoleSelect";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { accountLabel } from "@/lib/manager-users";
+import type { AppRole } from "@/lib/roles";
+
+interface Props {
+  profile: { id: string; email: string; role: AppRole };
+  isSelf: boolean;
+  /** Result of the last save, when it concerns this row. */
+  feedback: { kind: "error" | "success"; message: string } | null;
+  /** Renders Save in its in-flight state; only the kitchen sink sets it (the page's script does this live). */
+  pending?: boolean;
+  /** Prepended to every element id; set it when a page renders the same profile more than once (the kitchen sink). */
+  idPrefix?: string;
+}
+
+const { profile, isSelf, feedback, pending = false, idPrefix = "" } = Astro.props;
+const label = accountLabel(profile);
+const selectId = `${idPrefix}role-${profile.id}`;
+---
+
+<li class="py-3">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <span class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+      {label.missingEmail ? (
+        <span class="text-muted-foreground">{label.text}</span>
+      ) : (
+        <span class="break-all">{label.text}</span>
+      )}
+      {isSelf && (
+        <span class="rounded-md bg-secondary px-1.5 py-0.5 text-xs font-medium text-secondary-foreground">You</span>
+      )}
+    </span>
+    <form method="POST" action="/api/manager/users/role" class="flex items-center gap-2">
+      <input type="hidden" name="userId" value={profile.id} />
+      <label for={selectId} class="sr-only">
+        Role for {label.accessibleName}
+      </label>
+      <RoleSelect id={selectId} name="role" value={profile.role} />
+      <Button
+        type="submit"
+        variant="secondary"
+        size="sm"
+        aria-label={`Save role for ${label.accessibleName}`}
+        disabled={pending}
+        aria-busy={pending ? true : undefined}
+      >
+        Save
+      </Button>
+    </form>
+  </div>
+  {feedback?.kind === "error" && (
+    <Alert variant="destructive" className="mt-3">
+      <CircleAlert />
+      <AlertDescription>{feedback.message}</AlertDescription>
+    </Alert>
+  )}
+  {feedback?.kind === "success" && (
+    <Alert role="status" className="mt-3">
+      <CircleCheck />
+      <AlertTitle>{feedback.message}</AlertTitle>
+    </Alert>
+  )}
+</li>

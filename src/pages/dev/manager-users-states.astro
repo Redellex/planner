@@ -1,0 +1,126 @@
+---
+// Kitchen sink for /manager/users: every state of the view, side by side, rendered by the real components from
+// fixture data. Dev only (the visual gate for context/changes/manager-users-ui-tokens); 404 in production.
+// No database access and no user data: the profiles below are fixtures.
+import { CircleAlert } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import UserRoleRow from "@/components/manager/UserRoleRow.astro";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  GENERIC_USERS_LOAD_ERROR,
+  INVALID_USER_ID_ERROR,
+  LAST_MANAGER_ERROR,
+  ROLE_UPDATED_MESSAGE,
+} from "@/lib/manager-users";
+import type { AppRole } from "@/lib/roles";
+
+// Outside dev: 404 with an empty body (the template below renders only in dev). A frontmatter `return` would do,
+// but it crashes @typescript-eslint/no-misused-promises in .astro files.
+const isDev = import.meta.env.DEV;
+if (!isDev) {
+  Astro.response.status = 404;
+}
+
+const employee = {
+  id: "00000000-0000-4000-8000-00000000e001",
+  email: "employee@example.com",
+  role: "employee" as AppRole,
+};
+const self = { id: "00000000-0000-4000-8000-00000000e002", email: "manager@example.com", role: "manager" as AppRole };
+const noEmail = { id: "3f2a9c1b-0000-4000-8000-00000000e003", email: "", role: "employee" as AppRole };
+
+const rows = [
+  { title: "Default (employee)", profile: employee, isSelf: false, feedback: null },
+  { title: "Self (manager, You pill)", profile: self, isSelf: true, feedback: null },
+  { title: "Missing email", profile: noEmail, isSelf: false, feedback: null },
+  {
+    title: "Row error (last manager, self row)",
+    profile: self,
+    isSelf: true,
+    feedback: { kind: "error" as const, message: LAST_MANAGER_ERROR },
+  },
+  {
+    title: "Row success",
+    profile: employee,
+    isSelf: false,
+    feedback: { kind: "success" as const, message: ROLE_UPDATED_MESSAGE },
+  },
+  { title: "Pending (Save in flight)", profile: employee, isSelf: false, feedback: null, pending: true },
+];
+---
+
+{isDev && (
+  <Layout title="Manager users states">
+    <div class="min-h-screen bg-background p-4">
+      <div class="mx-auto flex w-full max-w-2xl flex-col gap-10">
+        <header class="flex flex-col gap-1">
+          <h1 class="text-2xl font-semibold">Manager users states</h1>
+          <p class="text-sm text-muted-foreground">
+            Dev-only kitchen sink. Fixture profiles; forms on this page do not submit. Loading — N/A: SSR + full-page
+            form POST.
+          </p>
+        </header>
+
+        <section aria-labelledby="states-rows" class="flex flex-col gap-3">
+          <h2 id="states-rows" class="text-sm font-medium text-muted-foreground">
+            Rows
+          </h2>
+          {rows.map((row, index) => (
+            <div class="flex flex-col gap-2">
+              <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">{row.title}</h3>
+              <div class="rounded-xl border bg-card px-4 text-card-foreground">
+                <ul>
+                  <UserRoleRow
+                    profile={row.profile}
+                    isSelf={row.isSelf}
+                    feedback={row.feedback}
+                    pending={row.pending}
+                    idPrefix={`row-${index}-`}
+                  />
+                </ul>
+              </div>
+            </div>
+          ))}
+        </section>
+
+        <section aria-labelledby="states-load-error" class="flex flex-col gap-3">
+          <h2 id="states-load-error" class="text-sm font-medium text-muted-foreground">
+            Load failure (no list)
+          </h2>
+          <div class="rounded-xl border bg-card p-4 text-card-foreground">
+            <Alert variant="destructive">
+              <CircleAlert />
+              <AlertDescription>{GENERIC_USERS_LOAD_ERROR}</AlertDescription>
+            </Alert>
+          </div>
+        </section>
+
+        <section aria-labelledby="states-empty" class="flex flex-col gap-3">
+          <h2 id="states-empty" class="text-sm font-medium text-muted-foreground">
+            Empty list
+          </h2>
+          <div class="rounded-xl border bg-card p-4 text-card-foreground">
+            <p class="text-center text-sm text-muted-foreground">No accounts found.</p>
+          </div>
+        </section>
+
+        <section aria-labelledby="states-top" class="flex flex-col gap-3">
+          <h2 id="states-top" class="text-sm font-medium text-muted-foreground">
+            Top-level fallback feedback (no matching row)
+          </h2>
+          <Alert variant="destructive">
+            <CircleAlert />
+            <AlertDescription>{INVALID_USER_ID_ERROR}</AlertDescription>
+          </Alert>
+        </section>
+      </div>
+    </div>
+  </Layout>
+)}
+
+<script>
+  // Fixture forms: keep them inert so a click here never reaches /api/manager/users/*.
+  document.addEventListener("submit", (event) => {
+    event.preventDefault();
+  });
+</script>
