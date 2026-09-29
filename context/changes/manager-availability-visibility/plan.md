@@ -330,12 +330,12 @@ None. No schema changes; `src/db/database.types.ts` is unchanged.
 
 #### Automated
 
-- [x] 3.1 Lint passes: `npm run lint`
-- [x] 3.2 Type check passes: `npx astro check`
-- [x] 3.3 Production build succeeds: `npm run build`
-- [x] 3.4 Smoke passes including the new team-availability steps: `npm run smoke`
+- [x] 3.1 Lint passes: `npm run lint` — 8da5b5a
+- [x] 3.2 Type check passes: `npx astro check` — 8da5b5a
+- [x] 3.3 Production build succeeds: `npm run build` — 8da5b5a
+- [x] 3.4 Smoke passes including the new team-availability steps: `npm run smoke` — 8da5b5a
 
 #### Manual
 
-- [x] 3.5 The dashboard and the top bar show "Team availability" for the manager only, and the link opens the page
-- [x] 3.6 CLAUDE.md describes the new route and the updated smoke steps
+- [x] 3.5 The dashboard and the top bar show "Team availability" for the manager only, and the link opens the page — 8da5b5a
+- [x] 3.6 CLAUDE.md describes the new route and the updated smoke steps — 8da5b5a
