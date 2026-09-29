@@ -507,32 +507,32 @@ No schema change and no type regeneration. The `&user=` param is additive; old `
 
 #### Automated
 
-- [x] 1.1 Lint passes: `npm run lint`
-- [x] 1.2 Type check passes: `npx astro check`
-- [x] 1.3 Build passes: `npm run build`
-- [x] 1.4 No new dependencies: `git diff --quiet -- package.json package-lock.json`
-- [x] 1.5 `src/components/ui/native-select.tsx` exists and the other ui components are unchanged
+- [x] 1.1 Lint passes: `npm run lint` — 43a8d94
+- [x] 1.2 Type check passes: `npx astro check` — 43a8d94
+- [x] 1.3 Build passes: `npm run build` — 43a8d94
+- [x] 1.4 No new dependencies: `git diff --quiet -- package.json package-lock.json` — 43a8d94
+- [x] 1.5 `src/components/ui/native-select.tsx` exists and the other ui components are unchanged — 43a8d94
 
 #### Manual
 
-- [x] 1.6 Baseline screenshots exist in `screenshots/before/` for the listed routes and widths
-- [x] 1.7 `tokens.md` lists every new row and points to the archived map
+- [x] 1.6 Baseline screenshots exist in `screenshots/before/` for the listed routes and widths — 43a8d94
+- [x] 1.7 `tokens.md` lists every new row and points to the archived map — 43a8d94
 
 ### Phase 2: Message contract
 
 #### Automated
 
-- [ ] 2.1 Lint passes: `npm run lint`
-- [ ] 2.2 Type check passes: `npx astro check`
-- [ ] 2.3 Build passes: `npm run build`
-- [ ] 2.4 Smoke passes against a local server with the seeded DB: `npm run smoke`
-- [ ] 2.5 No raw message reaches a redirect or the page (grep returns nothing)
+- [x] 2.1 Lint passes: `npm run lint`
+- [x] 2.2 Type check passes: `npx astro check`
+- [x] 2.3 Build passes: `npm run build`
+- [x] 2.4 Smoke passes against a local server with the seeded DB: `npm run smoke`
+- [x] 2.5 No raw message reaches a redirect or the page (grep returns nothing)
 
 #### Manual
 
-- [ ] 2.6 An unknown `?error=` shows "Could not update the role. Try again."
-- [ ] 2.7 Last-manager demotion shows "Cannot demote the last manager" with `&user=<id>` in the URL
-- [ ] 2.8 Promoting the seeded employee shows "Role updated." with `&user=<employee id>`
+- [x] 2.6 An unknown `?error=` shows "Could not update the role. Try again."
+- [x] 2.7 Last-manager demotion shows "Cannot demote the last manager" with `&user=<id>` in the URL
+- [x] 2.8 Promoting the seeded employee shows "Role updated." with `&user=<employee id>`
 
 ### Phase 3: The view on tokens and shared components
 

@@ -2,16 +2,25 @@
 import Layout from "@/layouts/Layout.astro";
 import { createClient } from "@/lib/supabase";
 import { APP_ROLES } from "@/lib/roles";
+import {
+  GENERIC_USERS_LOAD_ERROR,
+  logManagerUsersError,
+  resolveRoleFeedbackError,
+  SUPABASE_NOT_CONFIGURED_ERROR,
+} from "@/lib/manager-users";
 import type { Tables } from "@/db/database.types";
 
 const { user } = Astro.locals;
-const updated = Astro.url.searchParams.get("updated") === "1";
-let error = Astro.url.searchParams.get("error");
+// Result of the last role save, from the redirect URL; only known messages are shown as-is.
+const feedbackError = resolveRoleFeedbackError(Astro.url.searchParams.get("error"));
+const saved = Astro.url.searchParams.get("updated") === "1" && !feedbackError;
+// This page failed to read its data; independent of the URL, so a URL error cannot hide it.
+let loadError: string | null = null;
 let profiles: Pick<Tables<"profiles">, "id" | "email" | "role">[] = [];
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 if (!supabase) {
-  error ??= "Supabase is not configured";
+  loadError = SUPABASE_NOT_CONFIGURED_ERROR;
 } else {
   // RLS returns every profile for a manager.
   const { data, error: queryError } = await supabase
@@ -19,11 +28,13 @@ if (!supabase) {
     .select("id, email, role")
     .order("email", { ascending: true });
   if (queryError) {
-    error ??= queryError.message;
+    logManagerUsersError("could not load profiles", queryError);
+    loadError = GENERIC_USERS_LOAD_ERROR;
   } else {
     profiles = data;
   }
 }
+const error = loadError ?? feedbackError;
 ---
 
 <Layout title="Users">
@@ -37,7 +48,7 @@ if (!supabase) {
           {error}
         </p>
       )}
-      {updated && !error && (
+      {saved && !loadError && (
         <p
           role="status"
           class="mb-4 rounded-lg border border-green-500/30 bg-green-900/30 px-3 py-2 text-sm text-green-300"
