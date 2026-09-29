@@ -48,7 +48,35 @@ let carryOvers: TeamWindowRow[] = [];
 // month (YYYY-MM) -> locked_at (timestamptz)
 const lockedAt = new Map<string, string>();
 let lockStateUnknown = false;
+// Set when a window read fails, so empty lists are not mistaken for "nobody submitted".
+let windowsUnknown = false;
 let loadError: string | null = null;
+
+// PostgREST silently caps each response at max_rows (1000 locally and on hosted Supabase; keep the page size no
+// larger), so a busy month is read page by page until a short page. `id` breaks starts_at ties so pages never
+// overlap or skip rows.
+const WINDOWS_PAGE_SIZE = 1000;
+async function loadMonthWindows(client: NonNullable<ReturnType<typeof createClient>>) {
+  const rows: TeamWindowRow[] = [];
+  for (let from = 0; ; from += WINDOWS_PAGE_SIZE) {
+    // No employee_id filter: this is the team view.
+    const { data, error } = await client
+      .from("availability_windows")
+      .select("id, employee_id, starts_at, ends_at")
+      .gte("starts_at", monthStart(month))
+      .lt("starts_at", monthStart(addMonths(month, 1)))
+      .order("starts_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + WINDOWS_PAGE_SIZE - 1);
+    if (error) {
+      return { data: null, error };
+    }
+    rows.push(...data);
+    if (data.length < WINDOWS_PAGE_SIZE) {
+      return { data: rows, error: null };
+    }
+  }
+}
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 if (!supabase) {
@@ -56,13 +84,7 @@ if (!supabase) {
 } else {
   const [membersResult, windowsResult, carryOverResult, locksResult] = await Promise.all([
     supabase.from("profiles").select("id, email, role").order("email", { ascending: true }),
-    // No employee_id filter: this is the team view.
-    supabase
-      .from("availability_windows")
-      .select("id, employee_id, starts_at, ends_at")
-      .gte("starts_at", monthStart(month))
-      .lt("starts_at", monthStart(addMonths(month, 1)))
-      .order("starts_at", { ascending: true }),
+    loadMonthWindows(supabase),
     supabase
       .from("availability_windows")
       .select("id, employee_id, starts_at, ends_at")
@@ -78,12 +100,14 @@ if (!supabase) {
     members = membersResult.data;
   }
   if (windowsResult.error) {
+    windowsUnknown = true;
     logAvailabilityError("could not load team windows", windowsResult.error);
     loadError = TEAM_LOAD_ERROR;
   } else {
     windows = windowsResult.data;
   }
   if (carryOverResult.error) {
+    windowsUnknown = true;
     logAvailabilityError("could not load team carry-over windows", carryOverResult.error);
     loadError = TEAM_LOAD_ERROR;
   } else {
@@ -188,9 +212,13 @@ const monthHref = (option: string): string => teamAvailabilityUrl({ month: optio
         entriesByDay={entriesByDay}
       />
 
-      <TeamDayPanel selectedLabel={selectedLabel} entries={selectedEntries} withoutWindows={withoutWindows} />
+      {!windowsUnknown && (
+        <>
+          <TeamDayPanel selectedLabel={selectedLabel} entries={selectedEntries} withoutWindows={withoutWindows} />
 
-      <TeamSummary members={members} totals={totals} month={month} day={selectedDay} employee={employee} />
+          <TeamSummary members={members} totals={totals} month={month} day={selectedDay} employee={employee} />
+        </>
+      )}
 
       <div class="mt-6 text-center">
         <a href="/dashboard" class:list={buttonVariants({ variant: "outline" })}>
