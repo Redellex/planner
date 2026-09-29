@@ -1,38 +1,41 @@
 import type { APIRoute } from "astro";
 import { createClient } from "@/lib/supabase";
 import { isAppRole } from "@/lib/roles";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function redirectWithError(context: Parameters<APIRoute>[0], message: string) {
-  return context.redirect(`/manager/users?error=${encodeURIComponent(message)}`);
-}
+import {
+  describeRoleWriteError,
+  INVALID_ROLE_ERROR,
+  INVALID_USER_ID_ERROR,
+  managerUsersUrl,
+  SUPABASE_NOT_CONFIGURED_ERROR,
+  USER_ID_PATTERN,
+  USER_NOT_FOUND_ERROR,
+} from "@/lib/manager-users";
 
 export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
   const userId = form.get("userId");
   const role = form.get("role");
 
-  if (typeof userId !== "string" || !UUID_PATTERN.test(userId)) {
-    return redirectWithError(context, "Invalid user id");
+  if (typeof userId !== "string" || !USER_ID_PATTERN.test(userId)) {
+    return context.redirect(managerUsersUrl({ error: INVALID_USER_ID_ERROR }));
   }
   if (!isAppRole(role)) {
-    return redirectWithError(context, "Invalid role");
+    return context.redirect(managerUsersUrl({ error: INVALID_ROLE_ERROR }, userId));
   }
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
-    return redirectWithError(context, "Supabase is not configured");
+    return context.redirect(managerUsersUrl({ error: SUPABASE_NOT_CONFIGURED_ERROR }, userId));
   }
 
   // RLS (manager may update only `role`) and the last-manager trigger are the real enforcement.
   const { data, error } = await supabase.from("profiles").update({ role }).eq("id", userId).select("id");
 
   if (error) {
-    return redirectWithError(context, error.message);
+    return context.redirect(managerUsersUrl({ error: describeRoleWriteError(error) }, userId));
   }
   if (data.length === 0) {
-    return redirectWithError(context, "User not found or not permitted");
+    return context.redirect(managerUsersUrl({ error: USER_NOT_FOUND_ERROR }, userId));
   }
 
   // A manager who just demoted themselves can no longer open /manager/users (it would render 403).
@@ -40,5 +43,5 @@ export const POST: APIRoute = async (context) => {
     return context.redirect("/dashboard");
   }
 
-  return context.redirect("/manager/users?updated=1");
+  return context.redirect(managerUsersUrl({ updated: true }, userId));
 };
