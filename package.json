@@ -12,7 +12,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "smoke": "node scripts/smoke.mjs",
-    "check:ui": "node scripts/check-ui-literals.mjs"
+    "check:ui": "node scripts/check-ui-literals.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.10",
@@ -39,6 +40,8 @@
   "devDependencies": {
     "@eslint/compat": "^2.1.1",
     "@eslint/js": "^10.0.1",
+    "@stryker-mutator/core": "^10.0.0",
+    "@types/node": "^22.20.4",
     "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-astro": "^3.1.0",
@@ -54,6 +57,7 @@
     "supabase": "^2.117.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.70.0",
+    "vitest": "^5.0.3",
     "wrangler": "^4.135.0"
   },
   "lint-staged": {
