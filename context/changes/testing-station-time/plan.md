@@ -385,48 +385,48 @@ None. No schema or production code change.
 
 #### Automated
 
-- [x] 1.1 `npm test` passes locally on Windows with only the guard test
-- [x] 1.2 `npm run lint` passes, including `vitest.config.ts` and the guard test
-- [x] 1.3 `npx astro check` passes
-- [x] 1.4 `npm run build` passes
+- [x] 1.1 `npm test` passes locally on Windows with only the guard test — 4866c7d
+- [x] 1.2 `npm run lint` passes, including `vitest.config.ts` and the guard test — 4866c7d
+- [x] 1.3 `npx astro check` passes — 4866c7d
+- [x] 1.4 `npm run build` passes — 4866c7d
 
 #### Manual
 
-- [x] 1.5 Temporarily commenting out the `process.env.TZ` line makes the guard test fail on the Warsaw dev machine (then restore it)
+- [x] 1.5 Temporarily commenting out the `process.env.TZ` line makes the guard test fail on the Warsaw dev machine (then restore it) — 4866c7d
 
 ### Phase 2: Station-Time Tests and Zone-Literal Guard
 
 #### Automated
 
-- [ ] 2.1 `npm test` passes with the helper tests and the zone guard
-- [ ] 2.2 `npm run lint` passes on the new test files with no `eslint-disable`
-- [ ] 2.3 `npx astro check` passes
+- [x] 2.1 `npm test` passes with the helper tests and the zone guard — f00d1d6
+- [x] 2.2 `npm run lint` passes on the new test files with no `eslint-disable` — f00d1d6
+- [x] 2.3 `npx astro check` passes — f00d1d6
 
 #### Manual
 
-- [ ] 2.4 Temporarily changing the smoke `timeZone` literal to `"Europe/Berlin"` makes the zone guard fail (then restore it)
-- [ ] 2.5 No expected value in `availability.test.ts` is produced by calling a helper from `src/lib/availability.ts` (read-through)
+- [x] 2.4 Temporarily changing the smoke `timeZone` literal to `"Europe/Berlin"` makes the zone guard fail (then restore it) — f00d1d6
+- [x] 2.5 No expected value in `availability.test.ts` is produced by calling a helper from `src/lib/availability.ts` (read-through) — f00d1d6
 
 ### Phase 3: Mutation Gate
 
 #### Automated
 
-- [ ] 3.1 `npx stryker run` completes and writes `reports/mutation/mutation.html`
-- [ ] 3.2 `npm test` and `npm run lint` pass after any added assertions
+- [x] 3.1 `npx stryker run` completes and writes `reports/mutation/mutation.html` — 30cf047
+- [x] 3.2 `npm test` and `npm run lint` pass after any added assertions — 30cf047
 
 #### Manual
 
-- [ ] 3.3 Every surviving mutant in a station-time helper (date, month, weekday, window, duration or label function; the out-of-scope `formatDuration`, `describeWriteError`, `availabilityUrl`, `teamAvailabilityUrl` and `resolveFeedbackError` are exempt) is either killed or recorded as equivalent with a one-line reason
-- [ ] 3.4 The final mutation score (total and "of covered code") and the list of accepted survivors are noted for test-plan §6.6
+- [x] 3.3 Every surviving mutant in a station-time helper (date, month, weekday, window, duration or label function; the out-of-scope `formatDuration`, `describeWriteError`, `availabilityUrl`, `teamAvailabilityUrl` and `resolveFeedbackError` are exempt) is either killed or recorded as equivalent with a one-line reason — 30cf047
+- [x] 3.4 The final mutation score (total and "of covered code") and the list of accepted survivors are noted for test-plan §6.6 — 30cf047
 
 ### Phase 4: Test-Plan and Docs Sync
 
 #### Automated
 
-- [ ] 4.1 `npx prettier --check context/foundation/test-plan.md CLAUDE.md` passes
-- [ ] 4.2 `npm test`, `npm run lint` and `npx astro check` still pass
+- [x] 4.1 `npx prettier --check context/foundation/test-plan.md CLAUDE.md` passes
+- [x] 4.2 `npm test`, `npm run lint` and `npx astro check` still pass
 
 #### Manual
 
 - [ ] 4.3 CI on the branch's PR is green, including the new `npm test` step
-- [ ] 4.4 test-plan §6.1 reads as a usable recipe for someone adding a date test without having read this plan
+- [x] 4.4 test-plan §6.1 reads as a usable recipe for someone adding a date test without having read this plan
