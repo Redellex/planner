@@ -1,10 +1,10 @@
 ---
 change_id: testing-station-time
 title: Test runner and station-time logic (test-plan rollout Phase 1)
-status: impl_reviewed
+status: archived
 created: 2026-10-01
 updated: 2026-10-01
-archived_at: null
+archived_at: 2026-10-01T20:20:29Z
 ---
 
 ## Notes
