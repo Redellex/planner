@@ -1,0 +1,40 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+import { STATION_TIME_ZONE } from "./availability";
+
+// If the SQL or smoke station zone drifts from STATION_TIME_ZONE, the app and the database disagree about which
+// month is editable around midnight. Only code forms are matched; comments mentioning the zone are ignored.
+
+const repoRoot = path.resolve(import.meta.dirname, "../..");
+const migrationsDir = path.join(repoRoot, "supabase/migrations");
+
+const sources = [
+  {
+    name: "SQL migrations (at time zone '…')",
+    files: readdirSync(migrationsDir)
+      .filter((file) => file.endsWith(".sql"))
+      .map((file) => path.join(migrationsDir, file)),
+    pattern: /at time zone '([^']+)'/gi,
+  },
+  {
+    name: 'smoke script (timeZone: "…")',
+    files: [path.join(repoRoot, "scripts/smoke.mjs")],
+    pattern: /timeZone:\s*"([^"]+)"/g,
+  },
+];
+
+describe("the station time zone literal agrees everywhere", () => {
+  it.each(sources)("$name uses STATION_TIME_ZONE", ({ files, pattern }) => {
+    const found = files.flatMap((file) =>
+      Array.from(readFileSync(file, "utf8").matchAll(pattern), (match) => ({
+        file: path.relative(repoRoot, file),
+        zone: match[1],
+      })),
+    );
+
+    expect(found.length).toBeGreaterThan(0);
+    expect(found.filter(({ zone }) => zone !== STATION_TIME_ZONE)).toEqual([]);
+  });
+});
