@@ -423,10 +423,10 @@ None. No schema or production code change.
 
 #### Automated
 
-- [x] 4.1 `npx prettier --check context/foundation/test-plan.md CLAUDE.md` passes
-- [x] 4.2 `npm test`, `npm run lint` and `npx astro check` still pass
+- [x] 4.1 `npx prettier --check context/foundation/test-plan.md CLAUDE.md` passes — 03b01a1
+- [x] 4.2 `npm test`, `npm run lint` and `npx astro check` still pass — 03b01a1
 
 #### Manual
 
-- [ ] 4.3 CI on the branch's PR is green, including the new `npm test` step
-- [x] 4.4 test-plan §6.1 reads as a usable recipe for someone adding a date test without having read this plan
+- [x] 4.3 CI on the branch's PR is green, including the new `npm test` step — 03b01a1
+- [x] 4.4 test-plan §6.1 reads as a usable recipe for someone adding a date test without having read this plan — 03b01a1
