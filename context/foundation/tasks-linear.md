@@ -4,7 +4,7 @@ source: context/foundation/roadmap.md (v1)
 tracker: GitHub Issues
 repo: Redellex/planner
 migrated: 2026-09-25
-updated: 2026-09-29
+updated: 2026-10-01
 milestone: M-1 (GitHub milestone #1)
 ---
 
@@ -45,6 +45,7 @@ The roadmap's Backlog Handoff table already asks for "stable human-readable iden
 | S-03       | #4    | [S-03] Auto-generate conflict-free, fairly-rotated monthly schedule    | roadmap, slice, north-star, status:blocked | M-1       | #2         |
 | S-04       | #5    | [S-04] Manager review/override/publish workflow for generated schedule | roadmap, slice, status:proposed            | M-1       | #4         |
 | S-05       | #6    | [S-05] Published schedule grid view for employees and managers         | roadmap, slice, status:proposed            | M-1       | #5         |
+| T-01       | #24   | [T-01] Test runner and station-time logic (unit tests on UTC)          | roadmap, testing — **closed** (done)       | —         | —          |
 | Q-01       | #7    | [Q-01] Expected request and data volume (qps)?                         | roadmap, question                          | M-1       | —          |
 | P-01       | #8    | [P-01] Export/print schedule (FR-008)                                  | roadmap, parked                            | —         | —          |
 | P-02       | #9    | [P-02] Notify employees when schedule is published (FR-009)            | roadmap, parked                            | —         | —          |
@@ -75,8 +76,9 @@ The ID prefix makes it possible to find an issue by its roadmap ID (for example 
 | `S-NN` | Vertical slice: an outcome the user can see              | yes       |
 | `Q-NN` | Open roadmap question (from `## Open Roadmap Questions`) | yes       |
 | `P-NN` | Parked nice-to-have (from `## Parked`)                   | no        |
+| `T-NN` | Test-plan rollout phase (`test-plan.md` §3, Phase NN)    | no        |
 
-`Q-` and `P-` IDs were added during this import because the roadmap didn't number those items.
+`Q-` and `P-` IDs were added during this import because the roadmap didn't number those items. `T-` IDs were added on 2026-10-01 for test-plan rollout phases; the number matches the phase in `test-plan.md` §3. They are cross-cutting quality work, not milestone scope, so they get no milestone.
 
 ### Labels
 
@@ -90,6 +92,7 @@ The ID prefix makes it possible to find an issue by its roadmap ID (for example 
 | `status:proposed` | `#d0d7de` | Waiting on prerequisites                       |
 | `status:blocked`  | `#d73a4a` | Blocked by unanswered unknowns                 |
 | `parked`          | `#cfd3d7` | Put off until after the current milestone      |
+| `testing`         | `#1d76db` | T-NN test-plan rollout phases                  |
 | `question`        | (default) | Open questions (existing GitHub label, reused) |
 
 The `status:*` labels match the **Status** field in `roadmap.md`. Closing an issue counts as `done`.

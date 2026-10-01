@@ -3,7 +3,7 @@ project: Planner
 version: 1
 status: draft
 created: 2026-09-24
-updated: 2026-09-29
+updated: 2026-10-01
 prd_version: 1
 main_goal: speed
 top_blocker: capacity
@@ -157,6 +157,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 | S-01 (follow-up) | #15 (PR) | availability-ui-tokens           | `/availability` on the shadcn design tokens (UI only)                             | —                     | Done — archived 2026-09-28                                      |
 | S-01 (follow-up) | #16      | availability-same-day-windows    | Second same-day availability window replaces the first or reports a false overlap | —                     | Not a bug (edit form used instead of Add) — archived 2026-09-29 |
 | S-02             | #3       | manager-availability-visibility  | Manager view of all employee availability                                         | —                     | Done in PR #21 — archived 2026-09-29                            |
+| T-01 (test plan) | #24      | testing-station-time             | Test runner and station-time logic (unit tests on UTC)                            | —                     | Done in PR #23 — archived 2026-10-01                            |
 | S-03             | #4       | generate-monthly-schedule        | Auto-generate conflict-free, fairly-rotated monthly schedule                      | no                    | Blocked — 2 unknowns need resolving first                       |
 | S-04             | #5       | review-override-publish-schedule | Manager review/override/publish workflow for generated schedule                   | no                    | Waiting on S-03                                                 |
 | S-05             | #6       | view-published-schedule          | Published schedule grid view for employees and managers                           | no                    | Waiting on S-04                                                 |
@@ -183,3 +184,4 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **F-01: (foundation) Manager and Employee accounts are distinguishable at the auth layer — each account carries a role, enforced via database policy and session checks — so every downstream slice can safely gate data and UI by role.** — Archived 2026-09-26 → `context/archive/2026-09-25-role-aware-access-control/`. Lesson: —.
 - **S-01: Employee can create and edit their own availability windows for the upcoming month; edits lock once the manager starts generating that month's schedule.** — Archived 2026-09-26 → `context/archive/2026-09-26-employee-availability-management/`. Lesson: —.
 - **S-02: Manager can view every employee's submitted availability for the month in one place.** — Archived 2026-09-29 → `context/archive/2026-09-29-manager-availability-visibility/`. Lesson: —.
+- **T-01: (test plan, Phase 1) Unit test runner (Vitest on UTC) proves station dates, months and "now" are correct on the Worker and across DST; manual Stryker gate on `src/lib/availability.ts`.** — Archived 2026-10-01 → `context/archive/2026-10-01-testing-station-time/`. Lesson: —.
