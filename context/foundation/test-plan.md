@@ -186,7 +186,7 @@ Examples: `supabase/tests/database/availability_ownership.test.sql` (ownership),
 
 #### Phase 2: Database rules — ownership, lock, roles (2026-10-03, `context/changes/testing-database-rules/`)
 
-- **Harness:** pgTAP via `supabase test db` (pg_prove 3.36) on Supabase CLI 2.117.0, pinned in the CI `smoke` job. `npm run test:db` runs it locally. 90 assertions in 3 files: `availability_ownership.test.sql` (30), `availability_month_lock.test.sql` (39), `profiles_roles.test.sql` (21). The zone guard (`src/lib/station-time-zone.test.ts`) covers the new files.
+- **Harness:** pgTAP via `supabase test db` (pg_prove 3.36) on Supabase CLI 2.117.0, pinned in the CI `smoke` job. `npm run test:db` runs it locally. 91 assertions in 3 files: `availability_ownership.test.sql` (30), `availability_month_lock.test.sql` (40), `profiles_roles.test.sql` (21). The zone guard (`src/lib/station-time-zone.test.ts`) covers the new files.
 - **Sabotage pass:** each rule was reverted once on the local DB, `npm run test:db` was run, the rule was restored, and a final `npx supabase db reset` followed. Every reversal turned at least one test red:
 
   | Reversal                                                                     | Red tests (first cause)                                                            |

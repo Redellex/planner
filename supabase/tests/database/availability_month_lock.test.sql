@@ -4,7 +4,7 @@
 -- allowed"), migration intent in 20260926140000_harden_availability_writes.sql. Also who may write lock rows, and the
 -- window range constraint.
 begin;
-select plan(39);
+select plan(40);
 
 -- Station months, derived once; now() is fixed for the transaction.
 select
@@ -182,9 +182,19 @@ select is(
   'no row of the refused weekday batch was inserted'
 );
 
--- Overnight spill and its half-open edge
+-- The same weekday batch inside open M+1 (control)
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000a2","role":"authenticated"}';
+select lives_ok(
+  format($$ insert into public.availability_windows (starts_at, ends_at)
+    select d + interval '13:00', d + interval '14:00'
+    from generate_series(%L::date, %L::date, interval '1 day') d
+    where extract(isodow from d) = extract(isodow from %L::date) $$,
+    :'m1', :'m1_last', :'m1_last'),
+  'A weekday-repeat batch that stays inside open M+1 is accepted'
+);
+
+-- Overnight spill and its half-open edge
 select throws_ok(
   format($$ insert into public.availability_windows (starts_at, ends_at) values (%L, %L) $$,
     :'m1_last'::date + interval '22:00', :'m2'::date + interval '02:00'),

@@ -374,6 +374,8 @@ None. No schema change, and no change to `src/db/database.types.ts`.
 
 > Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands. Do not rename step titles. See `references/progress-format.md`.
 
+> CI note: manual items 1.5, 2.4 and 3.3 were confirmed together by one CI run (37116516053 on `2d4452d`, smoke job green on CLI 2.117.0), not by a separate run after each phase.
+
 ### Phase 1: Harness, Ownership Tests and CI Step
 
 #### Automated
