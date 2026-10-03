@@ -15,7 +15,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run test:db` — database rules tests (pgTAP via `supabase test db`) in `supabase/tests/database/*.test.sql`: ownership of availability windows, month editability and locks, and role changes including the last-manager guard. Needs the local stack running (`npx supabase start`). Each file is one transaction that is rolled back, so it leaves no data. How to add one: `context/foundation/test-plan.md` §6.2.
 - `npm run smoke` — dependency-free script (`scripts/smoke.mjs`) that walks the whole auth flow (sign-up → sign-in → protected page → sign-out) plus role enforcement (new user gets 403 on `/manager/users`; the seeded manager gets 200, cannot demote the last manager, and stays manager) and the availability flow (the fresh user adds a window and gets an overlap error, then adds, edits and deletes a window in the last upcoming month; the manager locks a month, a create in it is refused, then unlocks) and the manager team view (the fresh user gets 403 on `/manager/availability` and leaves a 10:00–12:00 window on day 2 of station month + 3, which the manager then sees there) over HTTP against a running server; `BASE_URL` env, defaults to `http://localhost:4321`; `SMOKE_MANAGER_EMAIL`/`SMOKE_MANAGER_PASSWORD` default to the seeded local manager, so it needs a database with `supabase/seed.sql` applied. The lock steps use the station month + 12, so it can be re-run without a DB reset; the edit/delete steps use station month + 3 (the last month `/availability` offers), which must not be locked locally. Each run leaves one window (owned by that run's fresh smoke user) on day 2 of that month. If a run dies between the lock and unlock steps, that month stays locked and later runs fail at "availability create adds a window"; recover with `delete from public.availability_locks where month = '<YYYY-MM of station month + 12>-01';` in Studio. Run after dependency upgrades. It complements `npm test` (pure-function unit tests) and `npm run test:db` (database rules) and does not replace them.
 - `npm run check:ui` — dependency-free script (`scripts/check-ui-literals.mjs`) that fails on colour literals (palette classes, hex/rgb/hsl/oklch, `bg-cosmic`, gradient text, `backdrop-blur`) in the views already on design tokens; the scoped file list lives in the script. With file arguments it checks only those inside the scope.
-- Pre-commit (husky + lint-staged): `eslint --fix` on `*.{ts,tsx,astro}`, `node scripts/check-ui-literals.mjs` on `*.{astro,tsx}`, `prettier --write` on `*.{json,css,md}`.
+- Pre-commit (husky + lint-staged, config in `lint-staged.config.mjs`, runs on the staged content only): `eslint --fix` then `vitest related --run` on `*.{ts,tsx,astro}` (only the tests whose imports reach a staged file), `node scripts/check-ui-literals.mjs` on `*.{astro,tsx}`, `prettier --write` on `*.{json,css,md}`; a staged migration or `scripts/smoke.mjs` runs `src/lib/station-time-zone.test.ts`, and a staged `vitest.config.ts`/`package.json`/`package-lock.json` runs the whole suite. A failing lint or test blocks the commit.
+- Claude Code agent hooks (`.claude/settings.json` → `.claude/hooks/*.mjs`, Node, no `jq`): after every `Write`/`Edit`, ESLint + the colour-literal check on that file only (no `--fix`) and the Vitest tests related to it (a station-time file runs the whole risk-#1 suite); on `Stop`, ESLint + colour literals on every changed file, the whole unit suite and `astro check`, sending the agent back at most once. Failures reach the agent as exit 2 + stderr.
 - CI (`.github/workflows/ci.yml`) runs two jobs on push/PR to `master`: `ci` (`npm ci` → `astro sync` → lint → `astro check` → `npm test` → build, needs `SUPABASE_URL`/`SUPABASE_KEY` secrets) and `smoke` (spins up local Supabase via its CLI, pinned to 2.117.0 to match the devDependency, runs the database rules tests with `supabase test db` before anything mutates the data, then builds, serves the Cloudflare preview and runs the smoke script — no secrets needed).
 
 ## Architecture
@@ -76,48 +77,60 @@ Astro 7 SSR app (`output: "server"`, deployed via `@astrojs/cloudflare`) with Re
 
 <!-- BEGIN @przeprogramowani/10x-cli -->
 
-## 10xDevs AI Toolkit - Module 2, Lesson 5
+## 10xDevs AI Toolkit - Module 3, Lesson 3 (10xDevs 4.0 Hooks)
 
-Scale the single-change cycle into parallel work with **worktrees, goal-directed delegation, and multi-session orchestration**:
+Treat a hook as a **quality gate the harness runs for the agent**, not a script you hope the agent notices. Hooks run outside the model, so they survive context compaction and forgotten instructions — but only a hook whose signal actually reaches the agent closes the loop:
 
 ```
-worktree per change -> /goal or claude -p -> PR -> review -> merge
+test-plan.md "Quality Gates" -> pick the moment per gate -> /10x-configure-hook -> prove with sample JSON -> watch the agent fix a deliberate error
 ```
-
-The lesson focus is safe throughput: isolated contexts, choosing the right execution mode, and capping parallelism at review capacity.
 
 ### Task Router - Where to start
 
-| Skill                                                   | Use it when                                                                                                                                  |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Code isolation**                                      |                                                                                                                                              |
-| `git worktree add`                                      | You need a separate working directory for a parallel change. One change per worktree, one fresh agent context per worktree.                  |
-| **Complex changes**                                     |                                                                                                                                              |
-| `/10x-implement <change-id> phase <n>`                  | The change has multiple phases, needs manual gates, or benefits from interactive decision-making during execution.                           |
-| **Simple changes**                                      |                                                                                                                                              |
-| `/goal`                                                 | You have a clear, bounded task and want goal-directed delegation. The agent works autonomously toward the stated goal with a stop condition. |
-| `claude -p`                                             | You want headless execution for a well-defined task. The Ralph Wiggum loop (run, check, retry) is the universal autonomous pattern.          |
-| **Multi-session orchestration**                         |                                                                                                                                              |
-| Superset / Conductor / Antigravity / VS Code Agent View | You are running multiple agent sessions in parallel and need visibility, coordination, or session management across them.                    |
+| Skill | Use it when |
+| --- | --- |
+| `/10x-configure-hook` | Turning the gates from `context/foundation/test-plan.md` into agent hooks, fixing hooks that fire but the agent never reacts to, or auditing an existing hook config. It detects the harness from the repo and carries dated per-harness references. |
+| `/10x-test-plan --status` | Read the current gates and rollout state. Changing which gates exist belongs to Lesson 1, not here. |
+| `/10x-new` -> `/10x-research` -> `/10x-plan` -> `/10x-implement` | A hook surfaced a failure the agent cannot fix with a trivial correction (wrong business logic, flaky integration). Open a change instead of looping the hook. |
 
-### Parallel work rules
+### Hook lifecycle
 
-- One change per worktree or isolated workspace. One fresh agent context per change.
-- Choose interactive `/10x-implement` for complex changes, `/goal` or `claude -p` for simple ones.
-- Parallelism is capped by review capacity. More agents without review means more unreviewed code, not higher throughput.
-- The quality pain from faster shipping is intentional — it bridges into Module 3 testing gates.
+1. **Trigger** — an event in the harness: a tool finished editing a file, the agent is about to end its turn.
+2. **Matcher** — narrows which tool calls or files the hook reacts to. Not every harness honours matchers the same way.
+3. **Handler** — usually a shell command or script that reads the event payload as JSON on stdin.
+4. **Signal** — what the hook returns. The exit code, stderr, stdout and JSON fields mean different things in different harnesses, and only one channel per event actually reaches the agent. **The signal channel differs per harness — check the skill's references before writing or reviewing a hook.**
+
+A hook that runs but sends its message down the wrong channel is the most common failure: the user sees "hook error", the agent sees nothing and keeps going.
+
+### Moments and layers
+
+The slower the check, the rarer the moment:
+
+| Moment | Typical checks | Reaches the agent? |
+| --- | --- | --- |
+| Per edit | Lint/format of **the edited file only**; related tests if they are fast | Yes, mid-work |
+| End of turn (Stop or its equivalent) | Lint + tests for every file changed this turn, whole-project typecheck | Yes, before the agent hands back |
+| Pre-commit (git) | Lint + tests on staged files; catches edits made without the agent | No — blocks the commit |
+| Pre-push (git) | Heavier suites, e2e that run locally | No — blocks the push |
+| CI | Integration, shared state, infrastructure you do not have locally | No — PR feedback |
+
+Local layers do not replace CI; each one saves a CI round-trip. Start with one per-edit lint hook and one end-of-turn typecheck, then add layers when you see what escapes.
+
+### Contract
+
+- Read the gates from the "Quality Gates" section of `context/foundation/test-plan.md` (by title, not section number). A gate the plan explicitly defers stays deferred unless the user overrides it — quote the deferral when you ask.
+- Per-edit hooks check only the file that was edited. Never run `--fix` or a linter over the whole project on every edit.
+- End-of-turn hooks that can send the agent back must stop after one retry (the harness's "already continued" flag or equivalent), so an unfixable error does not loop.
+- Per-edit hooks only see the harness's edit tools; a file rewritten through a shell command skips them. The end-of-turn hook re-checks every file changed this turn (`git diff`), so it is the net for those edits.
+- Timeouts are usually in **seconds**. Check the unit before copying a number.
+- Prove every hook before trusting it: run the script with a sample payload on a deliberately broken file and on a clean one, then revert the error.
+- Never overwrite existing hook config silently. Audit it, name the defects, merge, and show the diff.
 
 ### Lesson boundaries
 
-- Do not reteach interactive `/10x-implement` or `/10x-impl-review`; those are Lessons 2 and 3.
-- Do not introduce testing strategy here. The quality pain is the motivation for Module 3.
-- Worktrees are a mechanism for isolation, not the topic of a full git tutorial.
-
-### Paths used by this lesson
-
-- `context/changes/<change-id>/` - active change folder
-- `context/changes/<change-id>/plan.md` - implementation input for any execution mode
-
-Skills must not write to `context/archive/`. Archived changes are immutable; if a resolved target path starts with `context/archive/`, abort with: "This change is archived. Open a new change with `/10x-new` instead."
+- Do not change the risk strategy or the gate definitions — that is Lesson 1 (`/10x-test-plan`).
+- Do not write new tests here — hooks only run the tests Lesson 2 produced.
+- Do not write E2E scenarios or browser verification — that is Lesson 4.
+- Do not author CI pipelines or install git-hook managers unasked; recommend pre-commit/pre-push gates, let the user decide.
 
 <!-- END @przeprogramowani/10x-cli -->

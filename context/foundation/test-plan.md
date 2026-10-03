@@ -105,15 +105,15 @@ The full set of gates that must pass before a change reaches production.
 "Required after §3 Phase <N>" means the gate is enforced once that rollout
 phase lands; before that, the gate is `planned`.
 
-| Gate                                             | Where                   | Required?                    | Catches                                                      |
-| ------------------------------------------------ | ----------------------- | ---------------------------- | ------------------------------------------------------------ |
-| lint + typecheck (`npm run lint`, `astro check`) | local + CI              | required (wired)             | syntactic / type drift                                       |
-| colour-literal check (`npm run check:ui`)        | pre-commit              | required (wired)             | design-token regressions on cleaned views                    |
-| unit tests (`npm test`)                          | local + CI              | required (wired)             | date/month logic, route/role decision, read-path regressions |
-| database rules tests (`npm run test:db`)         | local + CI (smoke job)  | required (wired)             | ownership, lock and role-rule regressions in migrations      |
-| HTTP smoke                                       | CI (local Supabase job) | required (wired)             | broken critical flows end to end                             |
-| property-based generator tests                   | local + CI              | required after §3 Phase 4    | generator guardrail violations                               |
-| post-edit hook                                   | local (agent loop)      | recommended after §3 Phase 1 | regressions at edit time; not a CI substitute                |
+| Gate                                             | Where                                           | Required?                 | Catches                                                             |
+| ------------------------------------------------ | ----------------------------------------------- | ------------------------- | ------------------------------------------------------------------- |
+| lint + typecheck (`npm run lint`, `astro check`) | agent hooks + pre-commit (lint, staged) + CI    | required (wired)          | syntactic / type drift                                              |
+| colour-literal check (`npm run check:ui`)        | agent hooks + pre-commit                        | required (wired)          | design-token regressions on cleaned views                           |
+| unit tests (`npm test`)                          | agent hooks + pre-commit (related, staged) + CI | required (wired)          | date/month logic, route/role decision, read-path regressions        |
+| database rules tests (`npm run test:db`)         | local + CI (smoke job)                          | required (wired)          | ownership, lock and role-rule regressions in migrations             |
+| HTTP smoke                                       | CI (local Supabase job)                         | required (wired)          | broken critical flows end to end                                    |
+| property-based generator tests                   | local + CI                                      | required after §3 Phase 4 | generator guardrail violations                                      |
+| agent hooks (per edit + end of turn)             | local (agent loop)                              | recommended (wired)       | regressions at edit time; not a CI substitute; see `.claude/hooks/` |
 
 ## 6. Cookbook Patterns
 
