@@ -13,7 +13,8 @@
     "format": "prettier --write .",
     "smoke": "node scripts/smoke.mjs",
     "check:ui": "node scripts/check-ui-literals.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:db": "supabase test db"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.10",

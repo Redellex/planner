@@ -4,11 +4,13 @@ import { describe, expect, it } from "vitest";
 
 import { STATION_TIME_ZONE } from "./availability";
 
-// If the SQL or smoke station zone drifts from STATION_TIME_ZONE, the app and the database disagree about which
-// month is editable around midnight. Only code forms are matched; comments mentioning the zone are ignored.
+// If the SQL (migrations, database rules tests) or smoke station zone drifts from STATION_TIME_ZONE, the app and the
+// database disagree about which month is editable around midnight. Only code forms are matched; comments mentioning
+// the zone are ignored.
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
 const migrationsDir = path.join(repoRoot, "supabase/migrations");
+const dbTestsDir = path.join(repoRoot, "supabase/tests/database");
 
 const sources = [
   {
@@ -16,6 +18,13 @@ const sources = [
     files: readdirSync(migrationsDir)
       .filter((file) => file.endsWith(".sql"))
       .map((file) => path.join(migrationsDir, file)),
+    pattern: /at time zone '([^']+)'/gi,
+  },
+  {
+    name: "database rules tests (at time zone '…')",
+    files: readdirSync(dbTestsDir)
+      .filter((file) => file.endsWith(".sql"))
+      .map((file) => path.join(dbTestsDir, file)),
     pattern: /at time zone '([^']+)'/gi,
   },
   {
