@@ -369,32 +369,32 @@ None: no schema change, no data change. The route decision moves without changin
 
 #### Automated
 
-- [x] 1.1 Unit tests pass, including the new route-access and route-inventory files: `npm test`
-- [x] 1.2 Lint passes: `npm run lint`
-- [x] 1.3 Type check passes: `npx astro check`
-- [x] 1.4 Production build succeeds: `npm run build`
-- [x] 1.5 Inventory guard goes red when a scratch file `src/pages/api/team/probe.ts` is added and green again after it is removed: `npx vitest run src/lib/route-inventory.test.ts`
+- [x] 1.1 Unit tests pass, including the new route-access and route-inventory files: `npm test` — a746571
+- [x] 1.2 Lint passes: `npm run lint` — a746571
+- [x] 1.3 Type check passes: `npx astro check` — a746571
+- [x] 1.4 Production build succeeds: `npm run build` — a746571
+- [x] 1.5 Inventory guard goes red when a scratch file `src/pages/api/team/probe.ts` is added and green again after it is removed: `npx vitest run src/lib/route-inventory.test.ts` — a746571
 
 #### Manual
 
-- [x] 1.6 Smoke still passes unchanged against a local server (middleware behaviour preserved): `npm run smoke`
-- [x] 1.7 Committing a staged change to a `src/pages` file shows the inventory guard running in the lint-staged output
+- [x] 1.6 Smoke still passes unchanged against a local server (middleware behaviour preserved): `npm run smoke` — a746571
+- [x] 1.7 Committing a staged change to a `src/pages` file shows the inventory guard running in the lint-staged output — a746571
 
 ### Phase 2: Honest Team Read
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass, including the new team-availability file: `npm test`
-- [ ] 2.2 Lint passes: `npm run lint`
-- [ ] 2.3 Type check passes: `npx astro check`
-- [ ] 2.4 Colour-literal check passes: `npm run check:ui`
-- [ ] 2.5 Production build succeeds: `npm run build`
+- [x] 2.1 Unit tests pass, including the new team-availability file: `npm test`
+- [x] 2.2 Lint passes: `npm run lint`
+- [x] 2.3 Type check passes: `npx astro check`
+- [x] 2.4 Colour-literal check passes: `npm run check:ui`
+- [x] 2.5 Production build succeeds: `npm run build`
 
 #### Manual
 
-- [ ] 2.6 As the seeded manager, `/manager/availability` for a month with windows looks as before (calendar counts, day panel, summary with "No availability submitted" for accounts without windows)
-- [ ] 2.7 With the profiles read temporarily pointed at a non-existent column on the local server, the team view shows only the error alert, month tabs and lock-status line, with no calendar, day panel or summary (revert afterwards)
-- [ ] 2.8 Smoke still passes, including "team availability shows the employee's window": `npm run smoke`
+- [x] 2.6 As the seeded manager, `/manager/availability` for a month with windows looks as before (calendar counts, day panel, summary with "No availability submitted" for accounts without windows)
+- [x] 2.7 With the profiles read temporarily pointed at a non-existent column on the local server, the team view shows only the error alert, month tabs and lock-status line, with no calendar, day panel or summary (revert afterwards)
+- [x] 2.8 Smoke still passes, including "team availability shows the employee's window": `npm run smoke`
 
 ### Phase 3: Smoke Endpoint Gates
 

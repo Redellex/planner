@@ -9,6 +9,7 @@ import TeamSummary from "@/components/team-availability/TeamSummary.astro";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase";
+import { buildTeamView, loadAllPages, type TeamTotal } from "@/lib/team-availability";
 import { cn } from "@/lib/utils";
 import {
   addMonths,
@@ -28,7 +29,6 @@ import {
   teamAvailabilityUrl,
   timeOf,
   upcomingMonths,
-  windowMinutes,
 } from "@/lib/availability";
 
 // Manager-only through MANAGER_ROUTES in src/middleware.ts; RLS lets managers read every profile and window.
@@ -45,73 +45,76 @@ let members: TeamMember[] = [];
 let windows: TeamWindowRow[] = [];
 // Overnight windows from the previous month's last day that run into day 1 (one per account at most).
 let carryOvers: TeamWindowRow[] = [];
+let totals = new Map<string, TeamTotal>();
 // month (YYYY-MM) -> locked_at (timestamptz)
 const lockedAt = new Map<string, string>();
 let lockStateUnknown = false;
-// Set when a window read fails, so empty lists are not mistaken for "nobody submitted".
-let windowsUnknown = false;
+// Set when any team list could not be read in full, so nothing on the page can read as "nobody submitted".
+let teamUnknown = false;
 let loadError: string | null = null;
 
-// PostgREST silently caps each response at max_rows (1000 locally and on hosted Supabase; keep the page size no
-// larger), so a busy month is read page by page until a short page. `id` breaks starts_at ties so pages never
-// overlap or skip rows.
-const WINDOWS_PAGE_SIZE = 1000;
-async function loadMonthWindows(client: NonNullable<ReturnType<typeof createClient>>) {
-  const rows: TeamWindowRow[] = [];
-  for (let from = 0; ; from += WINDOWS_PAGE_SIZE) {
-    // No employee_id filter: this is the team view.
-    const { data, error } = await client
-      .from("availability_windows")
-      .select("id, employee_id, starts_at, ends_at")
-      .gte("starts_at", monthStart(month))
-      .lt("starts_at", monthStart(addMonths(month, 1)))
-      .order("starts_at", { ascending: true })
-      .order("id", { ascending: true })
-      .range(from, from + WINDOWS_PAGE_SIZE - 1);
-    if (error) {
-      return { data: null, error };
-    }
-    rows.push(...data);
-    if (data.length < WINDOWS_PAGE_SIZE) {
-      return { data: rows, error: null };
-    }
-  }
-}
+// Each response is capped at PostgREST's max_rows; loadAllPages follows the exact count, so a cap below this page
+// size costs requests, not rows. Every read orders by `id` last so pages never overlap or skip rows.
+const TEAM_PAGE_SIZE = 1000;
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 if (!supabase) {
   loadError = SUPABASE_NOT_CONFIGURED_ERROR;
+  teamUnknown = true;
 } else {
   const [membersResult, windowsResult, carryOverResult, locksResult] = await Promise.all([
-    supabase.from("profiles").select("id, email, role").order("email", { ascending: true }),
-    loadMonthWindows(supabase),
-    supabase
-      .from("availability_windows")
-      .select("id, employee_id, starts_at, ends_at")
-      .lt("starts_at", monthStart(month))
-      .gt("ends_at", monthStart(month)),
+    loadAllPages(
+      (from, to) =>
+        supabase
+          .from("profiles")
+          .select("id, email, role", { count: "exact" })
+          .order("email", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, to),
+      TEAM_PAGE_SIZE,
+    ),
+    // No employee_id filter: this is the team view.
+    loadAllPages(
+      (from, to) =>
+        supabase
+          .from("availability_windows")
+          .select("id, employee_id, starts_at, ends_at", { count: "exact" })
+          .gte("starts_at", monthStart(month))
+          .lt("starts_at", monthStart(addMonths(month, 1)))
+          .order("starts_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, to),
+      TEAM_PAGE_SIZE,
+    ),
+    loadAllPages(
+      (from, to) =>
+        supabase
+          .from("availability_windows")
+          .select("id, employee_id, starts_at, ends_at", { count: "exact" })
+          .lt("starts_at", monthStart(month))
+          .gt("ends_at", monthStart(month))
+          .order("id", { ascending: true })
+          .range(from, to),
+      TEAM_PAGE_SIZE,
+    ),
     supabase.from("availability_locks").select("month, locked_at").in("month", months.map(monthStart)),
   ]);
 
   if (membersResult.error) {
     logAvailabilityError("could not load team members", membersResult.error);
-    loadError = TEAM_LOAD_ERROR;
-  } else {
-    members = membersResult.data;
   }
   if (windowsResult.error) {
-    windowsUnknown = true;
     logAvailabilityError("could not load team windows", windowsResult.error);
-    loadError = TEAM_LOAD_ERROR;
-  } else {
-    windows = windowsResult.data;
   }
   if (carryOverResult.error) {
-    windowsUnknown = true;
     logAvailabilityError("could not load team carry-over windows", carryOverResult.error);
-    loadError = TEAM_LOAD_ERROR;
+  }
+  const view = buildTeamView({ members: membersResult, windows: windowsResult, carryOvers: carryOverResult });
+  if (view.status === "ready") {
+    ({ members, windows, carryOvers, totals } = view);
   } else {
-    carryOvers = carryOverResult.data;
+    teamUnknown = true;
+    loadError = TEAM_LOAD_ERROR;
   }
   if (locksResult.error) {
     lockStateUnknown = true;
@@ -129,13 +132,6 @@ const membersById = new Map(members.map((member) => [member.id, member]));
 const filteredMember = membersById.get(Astro.url.searchParams.get("employee") ?? "") ?? null;
 const employee = filteredMember?.id ?? null;
 const listedMembers = filteredMember ? [filteredMember] : members;
-
-// Totals count windows starting in the month only; a previous-month window belongs to its own month.
-const totals = new Map<string, { windows: number; minutes: number }>();
-for (const row of windows) {
-  const total = totals.get(row.employee_id) ?? { windows: 0, minutes: 0 };
-  totals.set(row.employee_id, { windows: total.windows + 1, minutes: total.minutes + windowMinutes(row) });
-}
 
 const firstDay = monthStart(month);
 // A window is grouped under the day it starts; a previous-month window is shown on day 1 only.
@@ -204,16 +200,16 @@ const monthHref = (option: string): string => teamAvailabilityUrl({ month: optio
         )}
       </p>
 
-      <TeamCalendar
-        month={month}
-        weeks={weeks}
-        selectedDay={selectedDay}
-        employee={employee}
-        entriesByDay={entriesByDay}
-      />
-
-      {!windowsUnknown && (
+      {!teamUnknown && (
         <>
+          <TeamCalendar
+            month={month}
+            weeks={weeks}
+            selectedDay={selectedDay}
+            employee={employee}
+            entriesByDay={entriesByDay}
+          />
+
           <TeamDayPanel selectedLabel={selectedLabel} entries={selectedEntries} withoutWindows={withoutWindows} />
 
           <TeamSummary members={members} totals={totals} month={month} day={selectedDay} employee={employee} />
