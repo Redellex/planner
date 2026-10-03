@@ -412,11 +412,11 @@ None: no schema change, no data change. The route decision moves without changin
 
 #### Automated
 
-- [x] 4.1 Mutation runs complete for both modules: `npx stryker run --mutate "src/lib/route-access.ts"` and `npx stryker run --mutate "src/lib/team-availability.ts"`
-- [x] 4.2 Unit tests pass after any added assertions: `npm test`
-- [x] 4.3 Markdown is formatted: `npx prettier --check context/foundation/test-plan.md CLAUDE.md`
+- [x] 4.1 Mutation runs complete for both modules: `npx stryker run --mutate "src/lib/route-access.ts"` and `npx stryker run --mutate "src/lib/team-availability.ts"` — f69cffe
+- [x] 4.2 Unit tests pass after any added assertions: `npm test` — f69cffe
+- [x] 4.3 Markdown is formatted: `npx prettier --check context/foundation/test-plan.md CLAUDE.md` — f69cffe
 
 #### Manual
 
-- [x] 4.4 Every survivor in both mutation reports is either killed by a new assertion or listed in §6.6 with a reason
-- [x] 4.5 §6.3 and §6.4 read as self-contained recipes for someone adding a route or a read path
+- [x] 4.4 Every survivor in both mutation reports is either killed by a new assertion or listed in §6.6 with a reason — f69cffe
+- [x] 4.5 §6.3 and §6.4 read as self-contained recipes for someone adding a route or a read path — f69cffe

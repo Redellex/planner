@@ -1,7 +1,7 @@
 ---
 change_id: testing-route-gating-honest-reads
 title: "Test rollout Phase 3: route gating and honest availability reads"
-status: implementing
+status: implemented
 created: 2026-10-03
 updated: 2026-10-03
 archived_at: null
