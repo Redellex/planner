@@ -403,8 +403,8 @@ None. No schema change, and no change to `src/db/database.types.ts`.
 
 #### Automated
 
-- [x] 3.1 `npm run test:db` passes with all three files
-- [x] 3.2 After the run, the local DB still has exactly the managers it had before (seed manager `…0001` is still `manager`) and no `@db-rules.test` users
+- [x] 3.1 `npm run test:db` passes with all three files — 4daddd4
+- [x] 3.2 After the run, the local DB still has exactly the managers it had before (seed manager `…0001` is still `manager`) and no `@db-rules.test` users — 4daddd4
 
 #### Manual
 
@@ -414,11 +414,11 @@ None. No schema change, and no change to `src/db/database.types.ts`.
 
 #### Automated
 
-- [ ] 4.1 `npm run test:db` passes after the final `db reset` (sabotage fully reverted)
-- [ ] 4.2 `npm test`, `npm run lint`, `npx astro check` pass
-- [ ] 4.3 `npx prettier --check context/foundation/test-plan.md CLAUDE.md` passes
+- [x] 4.1 `npm run test:db` passes after the final `db reset` (sabotage fully reverted)
+- [x] 4.2 `npm test`, `npm run lint`, `npx astro check` pass
+- [x] 4.3 `npx prettier --check context/foundation/test-plan.md CLAUDE.md` passes
 
 #### Manual
 
-- [ ] 4.4 Every reversal in the sabotage table turned at least one test red, or is recorded in §6.6 as covered by a second layer, with the reason
+- [x] 4.4 Every reversal in the sabotage table turned at least one test red, or is recorded in §6.6 as covered by a second layer, with the reason
 - [ ] 4.5 §6.2 is enough for someone else to add a rules test for a new table without reading this plan
