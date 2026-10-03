@@ -149,19 +149,20 @@ Foundations below assume these are present and do NOT re-scaffold them.
 
 ## Backlog Handoff
 
-| Roadmap ID       | Issue    | Change ID                        | Suggested issue title                                                             | Ready for `/10x-plan` | Notes                                                           |
-| ---------------- | -------- | -------------------------------- | --------------------------------------------------------------------------------- | --------------------- | --------------------------------------------------------------- |
-| F-01             | #1       | role-aware-access-control        | Add manager/employee roles to auth                                                | —                     | Done — archived 2026-09-26                                      |
-| F-01 (follow-up) | #19      | manager-users-ui-tokens          | `/manager/users` on the shadcn design tokens (UI only)                            | —                     | Done in PR #18 — archived 2026-09-29                            |
-| S-01             | #2       | employee-availability-management | Employee availability CRUD with monthly lock                                      | —                     | Done — archived 2026-09-26                                      |
-| S-01 (follow-up) | #15 (PR) | availability-ui-tokens           | `/availability` on the shadcn design tokens (UI only)                             | —                     | Done — archived 2026-09-28                                      |
-| S-01 (follow-up) | #16      | availability-same-day-windows    | Second same-day availability window replaces the first or reports a false overlap | —                     | Not a bug (edit form used instead of Add) — archived 2026-09-29 |
-| S-02             | #3       | manager-availability-visibility  | Manager view of all employee availability                                         | —                     | Done in PR #21 — archived 2026-09-29                            |
-| T-01 (test plan) | #24      | testing-station-time             | Test runner and station-time logic (unit tests on UTC)                            | —                     | Done in PR #23 — archived 2026-10-01                            |
-| T-02 (test plan) | #27      | testing-database-rules           | Database rules: ownership, month lock and roles (pgTAP)                           | —                     | Done in PR #26 — archived 2026-10-03                            |
-| S-03             | #4       | generate-monthly-schedule        | Auto-generate conflict-free, fairly-rotated monthly schedule                      | no                    | Blocked — 2 unknowns need resolving first                       |
-| S-04             | #5       | review-override-publish-schedule | Manager review/override/publish workflow for generated schedule                   | no                    | Waiting on S-03                                                 |
-| S-05             | #6       | view-published-schedule          | Published schedule grid view for employees and managers                           | no                    | Waiting on S-04                                                 |
+| Roadmap ID           | Issue    | Change ID                        | Suggested issue title                                                             | Ready for `/10x-plan` | Notes                                                           |
+| -------------------- | -------- | -------------------------------- | --------------------------------------------------------------------------------- | --------------------- | --------------------------------------------------------------- |
+| F-01                 | #1       | role-aware-access-control        | Add manager/employee roles to auth                                                | —                     | Done — archived 2026-09-26                                      |
+| F-01 (follow-up)     | #19      | manager-users-ui-tokens          | `/manager/users` on the shadcn design tokens (UI only)                            | —                     | Done in PR #18 — archived 2026-09-29                            |
+| S-01                 | #2       | employee-availability-management | Employee availability CRUD with monthly lock                                      | —                     | Done — archived 2026-09-26                                      |
+| S-01 (follow-up)     | #15 (PR) | availability-ui-tokens           | `/availability` on the shadcn design tokens (UI only)                             | —                     | Done — archived 2026-09-28                                      |
+| S-01 (follow-up)     | #16      | availability-same-day-windows    | Second same-day availability window replaces the first or reports a false overlap | —                     | Not a bug (edit form used instead of Add) — archived 2026-09-29 |
+| S-02                 | #3       | manager-availability-visibility  | Manager view of all employee availability                                         | —                     | Done in PR #21 — archived 2026-09-29                            |
+| T-01 (test plan)     | #24      | testing-station-time             | Test runner and station-time logic (unit tests on UTC)                            | —                     | Done in PR #23 — archived 2026-10-01                            |
+| T-02 (test plan)     | #27      | testing-database-rules           | Database rules: ownership, month lock and roles (pgTAP)                           | —                     | Done in PR #26 — archived 2026-10-03                            |
+| QG-01 (test plan §5) | #29      | quality-gate-hooks               | Quality-gate hooks: agent hooks and pre-commit tests on staged files              | —                     | In review in PR #30                                             |
+| S-03                 | #4       | generate-monthly-schedule        | Auto-generate conflict-free, fairly-rotated monthly schedule                      | no                    | Blocked — 2 unknowns need resolving first                       |
+| S-04                 | #5       | review-override-publish-schedule | Manager review/override/publish workflow for generated schedule                   | no                    | Waiting on S-03                                                 |
+| S-05                 | #6       | view-published-schedule          | Published schedule grid view for employees and managers                           | no                    | Waiting on S-04                                                 |
 
 ## Open Roadmap Questions
 
