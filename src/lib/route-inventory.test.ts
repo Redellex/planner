@@ -49,13 +49,15 @@ const actors: { signedIn: boolean; role: AppRole | null }[] = [
 ];
 
 const pagesDir = path.resolve(import.meta.dirname, "../pages");
+// Every extension Astro routes under src/pages; a file or folder starting with `_` is not a route.
+const ROUTE_FILE = /\.(astro|ts|js|mjs|md|mdx|html)$/;
 const pageFiles = readdirSync(pagesDir, { recursive: true, encoding: "utf8" })
   .map((file) => file.split(path.sep).join("/"))
-  .filter((file) => /\.(astro|ts)$/.test(file))
+  .filter((file) => ROUTE_FILE.test(file) && !file.split("/").some((segment) => segment.startsWith("_")))
   .sort();
 
 function routeOf(file: string): string {
-  const route = `/${file.replace(/\.(astro|ts)$/, "")}`.replace(/\/index$/, "");
+  const route = `/${file.replace(ROUTE_FILE, "")}`.replace(/\/index$/, "");
   return route === "" ? "/" : route;
 }
 
@@ -65,8 +67,10 @@ describe("every page and endpoint under src/pages has an explicit expected acces
   });
 
   it("has no dynamic routes without a sample path", () => {
-    // A [param] file needs a concrete sample path in EXPECTED_ACCESS; extend routeOf when the first one appears.
-    expect(pageFiles.filter((file) => file.includes("["))).toEqual([]);
+    expect(
+      pageFiles.filter((file) => file.includes("[")),
+      "a [param] route needs a concrete sample path in EXPECTED_ACCESS; extend routeOf to map it",
+    ).toEqual([]);
   });
 
   it("lists every route, and only existing routes", () => {

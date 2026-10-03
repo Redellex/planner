@@ -8,7 +8,7 @@ export default {
   // station-time-zone.test.ts reads these from disk, so `vitest related` never links them to it; functions drop the file arguments.
   "{supabase/migrations/*.sql,scripts/smoke.mjs}": () => "vitest run src/lib/station-time-zone.test.ts",
   // route-inventory.test.ts reads src/pages from disk, so a new or moved page or endpoint must run it explicitly.
-  "src/pages/**/*.{astro,ts}": () => "vitest run src/lib/route-inventory.test.ts",
+  "src/pages/**/*.{astro,ts,js,mjs,md,mdx,html}": () => "vitest run src/lib/route-inventory.test.ts",
   // Test config and dependency changes can break any test.
   "{vitest.config.ts,package.json,package-lock.json}": () => "vitest run",
 };

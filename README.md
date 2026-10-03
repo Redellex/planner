@@ -168,7 +168,7 @@ Users can then sign in immediately after sign-up without clicking a confirmation
 | `/manager/months`       | manager   | Lock or unlock an upcoming month's availability                                                                            |
 | `/manager/availability` | manager   | Read-only team calendar: who is available each day, lock status and per-person totals for the current month and the next 3 |
 
-Route protection is handled in `src/middleware.ts`. `PROTECTED_ROUTES` sends anonymous users to `/auth/signin`. `MANAGER_ROUTES` also returns 403 to non-managers. Postgres row-level security does the actual data enforcement.
+Route protection is handled in `src/middleware.ts`, which applies the decision in `src/lib/route-access.ts`: `PROTECTED_ROUTES` sends anonymous users to `/auth/signin`. `MANAGER_ROUTES` also returns 403 to non-managers. Postgres row-level security does the actual data enforcement.
 
 ## Deployment
 

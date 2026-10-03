@@ -63,6 +63,12 @@ describe("a failed or incomplete read is an error, never partial data", () => {
     expect(await loadAllPages(fetchPage, 3)).toEqual({ data: null, error: failure });
   });
 
+  it("fails, instead of throwing, when a request rejects", async () => {
+    const failure = new Error("fetch failed");
+    const fetchPage: FetchPage<string> = () => Promise.reject(failure);
+    expect(await loadAllPages(fetchPage, 3)).toEqual({ data: null, error: failure });
+  });
+
   it("fails when the response carries no count", async () => {
     const fetchPage: FetchPage<string> = () => Promise.resolve({ data: ["r1"], error: null, count: null });
     const result = await loadAllPages(fetchPage, 3);
@@ -83,6 +89,19 @@ describe("a failed or incomplete read is an error, never partial data", () => {
     const result = await loadAllPages(fetchPage, 5);
     expect(result.data).toBeNull();
     expect(String(result.error)).toContain("5 of 7");
+  });
+
+  it("fails when the count changes between pages", async () => {
+    // r2 is deleted after page 1: page 2 skips r4, and the lower count would match the 6 rows received.
+    const fetchPage: FetchPage<string> = (from) =>
+      Promise.resolve(
+        from === 0
+          ? { data: ROWS.slice(0, 3), error: null, count: 7 }
+          : { data: ROWS.slice(from + 1, from + 4), error: null, count: 6 },
+      );
+    const result = await loadAllPages(fetchPage, 3);
+    expect(result.data).toBeNull();
+    expect(String(result.error)).toContain("7 to 6");
   });
 });
 

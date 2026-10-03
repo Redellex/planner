@@ -31,7 +31,7 @@ import {
   upcomingMonths,
 } from "@/lib/availability";
 
-// Manager-only through MANAGER_ROUTES in src/middleware.ts; RLS lets managers read every profile and window.
+// Manager-only through MANAGER_ROUTES in src/lib/route-access.ts; RLS lets managers read every profile and window.
 const months = teamAvailabilityMonths();
 const stationMonth = currentStationMonth();
 const [defaultMonth] = upcomingMonths();

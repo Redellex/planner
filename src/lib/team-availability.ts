@@ -18,18 +18,31 @@ export type FetchPage<T> = (
  * `pageSize`, so the offset advances by the rows actually received and the loop stops once the rows reach the
  * reported count; a lower cap costs requests, never rows. An error on any page, a missing count or an empty page
  * before the count is reached is a read error, never partial data. The query must order by a unique tiebreak
- * (`id`) so pages neither overlap nor skip rows.
+ * (`id`) so pages neither overlap nor skip rows. A write between two requests shifts the offsets and changes the
+ * count, so a count that differs from the first page's is a read error too.
  */
 export async function loadAllPages<T>(fetchPage: FetchPage<T>, pageSize: number): Promise<PagedResult<T>> {
   const rows: T[] = [];
+  let firstCount: number | null = null;
   for (;;) {
     const from = rows.length;
-    const { data, error, count } = await fetchPage(from, from + pageSize - 1);
+    let page: Awaited<ReturnType<FetchPage<T>>>;
+    try {
+      page = await fetchPage(from, from + pageSize - 1);
+    } catch (thrown) {
+      // A rejected request is a read error too: the page shows the load error instead of failing the request.
+      return { data: null, error: thrown };
+    }
+    const { data, error, count } = page;
     if (error) {
       return { data: null, error };
     }
     if (data === null || count === null) {
       return { data: null, error: new Error("Paged read returned no row count") };
+    }
+    firstCount ??= count;
+    if (count !== firstCount) {
+      return { data: null, error: new Error(`Paged read count changed from ${firstCount} to ${count}`) };
     }
     rows.push(...data);
     // Never request past the count: PostgREST answers an offset beyond the end with an error.
