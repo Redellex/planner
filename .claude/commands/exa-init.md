@@ -1,0 +1,1 @@
+Run `npx skills use "https://github.com/exa-labs/agent-skills" --skill "build-with-exa"` and follow the generated skill instructions now. Read its complete output, redirecting it to a temporary file first if necessary. Resolve relative paths from the supporting-files directory it provides.
