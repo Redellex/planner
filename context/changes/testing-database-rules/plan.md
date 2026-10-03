@@ -378,10 +378,10 @@ None. No schema change, and no change to `src/db/database.types.ts`.
 
 #### Automated
 
-- [x] 1.1 `npm run test:db` passes with the ownership file only (all ownership scenarios green)
-- [x] 1.2 `npm test` passes, including the extended zone guard
-- [x] 1.3 `npm run lint` and `npx astro check` pass
-- [x] 1.4 After the run, `select count(*) from auth.users where email like '%@db-rules.test'` returns 0 on the local DB
+- [x] 1.1 `npm run test:db` passes with the ownership file only (all ownership scenarios green) — f5391c3
+- [x] 1.2 `npm test` passes, including the extended zone guard — f5391c3
+- [x] 1.3 `npm run lint` and `npx astro check` pass — f5391c3
+- [x] 1.4 After the run, `select count(*) from auth.users where email like '%@db-rules.test'` returns 0 on the local DB — f5391c3
 
 #### Manual
 
@@ -391,9 +391,9 @@ None. No schema change, and no change to `src/db/database.types.ts`.
 
 #### Automated
 
-- [ ] 2.1 `npm run test:db` passes with the ownership and month-lock files
-- [ ] 2.2 `npm test` passes (zone guard covers the new file)
-- [ ] 2.3 After the run, no `@db-rules.test` users remain and no lock row was added or removed outside the transaction (lock list before = after)
+- [x] 2.1 `npm run test:db` passes with the ownership and month-lock files
+- [x] 2.2 `npm test` passes (zone guard covers the new file)
+- [x] 2.3 After the run, no `@db-rules.test` users remain and no lock row was added or removed outside the transaction (lock list before = after)
 
 #### Manual
 
