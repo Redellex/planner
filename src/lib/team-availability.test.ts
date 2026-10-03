@@ -70,6 +70,13 @@ describe("a failed or incomplete read is an error, never partial data", () => {
     expect(result.error).toBeInstanceOf(Error);
   });
 
+  it("fails, instead of throwing, when a response carries a count but no rows", async () => {
+    const fetchPage: FetchPage<string> = () => Promise.resolve({ data: null, error: null, count: 3 });
+    const result = await loadAllPages(fetchPage, 3);
+    expect(result.data).toBeNull();
+    expect(result.error).toBeInstanceOf(Error);
+  });
+
   it("fails when a page comes back empty before the count is reached", async () => {
     const fetchPage: FetchPage<string> = (from) =>
       Promise.resolve({ data: from < 5 ? ROWS.slice(from, Math.min(from + 5, 5)) : [], error: null, count: 7 });

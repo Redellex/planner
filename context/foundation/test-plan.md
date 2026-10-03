@@ -157,11 +157,23 @@ Examples: `supabase/tests/database/availability_ownership.test.sql` (ownership),
 
 ### 6.3 Adding a test for a new protected route or endpoint
 
-- TBD — see §3 Phase 3 (route × role decision table; when to add a smoke step instead).
+Examples: `src/lib/route-access.test.ts` (decision table), `src/lib/route-inventory.test.ts` (inventory guard). Run with `npm test`.
+
+1. **Where the gate lives.** `src/lib/route-access.ts` owns `PROTECTED_ROUTES`, `MANAGER_ROUTES` and `routeAccess(pathname, { signedIn, role })` → `"allow" | "signin" | "forbidden"`. `src/middleware.ts` only resolves the user and role and maps the result. Never re-check the role in a page or endpoint handler as a substitute for the gate; Postgres (RLS, grants, triggers) is the second layer.
+2. **A new page or endpoint** gets one row in `EXPECTED_ACCESS` in `route-inventory.test.ts` (`"public" | "signed-in" | "manager"`). The guard walks `src/pages`, so a file without a row fails, and so does a row whose file is gone. A staged `src/pages/**` file runs the guard in pre-commit (`lint-staged.config.mjs`); `vitest related` cannot, because the guard reads the pages from disk.
+3. **A new gated prefix** goes into `route-access.ts` with both its page and its `/api` counterpart, plus rows in the decision table for the exact prefix, a nested path, and a lookalike that must stay open (`/managerX`, `/api/managerial`). Expected outcomes are literals, never computed from the route lists.
+4. **Paths are already normalised.** Astro decodes percent-encoding and collapses duplicate slashes before the middleware runs; do not add unit rows for encoding or case variants (vendor boundary).
+5. **Add a smoke step only for a new endpoint that writes data:** an employee (or anonymous) POST must get the 403 page (`isAccessDenied`) or a sign-in redirect, followed by a step that shows the write had no effect. A unit test cannot show that the middleware actually applies the decision to that request.
+6. **Role resolution** stays fail closed through `roleFromProfile`: a read error, a missing row or an unknown value is `null`, which is `forbidden` on manager routes.
 
 ### 6.4 Adding a test for a read path that feeds a decision
 
-- TBD — see §3 Phase 3 (read error / truncation must not render as "empty" pattern).
+Example: `src/lib/team-availability.test.ts`. Run with `npm test`.
+
+1. **Read in full or fail.** A list that feeds a "nobody / none / not submitted" conclusion goes through `loadAllPages(fetchPage, pageSize)` from `src/lib/team-availability.ts`: the page function runs one `.select(cols, { count: "exact" })…range(from, to)` query ordered by a unique `id` tiebreak. The helper advances by the rows actually received and stops at the count, so a PostgREST `max_rows` below the page size costs requests, not rows. An error on any page, a missing count or an empty page before the count is an error, never partial data.
+2. **Decide the state before any empty message.** Map every result to a ready/unknown state first (`buildTeamView` is the pattern): derived data such as totals exists only on `ready`, so a failed read cannot produce an "empty" conclusion. On unknown, the view shows the allow-listed load error and hides every list or calendar that could read as "nobody" (the `manager/users.astro` pattern), and the raw error goes to `logAvailabilityError`.
+3. **Test with a fake page function over literal fixtures**, never with a mocked Supabase client: a multi-page read, a server cap below the page size, an exactly full last page (no request past the count), count 0, an error on a later page, a null count, rows missing with a count, and an empty page before the count. For the state function: each failed input is `unknown`, and one legitimate-empty control (a complete read where a member has no rows) is the only way to get the "none" outcome.
+4. **No e2e or forced-error smoke step** for this (test-plan §2 #6 anti-pattern). Smoke only keeps the happy path of the view alive.
 
 ### 6.5 Adding an invariant test for the schedule generator
 
@@ -204,6 +216,15 @@ Examples: `supabase/tests/database/availability_ownership.test.sql` (ownership),
 
 - **Second-layer cover:** a forged `employee_id` on insert is refused by both the insert column grant and the `with check` ownership clause, so reverting either alone leaves "B cannot insert a window owned by A" green; the `created_at` tests watch the grant on its own.
 - **Accepted gaps:** concurrent last-manager demotion (two sessions at once; one pgTAP file runs one session, and the guard's `for update` lock is standard Postgres); the SQL midnight/DST boundary of the editability rule (`now()` cannot be frozen; the TS side is covered in Phase 1); locking a current or past month (no source decides it, and editability is already false there); a forward cap on editable months (UI only).
+
+#### Phase 3: Route gating and honest reads (2026-10-03, `context/changes/testing-route-gating-honest-reads/`)
+
+- **Unit tests:** 68 new tests in 3 files: `src/lib/route-access.test.ts` (32: a route × actor table over every gated page and endpoint, segment-boundary paths, public controls, 8 role-resolution cases), `src/lib/route-inventory.test.ts` (23: every `src/pages` file has an explicit expected access that agrees with `routeAccess`), `src/lib/team-availability.test.ts` (13: count-driven paging and the ready/unknown state). The route decision moved out of `src/middleware.ts` into `src/lib/route-access.ts`, and the team read out of `src/pages/manager/availability.astro` into `src/lib/team-availability.ts`.
+- **Defects fixed, not pinned:** the team view's month-window read stopped at the first short page (a `max_rows` below 1000 would truncate silently), a failed profiles read rendered empty states under the alert, and an unknown windows read still labelled every calendar day "no one available". An unknown team view now shows only the load error, month tabs and lock status.
+- **Smoke:** 5 new steps. The fresh employee's POSTs to `/api/manager/months/lock` and to `/api/manager/users/role` (promoting themselves, id from the session cookie) get the 403 page, the month stays editable and the employee stays forbidden; an anonymous POST to the lock endpoint is sent to sign-in. With `/api/manager` removed from `MANAGER_ROUTES`, all 3 endpoint steps went red.
+- **Mutation score:** `route-access.ts` 45 mutants, 45 killed → **100%**. `team-availability.ts` 56 mutants, 51 killed, 4 timeouts, 1 survived → **98.21%**; one survivor (`data === null` guard removed, which would crash the page instead of showing the alert) was killed with a new assertion.
+- **Accepted survivor (1):** the "Paged read returned no row count" message replaced with `""`: the message only reaches the Worker log.
+- **Accepted gaps:** `/manager/months` fails open on a lock-read error and renders the raw database message, and it also renders a raw RLS message that the lock endpoint puts in `?error=` (legacy view, §7); offset paging while windows are written during one load is best effort (a row can be skipped or repeated, and the next load is correct); percent-encoding and case variants of paths are Astro's (vendor boundary); the per-edit agent hook does not run the inventory guard for a page edit (the end-of-turn hook runs the whole suite).
 
 ## 7. What We Deliberately Don't Test
 

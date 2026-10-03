@@ -400,23 +400,23 @@ None: no schema change, no data change. The route decision moves without changin
 
 #### Automated
 
-- [x] 3.1 Station-time zone guard still passes for the edited smoke script: `npx vitest run src/lib/station-time-zone.test.ts`
-- [x] 3.2 Lint passes: `npm run lint`
+- [x] 3.1 Station-time zone guard still passes for the edited smoke script: `npx vitest run src/lib/station-time-zone.test.ts` — 822ec87
+- [x] 3.2 Lint passes: `npm run lint` — 822ec87
 
 #### Manual
 
-- [x] 3.3 Smoke passes twice in a row against a local server with no DB reset in between: `npm run smoke`
-- [x] 3.4 With `/api/manager` temporarily removed from `MANAGER_ROUTES` on the local server, the new employee POST steps fail (revert afterwards)
+- [x] 3.3 Smoke passes twice in a row against a local server with no DB reset in between: `npm run smoke` — 822ec87
+- [x] 3.4 With `/api/manager` temporarily removed from `MANAGER_ROUTES` on the local server, the new employee POST steps fail (revert afterwards) — 822ec87
 
 ### Phase 4: Mutation Pass and Cookbook
 
 #### Automated
 
-- [ ] 4.1 Mutation runs complete for both modules: `npx stryker run --mutate "src/lib/route-access.ts"` and `npx stryker run --mutate "src/lib/team-availability.ts"`
-- [ ] 4.2 Unit tests pass after any added assertions: `npm test`
-- [ ] 4.3 Markdown is formatted: `npx prettier --check context/foundation/test-plan.md CLAUDE.md`
+- [x] 4.1 Mutation runs complete for both modules: `npx stryker run --mutate "src/lib/route-access.ts"` and `npx stryker run --mutate "src/lib/team-availability.ts"`
+- [x] 4.2 Unit tests pass after any added assertions: `npm test`
+- [x] 4.3 Markdown is formatted: `npx prettier --check context/foundation/test-plan.md CLAUDE.md`
 
 #### Manual
 
-- [ ] 4.4 Every survivor in both mutation reports is either killed by a new assertion or listed in §6.6 with a reason
-- [ ] 4.5 §6.3 and §6.4 read as self-contained recipes for someone adding a route or a read path
+- [x] 4.4 Every survivor in both mutation reports is either killed by a new assertion or listed in §6.6 with a reason
+- [x] 4.5 §6.3 and §6.4 read as self-contained recipes for someone adding a route or a read path
