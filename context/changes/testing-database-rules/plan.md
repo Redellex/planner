@@ -391,9 +391,9 @@ None. No schema change, and no change to `src/db/database.types.ts`.
 
 #### Automated
 
-- [x] 2.1 `npm run test:db` passes with the ownership and month-lock files
-- [x] 2.2 `npm test` passes (zone guard covers the new file)
-- [x] 2.3 After the run, no `@db-rules.test` users remain and no lock row was added or removed outside the transaction (lock list before = after)
+- [x] 2.1 `npm run test:db` passes with the ownership and month-lock files — de45257
+- [x] 2.2 `npm test` passes (zone guard covers the new file) — de45257
+- [x] 2.3 After the run, no `@db-rules.test` users remain and no lock row was added or removed outside the transaction (lock list before = after) — de45257
 
 #### Manual
 
@@ -403,8 +403,8 @@ None. No schema change, and no change to `src/db/database.types.ts`.
 
 #### Automated
 
-- [ ] 3.1 `npm run test:db` passes with all three files
-- [ ] 3.2 After the run, the local DB still has exactly the managers it had before (seed manager `…0001` is still `manager`) and no `@db-rules.test` users
+- [x] 3.1 `npm run test:db` passes with all three files
+- [x] 3.2 After the run, the local DB still has exactly the managers it had before (seed manager `…0001` is still `manager`) and no `@db-rules.test` users
 
 #### Manual
 
