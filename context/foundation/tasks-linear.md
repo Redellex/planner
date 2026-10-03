@@ -46,7 +46,7 @@ The roadmap's Backlog Handoff table already asks for "stable human-readable iden
 | S-04       | #5    | [S-04] Manager review/override/publish workflow for generated schedule | roadmap, slice, status:proposed            | M-1       | #4         |
 | S-05       | #6    | [S-05] Published schedule grid view for employees and managers         | roadmap, slice, status:proposed            | M-1       | #5         |
 | T-01       | #24   | [T-01] Test runner and station-time logic (unit tests on UTC)          | roadmap, testing — **closed** (done)       | —         | —          |
-| T-02       | #27   | [T-02] Database rules: ownership, month lock and roles (pgTAP)         | roadmap, testing — open (PR #26)           | —         | —          |
+| T-02       | #27   | [T-02] Database rules: ownership, month lock and roles (pgTAP)         | roadmap, testing — **closed** (done)       | —         | —          |
 | Q-01       | #7    | [Q-01] Expected request and data volume (qps)?                         | roadmap, question                          | M-1       | —          |
 | P-01       | #8    | [P-01] Export/print schedule (FR-008)                                  | roadmap, parked                            | —         | —          |
 | P-02       | #9    | [P-02] Notify employees when schedule is published (FR-009)            | roadmap, parked                            | —         | —          |

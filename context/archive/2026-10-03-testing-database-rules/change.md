@@ -1,10 +1,10 @@
 ---
 change_id: testing-database-rules
 title: "Test plan Phase 2: database rules for ownership, month lock and roles"
-status: impl_reviewed
+status: archived
 created: 2026-10-03
 updated: 2026-10-03
-archived_at: null
+archived_at: 2026-10-03T10:51:56Z
 ---
 
 ## Notes

@@ -67,12 +67,12 @@ Each row is a discrete rollout phase that will open its own change folder
 via `/10x-new`. Status moves left-to-right through the values below; the
 orchestrator updates Status as artifacts appear on disk.
 
-| #   | Phase name                             | Goal (one line)                                                                                                                             | Risks covered | Test types                  | Status        | Change folder                                    |
-| --- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------- | ------------- | ------------------------------------------------ |
-| 1   | Test runner and station-time logic     | Bootstrap the unit runner and prove dates, months and station "now" are correct on a UTC runtime and across DST                             | #1            | unit                        | complete      | context/archive/2026-10-01-testing-station-time/ |
-| 2   | Database rules: ownership, lock, roles | Prove a forged or direct write cannot touch another employee's data or a non-editable month, and cannot escalate or remove the last manager | #2, #3, #4    | database rules (pgTAP)      | change opened | context/changes/testing-database-rules/          |
-| 3   | Route gating and honest reads          | Prove the route × role decision holds after middleware changes, and a failed or truncated read never looks like "nobody submitted"          | #4, #6        | unit + targeted smoke steps | not started   | —                                                |
-| 4   | Generator invariants (with S-03)       | Prove no assignment falls outside availability and no shift is silently left without exactly one person; starts once S-03 is planned        | #5            | property-based unit         | not started   | —                                                |
+| #   | Phase name                             | Goal (one line)                                                                                                                             | Risks covered | Test types                  | Status      | Change folder                                      |
+| --- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------- | ----------- | -------------------------------------------------- |
+| 1   | Test runner and station-time logic     | Bootstrap the unit runner and prove dates, months and station "now" are correct on a UTC runtime and across DST                             | #1            | unit                        | complete    | context/archive/2026-10-01-testing-station-time/   |
+| 2   | Database rules: ownership, lock, roles | Prove a forged or direct write cannot touch another employee's data or a non-editable month, and cannot escalate or remove the last manager | #2, #3, #4    | database rules (pgTAP)      | complete    | context/archive/2026-10-03-testing-database-rules/ |
+| 3   | Route gating and honest reads          | Prove the route × role decision holds after middleware changes, and a failed or truncated read never looks like "nobody submitted"          | #4, #6        | unit + targeted smoke steps | not started | —                                                  |
+| 4   | Generator invariants (with S-03)       | Prove no assignment falls outside availability and no shift is silently left without exactly one person; starts once S-03 is planned        | #5            | property-based unit         | not started | —                                                  |
 
 Phase 4 is gated on roadmap S-03 having a plan (its two blocking unknowns resolved); research cannot ground code that does not exist yet.
 
@@ -184,7 +184,7 @@ Examples: `supabase/tests/database/availability_ownership.test.sql` (ownership),
 - **Out-of-scope survivors (62):** `formatDuration`, the error-message constants, `describeWriteError`, `logAvailabilityError`, `resolveFeedbackError`, `availabilityUrl` and `teamAvailabilityUrl`. They carry no station-time risk and are not tested in this phase.
 - **Not covered here:** the SQL `is_availability_month_editable` rule and the `ends_at - 1µs` spill rule (rollout Phase 2, pgTAP).
 
-#### Phase 2: Database rules — ownership, lock, roles (2026-10-03, `context/changes/testing-database-rules/`)
+#### Phase 2: Database rules — ownership, lock, roles (2026-10-03, `context/archive/2026-10-03-testing-database-rules/`)
 
 - **Harness:** pgTAP via `supabase test db` (pg_prove 3.36) on Supabase CLI 2.117.0, pinned in the CI `smoke` job. `npm run test:db` runs it locally. 91 assertions in 3 files: `availability_ownership.test.sql` (30), `availability_month_lock.test.sql` (40), `profiles_roles.test.sql` (21). The zone guard (`src/lib/station-time-zone.test.ts`) covers the new files.
 - **Sabotage pass:** each rule was reverted once on the local DB, `npm run test:db` was run, the rule was restored, and a final `npx supabase db reset` followed. Every reversal turned at least one test red:
