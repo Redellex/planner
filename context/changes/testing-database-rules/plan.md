@@ -385,7 +385,7 @@ None. No schema change, and no change to `src/db/database.types.ts`.
 
 #### Manual
 
-- [ ] 1.5 The CI run for this phase shows the "Database rules tests" step green in the smoke job, with CLI 2.117.0 in the setup step log
+- [x] 1.5 The CI run for this phase shows the "Database rules tests" step green in the smoke job, with CLI 2.117.0 in the setup step log — 2d4452d
 
 ### Phase 2: Month Lock and Editability Tests
 
@@ -397,7 +397,7 @@ None. No schema change, and no change to `src/db/database.types.ts`.
 
 #### Manual
 
-- [ ] 2.4 CI smoke job's "Database rules tests" step is green for this phase
+- [x] 2.4 CI smoke job's "Database rules tests" step is green for this phase — 2d4452d
 
 ### Phase 3: Role Rule Tests
 
@@ -408,17 +408,17 @@ None. No schema change, and no change to `src/db/database.types.ts`.
 
 #### Manual
 
-- [ ] 3.3 CI smoke job's "Database rules tests" step is green, and the smoke step after it still passes (the seeded manager was not demoted)
+- [x] 3.3 CI smoke job's "Database rules tests" step is green, and the smoke step after it still passes (the seeded manager was not demoted) — 2d4452d
 
 ### Phase 4: Sabotage Pass and Cookbook
 
 #### Automated
 
-- [x] 4.1 `npm run test:db` passes after the final `db reset` (sabotage fully reverted)
-- [x] 4.2 `npm test`, `npm run lint`, `npx astro check` pass
-- [x] 4.3 `npx prettier --check context/foundation/test-plan.md CLAUDE.md` passes
+- [x] 4.1 `npm run test:db` passes after the final `db reset` (sabotage fully reverted) — 2d4452d
+- [x] 4.2 `npm test`, `npm run lint`, `npx astro check` pass — 2d4452d
+- [x] 4.3 `npx prettier --check context/foundation/test-plan.md CLAUDE.md` passes — 2d4452d
 
 #### Manual
 
-- [x] 4.4 Every reversal in the sabotage table turned at least one test red, or is recorded in §6.6 as covered by a second layer, with the reason
-- [ ] 4.5 §6.2 is enough for someone else to add a rules test for a new table without reading this plan
+- [x] 4.4 Every reversal in the sabotage table turned at least one test red, or is recorded in §6.6 as covered by a second layer, with the reason — 2d4452d
+- [x] 4.5 §6.2 is enough for someone else to add a rules test for a new table without reading this plan — 2d4452d
