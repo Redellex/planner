@@ -4,7 +4,7 @@ source: context/foundation/roadmap.md (v1)
 tracker: GitHub Issues
 repo: Redellex/planner
 migrated: 2026-09-25
-updated: 2026-10-01
+updated: 2026-10-03
 milestone: M-1 (GitHub milestone #1)
 ---
 
@@ -47,7 +47,8 @@ The roadmap's Backlog Handoff table already asks for "stable human-readable iden
 | S-05       | #6    | [S-05] Published schedule grid view for employees and managers               | roadmap, slice, status:proposed            | M-1       | #5         |
 | T-01       | #24   | [T-01] Test runner and station-time logic (unit tests on UTC)                | roadmap, testing — **closed** (done)       | —         | —          |
 | T-02       | #27   | [T-02] Database rules: ownership, month lock and roles (pgTAP)               | roadmap, testing — **closed** (done)       | —         | —          |
-| QG-01      | #29   | [QG-01] Quality-gate hooks: agent hooks and pre-commit tests on staged files | roadmap, testing — open (PR #30)           | —         | —          |
+| QG-01      | #29   | [QG-01] Quality-gate hooks: agent hooks and pre-commit tests on staged files | roadmap, testing — **closed** (done)       | —         | —          |
+| T-03       | #31   | [T-03] Route gating and honest availability reads                            | roadmap, testing — open (PR #32)           | —         | —          |
 | Q-01       | #7    | [Q-01] Expected request and data volume (qps)?                               | roadmap, question                          | M-1       | —          |
 | P-01       | #8    | [P-01] Export/print schedule (FR-008)                                        | roadmap, parked                            | —         | —          |
 | P-02       | #9    | [P-02] Notify employees when schedule is published (FR-009)                  | roadmap, parked                            | —         | —          |
