@@ -1,7 +1,10 @@
-// Smoke test: proves the built app, the Cloudflare adapter, the Supabase auth flow, role enforcement, the
-// availability/lock flow and the manager's team availability view still work together. The manager steps need
-// the seeded manager (supabase/seed.sql) or SMOKE_MANAGER_* env.
+// Smoke test: proves the built app, the Cloudflare adapter, the Supabase auth flow, role enforcement (including the
+// manager endpoints refusing an employee's and an anonymous POST), the availability/lock flow and the manager's team
+// availability view still work together. The manager steps need the seeded manager (supabase/seed.sql) or
+// SMOKE_MANAGER_* env.
 // Zero dependencies on purpose. Run against a live server: BASE_URL=http://localhost:4321 node scripts/smoke.mjs
+
+import { Buffer } from "node:buffer";
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:4321";
 const email = `smoke-${Date.now()}@example.com`;
@@ -73,6 +76,29 @@ async function request(path, { method = "GET", form } = {}) {
 // Visible text of an HTML page with whitespace collapsed, so assertions do not depend on markup.
 function pageText(html) {
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+}
+
+// The signed-in user's id, from the @supabase/ssr session cookie: `sb-<ref>-auth-token`, possibly split into `.0`,
+// `.1`, … chunks, holding `base64-` + base64url JSON with `user.id`. Throws (failing the step) if the format changed.
+function sessionUserId() {
+  const chunks = [...jar.entries()]
+    .map(([name, value]) => ({ match: /^sb-.+-auth-token(?:\.(\d+))?$/.exec(name), value }))
+    .filter(({ match }) => match)
+    .sort((a, b) => Number(a.match[1] ?? 0) - Number(b.match[1] ?? 0));
+  const raw = decodeURIComponent(chunks.map(({ value }) => value).join(""));
+  if (!raw.startsWith("base64-")) {
+    throw new Error("Unexpected Supabase session cookie format (expected sb-<ref>-auth-token = base64-<json>)");
+  }
+  const id = JSON.parse(Buffer.from(raw.slice("base64-".length), "base64url").toString("utf8"))?.user?.id;
+  if (typeof id !== "string") {
+    throw new Error("Supabase session cookie has no user.id");
+  }
+  return id;
+}
+
+// The 403 page, not the endpoint's redirect: the middleware rewrote the request before the handler ran.
+function isAccessDenied(actual) {
+  return pageText(actual.body).includes("Access denied");
 }
 
 // Compare redirects on pathname + search so absolute and relative Location headers both match.
@@ -155,8 +181,34 @@ const steps = [
   ],
   ["manager page forbidden for employee", () => request("/manager/users"), { status: 403 }],
   ["team availability forbidden for employee", () => request("/manager/availability"), { status: 403 }],
+  [
+    "employee cannot lock a month",
+    () => request("/api/manager/months/lock", { method: "POST", form: { month: smokeMonthValue, action: "lock" } }),
+    { status: 403, check: isAccessDenied },
+  ],
+  [
+    "month stays open after the employee lock attempt",
+    () =>
+      request("/api/availability/create", {
+        method: "POST",
+        form: { date: `${smokeMonthValue}-02`, start: "08:00", end: "16:00" },
+      }),
+    { status: 302, location: `/availability?month=${smokeMonthValue}&day=${smokeMonthValue}-02&updated=1` },
+  ],
+  [
+    "employee cannot promote themselves",
+    () => request("/api/manager/users/role", { method: "POST", form: { userId: sessionUserId(), role: "manager" } }),
+    { status: 403, check: isAccessDenied },
+  ],
+  // The middleware re-reads the role on every request, so a successful promotion would show here as 200.
+  ["employee still forbidden after the promotion attempt", () => request("/manager/users"), { status: 403 }],
   ["signout clears session", () => request("/api/auth/signout", { method: "POST" }), { status: 302, location: "/" }],
   ["dashboard redirects after signout", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
+  [
+    "anonymous lock request goes to sign-in",
+    () => request("/api/manager/months/lock", { method: "POST", form: { month: smokeMonthValue, action: "lock" } }),
+    { status: 302, location: "/auth/signin" },
+  ],
   [
     "signin accepts seeded manager",
     () => {
@@ -212,7 +264,10 @@ const steps = [
 
 let failed = 0;
 for (const [name, run, expected] of steps) {
-  const actual = await run();
+  // A step that throws (e.g. an unreadable session cookie) fails on its own instead of aborting the run.
+  const actual = await Promise.resolve()
+    .then(run)
+    .catch((error) => ({ status: 0, location: `threw: ${error.message}`, body: "" }));
   const ok =
     actual.status === expected.status &&
     (expected.location === undefined || relativeLocation(actual.location).startsWith(expected.location)) &&

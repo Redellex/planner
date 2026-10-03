@@ -384,29 +384,29 @@ None: no schema change, no data change. The route decision moves without changin
 
 #### Automated
 
-- [x] 2.1 Unit tests pass, including the new team-availability file: `npm test`
-- [x] 2.2 Lint passes: `npm run lint`
-- [x] 2.3 Type check passes: `npx astro check`
-- [x] 2.4 Colour-literal check passes: `npm run check:ui`
-- [x] 2.5 Production build succeeds: `npm run build`
+- [x] 2.1 Unit tests pass, including the new team-availability file: `npm test` — ad6f083
+- [x] 2.2 Lint passes: `npm run lint` — ad6f083
+- [x] 2.3 Type check passes: `npx astro check` — ad6f083
+- [x] 2.4 Colour-literal check passes: `npm run check:ui` — ad6f083
+- [x] 2.5 Production build succeeds: `npm run build` — ad6f083
 
 #### Manual
 
-- [x] 2.6 As the seeded manager, `/manager/availability` for a month with windows looks as before (calendar counts, day panel, summary with "No availability submitted" for accounts without windows)
-- [x] 2.7 With the profiles read temporarily pointed at a non-existent column on the local server, the team view shows only the error alert, month tabs and lock-status line, with no calendar, day panel or summary (revert afterwards)
-- [x] 2.8 Smoke still passes, including "team availability shows the employee's window": `npm run smoke`
+- [x] 2.6 As the seeded manager, `/manager/availability` for a month with windows looks as before (calendar counts, day panel, summary with "No availability submitted" for accounts without windows) — ad6f083
+- [x] 2.7 With the profiles read temporarily pointed at a non-existent column on the local server, the team view shows only the error alert, month tabs and lock-status line, with no calendar, day panel or summary (revert afterwards) — ad6f083
+- [x] 2.8 Smoke still passes, including "team availability shows the employee's window": `npm run smoke` — ad6f083
 
 ### Phase 3: Smoke Endpoint Gates
 
 #### Automated
 
-- [ ] 3.1 Station-time zone guard still passes for the edited smoke script: `npx vitest run src/lib/station-time-zone.test.ts`
-- [ ] 3.2 Lint passes: `npm run lint`
+- [x] 3.1 Station-time zone guard still passes for the edited smoke script: `npx vitest run src/lib/station-time-zone.test.ts`
+- [x] 3.2 Lint passes: `npm run lint`
 
 #### Manual
 
-- [ ] 3.3 Smoke passes twice in a row against a local server with no DB reset in between: `npm run smoke`
-- [ ] 3.4 With `/api/manager` temporarily removed from `MANAGER_ROUTES` on the local server, the new employee POST steps fail (revert afterwards)
+- [x] 3.3 Smoke passes twice in a row against a local server with no DB reset in between: `npm run smoke`
+- [x] 3.4 With `/api/manager` temporarily removed from `MANAGER_ROUTES` on the local server, the new employee POST steps fail (revert afterwards)
 
 ### Phase 4: Mutation Pass and Cookbook
 
