@@ -1,13 +1,6 @@
 import { defineMiddleware } from "astro:middleware";
 import { createClient } from "@/lib/supabase";
-import { isAppRole } from "@/lib/roles";
-
-const PROTECTED_ROUTES = ["/dashboard", "/availability", "/api/availability"];
-const MANAGER_ROUTES = ["/manager", "/api/manager"];
-
-function matchesRoute(pathname: string, routes: readonly string[]): boolean {
-  return routes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
-}
+import { roleFromProfile, routeAccess } from "@/lib/route-access";
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const supabase = createClient(context.request.headers, context.cookies);
@@ -22,27 +15,22 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.locals.user = user ?? null;
 
     if (user) {
-      // Fail closed: any error or missing row leaves role as null.
-      const { data, error } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-      if (!error && isAppRole(data?.role)) {
-        context.locals.role = data.role;
-      }
+      context.locals.role = roleFromProfile(
+        await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
+      );
     }
   }
 
-  if (matchesRoute(context.url.pathname, PROTECTED_ROUTES)) {
-    if (!context.locals.user) {
-      return context.redirect("/auth/signin");
-    }
+  // The route lists and the decision live in src/lib/route-access.ts.
+  const access = routeAccess(context.url.pathname, {
+    signedIn: context.locals.user !== null,
+    role: context.locals.role,
+  });
+  if (access === "signin") {
+    return context.redirect("/auth/signin");
   }
-
-  if (matchesRoute(context.url.pathname, MANAGER_ROUTES)) {
-    if (!context.locals.user) {
-      return context.redirect("/auth/signin");
-    }
-    if (context.locals.role !== "manager") {
-      return context.rewrite("/403");
-    }
+  if (access === "forbidden") {
+    return context.rewrite("/403");
   }
 
   return next();
