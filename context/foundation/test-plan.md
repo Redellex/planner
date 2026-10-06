@@ -6,7 +6,7 @@
 >
 > Refresh: re-run `/10x-test-plan --refresh` when stale (see §8).
 >
-> Last updated: 2026-10-03
+> Last updated: 2026-10-06
 
 ## 1. Strategy
 
@@ -74,7 +74,7 @@ orchestrator updates Status as artifacts appear on disk.
 | 3   | Route gating and honest reads          | Prove the route × role decision holds after middleware changes, and a failed or truncated read never looks like "nobody submitted"          | #4, #6        | unit + targeted smoke steps | complete    | context/archive/2026-10-03-testing-route-gating-honest-reads/ |
 | 4   | Generator invariants (with S-03)       | Prove no assignment falls outside availability and no shift is silently left without exactly one person; starts once S-03 is planned        | #5            | property-based unit         | not started | —                                                             |
 
-Phase 4 is gated on roadmap S-03 having a plan (its two blocking unknowns resolved); research cannot ground code that does not exist yet.
+Phase 4 is gated on roadmap S-03 having a plan; research cannot ground code that does not exist yet. S-03's two blocking unknowns were resolved on 2026-10-06 (roadmap S-03), so the gate is now only the plan.
 
 ## 4. Stack
 

@@ -32,14 +32,17 @@ Station employees, who each maintain their own availability schedule that the ma
 ## Success Criteria
 
 ### Primary
+
 - Manager can generate a monthly schedule that assigns 6–12h shifts to employees, respecting every employee's stated availability, rotating who takes long shifts, and flagging/preventing any assignment that conflicts with availability. Everyone should have atleast few shifts during month.
 
 ### Secondary
+
 - Manager can export/print the schedule for sharing outside the app.
 - Employees get notified when a new schedule is published.
 - Manager can manually override any suggested assignment.
 
 ### Guardrails
+
 - Never silently assign a shift outside an employee's stated availability — any conflict must be surfaced to the manager and require an explicit override.
 
 ## User Stories
@@ -51,14 +54,16 @@ Station employees, who each maintain their own availability schedule that the ma
 - **Then** the system proposes 6–12h shift assignments that respect every employee's availability and rotate who takes the longer shifts, with no conflicts
 
 #### Acceptance Criteria
+
 - No proposed assignment falls outside an employee's stated availability
 - Long (12h) shifts rotate across eligible employees rather than repeatedly landing on the same person
-- Every shift in the month has exactly one assigned employee
+- Every shift in the month has exactly one assigned employee, or is left unassigned and flagged as uncovered when no one's availability covers it (clarified 2026-10-06)
 - Work time should be as close to each other as possible
 
 ## Functional Requirements
 
 ### Availability & scheduling
+
 - FR-001: Employee can create and edit their own availability schedule for the upcoming month, until the manager begins generating that month's schedule — after which availability for that month becomes locked. Priority: must-have
   > Socrates: Counter-argument considered: "editing should be locked once the manager starts building the schedule, so availability doesn't silently change out from under an in-progress schedule." Resolution: accepted — availability becomes read-only for the target month once the manager starts generating a schedule for it.
 - FR-002: Manager can view all employees' availability schedules. Priority: must-have
@@ -72,9 +77,10 @@ Station employees, who each maintain their own availability schedule that the ma
 - FR-006: Manager can publish the schedule. Priority: must-have
   > Socrates: Counter-argument considered: "publishing should require confirmation, since employees rely on it once published." Resolution: kept as written — publish is treated as a deliberate manager action in the UI; explicit confirmation UX is a downstream design detail, not a scope change.
 - FR-007: Employee and Manager can view the published schedule as a simple visual grid of who works when. Priority: must-have
-  > Socrates: Counter-argument considered: "unpublished/draft schedule shouldn't be visible to employees." Resolution: kept as written — this FR only covers the *published* schedule; drafts are implicitly manager-only since employees have no path to a draft view.
+  > Socrates: Counter-argument considered: "unpublished/draft schedule shouldn't be visible to employees." Resolution: kept as written — this FR only covers the _published_ schedule; drafts are implicitly manager-only since employees have no path to a draft view.
 
 ### Sharing & notifications
+
 - FR-008: Manager can export/print the schedule. Priority: nice-to-have
   > Socrates: Counter-argument considered: none raised. Resolution: kept as written, nice-to-have.
 - FR-009: Employee is notified when a new schedule is published. Priority: nice-to-have
@@ -90,6 +96,11 @@ Station employees, who each maintain their own availability schedule that the ma
 Given a set of employees' availability windows for the month, the schedule generator assigns one employee to each 6–12h shift such that every assignment falls within that employee's stated availability, and the longer shifts rotate across eligible employees rather than repeatedly falling on the same person. Work time should be as close to each other as possible in month/schedule.
 
 The rule consumes each employee's stated availability windows for the month and the recent history of who has worked long shifts. Its output is a proposed, conflict-free monthly shift assignment — one employee per shift — that the manager then reviews, optionally adjusts, and publishes. The user encounters this rule at the moment they click "generate schedule": rather than staring at a blank grid, they see a starting assignment they can accept or edit.
+
+Clarified 2026-10-06 (roadmap S-03 unknowns):
+
+- **Fairness is per month.** The generator balances within the month being generated and does not read earlier months: each employee's total hours stay as even as their availability allows, and 12h shifts are spread so that counts among the employees who can take them differ by at most 1. This replaces "the recent history of who has worked long shifts" above for the MVP.
+- **Insufficient coverage.** When no employee's availability covers a shift, the generator leaves that shift unassigned and flags it as uncovered. It never assigns anyone outside their availability. The manager cannot accept or publish a schedule while any day of the month has no one assigned.
 
 ## Access Control
 

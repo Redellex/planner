@@ -3,7 +3,7 @@ project: Planner
 version: 1
 status: draft
 created: 2026-09-24
-updated: 2026-10-03
+updated: 2026-10-06
 prd_version: 1
 main_goal: speed
 top_blocker: capacity
@@ -44,7 +44,7 @@ A gas-station manager currently builds the monthly shift schedule by hand in a s
 | F-01 | role-aware-access-control        | (foundation) Manager/Employee roles exist and are enforced at the auth layer          | —             | Access Control, FR-001, FR-002 | done     |
 | S-01 | employee-availability-management | Employee can create/edit their own monthly availability; locks once generation starts | F-01          | FR-001, Access Control         | done     |
 | S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | done     |
-| S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | blocked  |
+| S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | ready    |
 | S-04 | review-override-publish-schedule | Manager reviews, overrides (with conflict warnings), and publishes the schedule       | S-03          | FR-004, FR-005, FR-006         | proposed |
 | S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | proposed |
 
@@ -112,16 +112,16 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Prerequisites:** S-01 (external state: at least one employee's availability submitted for the target month)
 - **Parallel with:** S-02
 - **Blockers:** —
-- **Unknowns:**
-  - What exactly defines "fair" long-shift rotation — equal count over the month, a rolling window across months, something else? PRD's Business Logic says shifts should "rotate ... rather than repeatedly falling on the same person" and stay "as close to each other as possible," but doesn't define the metric precisely. Owner: user. Block: yes — the generator's core acceptance criterion can't be planned without this.
-  - What should happen when no employee's availability covers a shift (insufficient coverage)? PRD doesn't specify fallback behavior. Owner: user. Block: yes — the generator needs a defined behavior for this case before it can be planned.
+- **Unknowns:** — (both resolved by the user on 2026-10-06)
+  - ~~What exactly defines "fair" long-shift rotation — equal count over the month, a rolling window across months, something else?~~ **Resolved:** fairness is measured within one month only, with no history from earlier months. The generator keeps each employee's total assigned hours as even as their availability allows, and spreads 12h shifts evenly: among employees who can take them, counts differ by at most 1.
+  - ~~What should happen when no employee's availability covers a shift (insufficient coverage)?~~ **Resolved:** the generator still produces the rest of the schedule, leaves that shift unassigned and flags it as uncovered. It never assigns anyone outside their availability. A schedule with a day that has no one assigned cannot be accepted or published (enforced in S-04).
 - **Risk:** This is the riskiest, most complex slice in the PRD by its own admission (the FR-003 Socrates note explicitly considered and rejected cutting it) — sequenced immediately after the minimal data prerequisite (S-01) rather than deferred, so the hardest technical bet gets tested early while there's still runway to descope if needed.
 - **Handoff from S-01:**
   - `availability_windows.employee_id` is `on delete cascade`. Deleting a user drops their windows even in locked months, so revisit this (restrict or soft-delete) once schedules are persisted.
   - Month-wide reads have no `starts_at` index (S-02 decided none is needed at single-station scale); add one if the generator's reads are slow. PostgREST silently caps a read at 1000 rows, so page month-wide reads (S-02 does this in `loadMonthWindows` with `.range()`).
   - A window belongs to its `starts_at` month and may spill into day 1 of the next month; writes require both months to be editable.
   - Durations are wall-clock, with no DST correction.
-- **Status:** blocked
+- **Status:** ready
 
 ### S-04: Review, override, and publish schedule
 
@@ -132,6 +132,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Parallel with:** —
 - **Blockers:** —
 - **Unknowns:** —
+- **Handoff from S-03 (decided 2026-10-06):** the draft may contain shifts flagged as uncovered. The manager can fill them in by override, but accepting or publishing is refused while any day of the month has no one assigned.
 - **Risk:** Depends entirely on S-03 producing a real draft to act on; sequenced immediately after so the full manager workflow (generate → adjust → publish) is validated end-to-end before employee-facing viewing lands.
 - **Status:** proposed
 
@@ -161,7 +162,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 | T-02 (test plan)     | #27      | testing-database-rules            | Database rules: ownership, month lock and roles (pgTAP)                           | —                     | Done in PR #26 — archived 2026-10-03                            |
 | QG-01 (test plan §5) | #29      | quality-gate-hooks                | Quality-gate hooks: agent hooks and pre-commit tests on staged files              | —                     | Done in PR #30 — merged 2026-10-03                              |
 | T-03 (test plan)     | #31      | testing-route-gating-honest-reads | Route gating and honest availability reads                                        | —                     | Done in PR #32 — archived 2026-10-03                            |
-| S-03                 | #4       | generate-monthly-schedule         | Auto-generate conflict-free, fairly-rotated monthly schedule                      | no                    | Blocked — 2 unknowns need resolving first                       |
+| S-03                 | #4       | generate-monthly-schedule         | Auto-generate conflict-free, fairly-rotated monthly schedule                      | yes                   | Ready — both unknowns resolved 2026-10-06                       |
 | S-04                 | #5       | review-override-publish-schedule  | Manager review/override/publish workflow for generated schedule                   | no                    | Waiting on S-03                                                 |
 | S-05                 | #6       | view-published-schedule           | Published schedule grid view for employees and managers                           | no                    | Waiting on S-04                                                 |
 
