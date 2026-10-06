@@ -225,6 +225,74 @@ describe("a shift nobody can take is uncovered, never dropped", () => {
   });
 });
 
+describe("a 5-person team with 3 part-timers and 2 days nobody is available", () => {
+  // Full-timers A and B are available every station day except 10 and 20 Nov. Part-timers C, D and E are available
+  // 12:00–18:00 in turn (C on day % 3 = 1, D on 2, E on 0), also never on 10 or 20 Nov. The manager M is a member with
+  // no availability. Each other day, A and B alone can cover 24h (see the A+B case above), so coverage leaves only the
+  // two empty days uncovered. Only A and B can work a night, and the night person cannot start at 06:00 next morning,
+  // so one of them works every night of a run (1–9, 11–19, 21–30 Nov); the empty days rest both, so the runs can
+  // alternate between them. 06–12 | 12–18 | 18–06 with the day's part-timer covers the same 24h as 06–18 | 18–06 with
+  // evener hours, but the 12h rule (ranked above even hours) limits how often the day person can give up a 12h day
+  // while the other works 12h nights. So every part-timer works some days, not all of them.
+  const E = "00000000-0000-4000-8000-00000000000e";
+  const M = "00000000-0000-4000-8000-000000000001";
+  const emptyDays = new Set([10, 20]);
+  const partTimers = [E, C, D]; // indexed by day % 3
+  const windows = [
+    ...allNovember(A, (day) => (emptyDays.has(day) ? [] : null)),
+    ...allNovember(B, (day) => (emptyDays.has(day) ? [] : null)),
+    ...Array.from({ length: 30 }, (_, index) => index + 1)
+      .filter((day) => !emptyDays.has(day))
+      .map((day) => window(partTimers[day % 3], `${novemberDate(day)}T12:00:00`, `${novemberDate(day)}T18:00:00`)),
+  ];
+  const members = [A, B, C, D, E, M];
+  const { shifts } = generateSchedule({ month: "2026-11", windows });
+  const summary = summarize("2026-11", members, windows, shifts);
+
+  it("lists exactly 10 and 20 Nov as days with no one, and leaves nothing else uncovered", () => {
+    expect(summary.daysWithNoOne).toEqual(["2026-11-10", "2026-11-20"]);
+    // Every uncovered shift belongs to station day 10 or 20, and every shift of those two days is uncovered.
+    const onEmptyDay = (shift: GeneratedShift) =>
+      (shift.starts_at >= "2026-11-10T06:00:00" && shift.starts_at < "2026-11-11T06:00:00") ||
+      (shift.starts_at >= "2026-11-20T06:00:00" && shift.starts_at < "2026-11-21T06:00:00");
+    expect(summary.uncovered.every(onEmptyDay)).toBe(true);
+    expect(shifts.filter(onEmptyDay).every((shift) => shift.employee_id === null)).toBe(true);
+    expect(summary.outsideAvailability).toEqual([]);
+  });
+
+  it("gives every part-timer at least one 12:00–18:00 shift, so none is flagged with 0 shifts", () => {
+    for (const partTimer of [C, D, E]) {
+      const own = shiftsOf(shifts, partTimer);
+      expect(own.length).toBeGreaterThan(0);
+      expect(own.every((shift) => shift.starts_at.endsWith("T12:00:00") && shift.ends_at.endsWith("T18:00:00"))).toBe(
+        true,
+      );
+      expect(summary.perMember.find((member) => member.id === partTimer)?.zeroShifts).toBe(false);
+    }
+  });
+
+  it("alternates the runs of nights between A and B and keeps the 12h rule", () => {
+    const nightsOf = (member: string) => summary.perMember.find((entry) => entry.id === member)?.nightCount ?? 0;
+    expect(nightsOf(A)).toBeGreaterThan(0);
+    expect(nightsOf(B)).toBeGreaterThan(0);
+    expect(nightsOf(A) + nightsOf(B)).toBe(28);
+    expect(summary.ruleBreaks.every((entry) => entry.kind === "night")).toBe(true);
+  });
+
+  it("gives the manager without availability no shift and no 0-shifts flag", () => {
+    expect(shiftsOf(shifts, M)).toEqual([]);
+    expect(summary.perMember.find((member) => member.id === M)).toEqual({
+      id: M,
+      shifts: 0,
+      minutes: 0,
+      longCount: 0,
+      nightCount: 0,
+      hasAvailability: false,
+      zeroShifts: false,
+    });
+  });
+});
+
 describe("availability outside the month's station days is ignored, a carry-over inside them is not", () => {
   it("makes an M−1 window running past 1 Nov 06:00 count on station day 1", () => {
     const windows = [window(A, "2026-10-31T20:00:00", "2026-11-01T18:00:00")];

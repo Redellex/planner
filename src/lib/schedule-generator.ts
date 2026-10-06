@@ -168,14 +168,16 @@ interface PatternResult {
   members: number[];
   uncoveredMinutes: number;
   breaks: number;
-  spread: number;
+  /** Sum of squared hours over members with availability: lower is evener, and any move of hours from a busier to
+   * a less busy member lowers it (max − min would miss a gain while someone else stays at 0). */
+  hoursSquared: number;
   shiftCount: number;
 }
 
 function betterPattern(a: PatternResult, b: PatternResult): boolean {
   if (a.uncoveredMinutes !== b.uncoveredMinutes) return a.uncoveredMinutes < b.uncoveredMinutes;
   if (a.breaks !== b.breaks) return a.breaks < b.breaks;
-  if (a.spread !== b.spread) return a.spread < b.spread;
+  if (a.hoursSquared !== b.hoursSquared) return a.hoursSquared < b.hoursSquared;
   return a.shiftCount < b.shiftCount;
 }
 
@@ -295,7 +297,8 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
         for (const member of eligible[day * SHAPE_COUNT + shapes[index]]) {
           if (!blocked(member, shapes[index])) candidates++;
         }
-        if (candidates < fewest) {
+        // On a tie the night shift (last position) goes first, so a rested team's night goes to the fewest nights.
+        if (candidates < fewest || (candidates === fewest && index === shapes.length - 1)) {
           fewest = candidates;
           position = index;
         }
@@ -323,11 +326,10 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
         breaks += breaksOf(day, shapes[position], member);
       }
     }
-    let low = Infinity;
-    let high = -Infinity;
+    let hoursSquared = 0;
     for (const member of activeMembers) {
-      if (minutes[member] < low) low = minutes[member];
-      if (minutes[member] > high) high = minutes[member];
+      const hours = minutes[member] / 60;
+      hoursSquared += hours * hours;
     }
     for (let position = 0; position < shapes.length; position++) {
       if (assigned[position] !== UNASSIGNED) addCounts(assigned[position], shapes[position], -1);
@@ -336,7 +338,7 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
       members: assigned,
       uncoveredMinutes,
       breaks,
-      spread: activeMembers.length > 0 ? high - low : 0,
+      hoursSquared,
       shiftCount: shapes.length,
     };
   };

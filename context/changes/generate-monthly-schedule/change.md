@@ -33,3 +33,11 @@ archived_at: null
 - Follow-up (generator, Phase 2): in the kitchen-sink gaps fixture (4 people all month, one uncovered night, one empty day) `summarizeSchedule` reports 8 night-rule breaks (Erin 8 nights, lowest 6); one move might balance it to 7/7/7/7 if not blocked. Investigate whether the repair pass is weaker than intended.
 - Follow-up (product): a shift is assigned only when one window covers the whole fixed-time shift (shortest 6h). During manual testing, short windows (3–4h, e.g. 14:25–17:25) left every shift Uncovered. Consider a separate change: show shift times as a hint on the availability form, or allow shorter shifts.
 - Local test data only (gone on `npx supabase db reset`): `anna@example.com` and `bartek@example.com` (password `Test-Passw0rd!`, ids …0003/…0004) with November 2026 availability, 4 extra aligned windows for the seeded employee, and a November 2026 draft (month locked).
+
+### After Phase 4 — mixed-team case and two generator fixes (2026-10-06)
+
+- New hand-written case (user-requested): 2 full-timers, 3 part-timers on 12:00–18:00, a manager with no availability, and 2 days nobody is available (`schedule-generator.test.ts`).
+- It showed every part-timer at 0 shifts and one person on all 28 nights. Two fixes in `schedule-generator.ts`, departing from the plan's Phase 2 contract wording:
+  - the pattern score's "even hours" is the sum of squared hours, not the plan's "spread" (max − min), which ignores a gain while anyone else is still at 0;
+  - in the most-constrained-first order, a tie fills the night first, so after a day off for everyone the night run goes to whoever has fewer nights.
+- Result on that case: part-timers 2/1/2 shifts, nights 19/9 (was 28/0). The full unit and property suites pass, and the CPU proxy is unchanged (median 1.5 ms fragmented, 3.5 ms dense).
