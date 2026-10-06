@@ -102,6 +102,78 @@ export type Database = {
         }
         Relationships: []
       }
+      schedule_shifts: {
+        Row: {
+          employee_id: string | null
+          ends_at: string
+          id: string
+          month: string
+          starts_at: string
+        }
+        Insert: {
+          employee_id?: string | null
+          ends_at: string
+          id?: string
+          month: string
+          starts_at: string
+        }
+        Update: {
+          employee_id?: string | null
+          ends_at?: string
+          id?: string
+          month?: string
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_shifts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_shifts_month_fkey"
+            columns: ["month"]
+            isOneToOne: false
+            referencedRelation: "schedules"
+            referencedColumns: ["month"]
+          },
+        ]
+      }
+      schedules: {
+        Row: {
+          generated_at: string
+          generated_by: string | null
+          month: string
+        }
+        Insert: {
+          generated_at?: string
+          generated_by?: string | null
+          month: string
+        }
+        Update: {
+          generated_at?: string
+          generated_by?: string | null
+          month?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedules_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedules_month_fkey"
+            columns: ["month"]
+            isOneToOne: true
+            referencedRelation: "availability_locks"
+            referencedColumns: ["month"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -112,6 +184,10 @@ export type Database = {
         Returns: boolean
       }
       is_manager: { Args: never; Returns: boolean }
+      replace_schedule_draft: {
+        Args: { shifts: Json; target_month: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "manager" | "employee"

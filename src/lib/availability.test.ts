@@ -18,8 +18,11 @@ import {
   parseMonth,
   parseTime,
   sameWeekdayDatesInMonth,
+  startsInPreviousStationNight,
   teamAvailabilityMonths,
+  timestampFromWallClockMinutes,
   upcomingMonths,
+  wallClockMinutes,
   weekdayName,
   windowMinutes,
 } from "./availability";
@@ -231,6 +234,34 @@ describe("window durations are wall-clock differences with no DST correction", (
   });
 });
 
+describe("wall-clock minutes are a calendar axis with no DST, so shifts can be offset without new Date(...)", () => {
+  it("counts from 1970-01-01T00:00 with 1440 minutes per day", () => {
+    expect(wallClockMinutes("1970-01-01T00:00:00")).toBe(0);
+    expect(wallClockMinutes("1970-01-02T06:30:00")).toBe(1830); // 1440 + 6h30
+  });
+
+  it.each([
+    "2026-10-31T23:30:00", // last half hour of a month
+    "2026-11-01T00:00:00", // first minute of the next month
+    "2026-12-31T23:59:00", // year end
+    "2026-03-29T02:30:00", // inside the hour the spring-forward day skips
+    "2026-10-25T02:30:00", // inside the hour the fall-back day repeats
+    "2028-02-29T06:00:00", // leap day
+  ])("%s survives a round trip", (timestamp) => {
+    expect(timestampFromWallClockMinutes(wallClockMinutes(timestamp))).toBe(timestamp);
+  });
+
+  it.each([
+    { from: "2026-10-31T23:30:00", minutes: 30, to: "2026-11-01T00:00:00" }, // across a month end
+    { from: "2026-03-28T18:00:00", minutes: 720, to: "2026-03-29T06:00:00" }, // across the spring-forward night
+    { from: "2026-10-24T18:00:00", minutes: 720, to: "2026-10-25T06:00:00" }, // across the fall-back night
+    { from: "2026-10-25T18:00:00", minutes: 720, to: "2026-10-26T06:00:00" },
+    { from: "2028-02-28T18:00:00", minutes: 720, to: "2028-02-29T06:00:00" }, // into the leap day
+  ])("$from + $minutes min is $to", ({ from, minutes, to }) => {
+    expect(timestampFromWallClockMinutes(wallClockMinutes(from) + minutes)).toBe(to);
+  });
+});
+
 describe("weekday repeats land on the same weekday every week of the month", () => {
   it.each([
     { date: "2026-10-18", dates: ["2026-10-04", "2026-10-11", "2026-10-18", "2026-10-25"] }, // Sundays
@@ -313,6 +344,22 @@ describe("same-day windows carry no next-day marker and keep their minutes", () 
 
   it("compact text has no +1 and keeps the half hour", () => {
     expect(formatWindowCompact(SAME_DAY_OCT_31)).toBe("08:30–16");
+  });
+});
+
+describe("a window starting on day 1 before 06:00 belongs to the previous month's last station night", () => {
+  it("00:00 and 05:59 on the 1st are in the previous month's last night", () => {
+    expect(startsInPreviousStationNight("2026-12-01T00:00:00")).toBe(true);
+    expect(startsInPreviousStationNight("2026-12-01T05:59:00")).toBe(true);
+  });
+
+  it("06:00 on the 1st starts the month's own first station day", () => {
+    expect(startsInPreviousStationNight("2026-12-01T06:00:00")).toBe(false);
+  });
+
+  it("before 06:00 on any other day stays in the month", () => {
+    expect(startsInPreviousStationNight("2026-12-02T02:00:00")).toBe(false);
+    expect(startsInPreviousStationNight("2026-12-10T01:00:00")).toBe(false);
   });
 });
 

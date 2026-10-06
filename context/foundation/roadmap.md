@@ -39,14 +39,14 @@ A gas-station manager currently builds the monthly shift schedule by hand in a s
 
 ## At a glance
 
-| ID   | Change ID                        | Outcome (user can …)                                                                  | Prerequisites | PRD refs                       | Status   |
-| ---- | -------------------------------- | ------------------------------------------------------------------------------------- | ------------- | ------------------------------ | -------- |
-| F-01 | role-aware-access-control        | (foundation) Manager/Employee roles exist and are enforced at the auth layer          | —             | Access Control, FR-001, FR-002 | done     |
-| S-01 | employee-availability-management | Employee can create/edit their own monthly availability; locks once generation starts | F-01          | FR-001, Access Control         | done     |
-| S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | done     |
-| S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | ready    |
-| S-04 | review-override-publish-schedule | Manager reviews, overrides (with conflict warnings), and publishes the schedule       | S-03          | FR-004, FR-005, FR-006         | proposed |
-| S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | proposed |
+| ID   | Change ID                        | Outcome (user can …)                                                                  | Prerequisites | PRD refs                       | Status      |
+| ---- | -------------------------------- | ------------------------------------------------------------------------------------- | ------------- | ------------------------------ | ----------- |
+| F-01 | role-aware-access-control        | (foundation) Manager/Employee roles exist and are enforced at the auth layer          | —             | Access Control, FR-001, FR-002 | done        |
+| S-01 | employee-availability-management | Employee can create/edit their own monthly availability; locks once generation starts | F-01          | FR-001, Access Control         | done        |
+| S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | done        |
+| S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | in-progress |
+| S-04 | review-override-publish-schedule | Manager reviews, overrides (with conflict warnings), and publishes the schedule       | S-03          | FR-004, FR-005, FR-006         | proposed    |
+| S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | proposed    |
 
 ## Baseline
 
@@ -121,7 +121,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
   - Month-wide reads have no `starts_at` index (S-02 decided none is needed at single-station scale); add one if the generator's reads are slow. PostgREST silently caps a read at 1000 rows, so page month-wide reads (S-02 does this in `loadMonthWindows` with `.range()`).
   - A window belongs to its `starts_at` month and may spill into day 1 of the next month; writes require both months to be editable.
   - Durations are wall-clock, with no DST correction.
-- **Status:** ready
+- **Status:** in-progress
 
 ### S-04: Review, override, and publish schedule
 
@@ -133,6 +133,12 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Blockers:** —
 - **Unknowns:** —
 - **Handoff from S-03 (decided 2026-10-06):** the draft may contain shifts flagged as uncovered. The manager can fill them in by override, but accepting or publishing is refused while any day of the month has no one assigned.
+- **Handoff from S-03 (implemented 2026-10-06, details in CLAUDE.md, Schedule):**
+  - **Draft model.** `schedules(month)` is one draft per month, and `schedule_shifts` holds its shifts (`employee_id` null = uncovered; a deleted account's shifts become uncovered). Constraints allow only the 9 shift shapes, require `month` to match the shift's station day (`starts_at - 6h`) and forbid overlapping shifts station-wide. `replace_schedule_draft(target_month, shifts)` deletes the month's draft and inserts the new one in one transaction, so a regenerate replaces every shift (ids change) and any S-04 edits to the draft are lost; a failing row leaves the old draft intact. RLS is manager-only, and employees cannot read drafts at all (S-05 needs a read policy for published schedules).
+  - **Unlock is refused while a draft exists.** `schedules.month` references the month's `availability_locks` row `on delete restrict`, so `/manager/months` shows "Discard this month's draft schedule before unlocking it." Publishing must keep the month locked (or decide what a published month's lock means).
+  - **Overrides need an update policy.** Neither table has an update policy, and table-level UPDATE is revoked from `authenticated` and `anon` (`20261006140000_revoke_schedule_updates.sql`, pgTAP-checked). S-04 must add a manager-only `update` policy and `grant update (employee_id) on public.schedule_shifts` (or a new RPC). The shape, month and overlap constraints apply to overrides automatically.
+  - **Conflict warnings come from `summarizeSchedule`** (`src/lib/schedule-summary.ts`). It recounts from the stored shifts and raw windows: `outsideAvailability` is the FR-004 override warning (always empty for a generated draft), `ruleBreaks` the 12h/night fairness warnings, `perMember.zeroShifts` the "No shifts" flag, and `daysWithNoOne` must block accept and publish. It does not check one-shift-per-station-day or touching shifts per person: overrides can break those hard rules, so S-04 must add a check for them.
+  - **Cross-month boundary (impl review F1, 2026-10-06).** Windows starting on day 1 of M+1 before 06:00 count for M's last station night: RLS freezes them while M is locked, and generating M reads them. Generating M+1 blocks M's last-night assignee from 06:00 on day 1, and `summarizeSchedule(...).touchesPreviousNight` reports the conflict when M's draft changed afterwards. S-04 overrides of day 1 06:00 or of M's last night must re-check it.
 - **Risk:** Depends entirely on S-03 producing a real draft to act on; sequenced immediately after so the full manager workflow (generate → adjust → publish) is validated end-to-end before employee-facing viewing lands.
 - **Status:** proposed
 

@@ -1,0 +1,73 @@
+---
+import { formatDuration, formatWindow, windowMinutes } from "@/lib/availability";
+import { accountLabel } from "@/lib/manager-users";
+import type { SummaryShift } from "@/lib/schedule-summary";
+
+interface Props {
+  selectedLabel: string;
+  /** The selected station day's shifts, in start order (06:00 to the next 06:00). */
+  shifts: SummaryShift[];
+  /** Profile id -> profile, for the assignee labels. */
+  members: Map<string, { id: string; email: string }>;
+  /**
+   * Day 1 only: the previous month's last night (it ends at 06:00 on this day), shown read-only before the shifts,
+   * with that month's label.
+   */
+  previousNight?: { shift: SummaryShift; monthLabel: string } | null;
+  /** Prepended to every element id; set it when a page renders more than one of these (the kitchen sink). */
+  idPrefix?: string;
+}
+
+const { selectedLabel, shifts, members, previousNight = null, idPrefix = "" } = Astro.props;
+const headingId = `${idPrefix}schedule-selected-day-heading`;
+
+function assigneeLabel(employeeId: string) {
+  // A shift's assignee is always a loaded profile; the fallback keeps an unknown id readable, never empty.
+  return accountLabel(members.get(employeeId) ?? { id: employeeId, email: "" });
+}
+---
+
+<section aria-labelledby={headingId} class="rounded-xl border bg-card p-4 text-card-foreground">
+  <h2 id={headingId} class="mb-3 text-base font-semibold">
+    {selectedLabel}
+  </h2>
+
+  {previousNight && (
+    <p class="mb-2 text-sm text-muted-foreground">
+      {formatWindow(previousNight.shift)} ·{" "}
+      {previousNight.shift.employee_id ? assigneeLabel(previousNight.shift.employee_id).text : "Uncovered"} (from{" "}
+      {previousNight.monthLabel}'s draft)
+    </p>
+  )}
+
+  {shifts.length === 0 ? (
+    <p class="text-sm text-muted-foreground">No shifts on this day.</p>
+  ) : (
+    <ul class="flex flex-col gap-2">
+      {shifts.map((shift) => {
+        const label = shift.employee_id ? assigneeLabel(shift.employee_id) : null;
+        return (
+          <li class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">
+            <span>
+              {formatWindow(shift)}
+              <span class="text-muted-foreground"> · {formatDuration(windowMinutes(shift))}</span>
+            </span>
+            {label ? (
+              <span
+                class:list={
+                  label.missingEmail ? "min-w-0 truncate text-muted-foreground" : "min-w-0 truncate font-medium"
+                }
+              >
+                {label.text}
+              </span>
+            ) : (
+              <span class="rounded-md border border-destructive/40 px-2 py-0.5 text-xs text-destructive">
+                Uncovered
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  )}
+</section>

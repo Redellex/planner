@@ -1,0 +1,152 @@
+---
+import { CircleAlert } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { formatDay, formatDuration, formatMonth, formatWindow } from "@/lib/availability";
+import { accountLabel } from "@/lib/manager-users";
+import { stationDayOf } from "@/lib/schedule";
+import type { ScheduleSummary, SummaryShift } from "@/lib/schedule-summary";
+
+interface Props {
+  month: string;
+  summary: ScheduleSummary;
+  /** Profile id -> profile, for the labels; `summary.perMember` is already in display order. */
+  members: Map<string, { id: string; email: string }>;
+  /** Prepended to every element id; set it when a page renders more than one of these (the kitchen sink). */
+  idPrefix?: string;
+}
+
+const { month, summary, members, idPrefix = "" } = Astro.props;
+const headingId = `${idPrefix}schedule-summary-heading`;
+
+function labelOf(id: string) {
+  return accountLabel(members.get(id) ?? { id, email: "" });
+}
+function shiftLabel(shift: SummaryShift): string {
+  return `${formatDay(stationDayOf(shift.starts_at))}, ${formatWindow(shift)}`;
+}
+const countsById = new Map(summary.perMember.map((member) => [member.id, member]));
+---
+
+<section aria-labelledby={headingId} class="mt-6 rounded-xl border bg-card p-4 text-card-foreground">
+  <h2 id={headingId} class="mb-3 text-base font-semibold">
+    Summary — {formatMonth(month)}
+  </h2>
+
+  {summary.perMember.length === 0 ? (
+    <p class="text-sm text-muted-foreground">No accounts to show.</p>
+  ) : (
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-xs text-muted-foreground">
+          <tr class="border-b">
+            <th scope="col" class="py-2 pr-3 text-left font-medium">
+              Member
+            </th>
+            <th scope="col" class="px-2 py-2 text-right font-medium">
+              Shifts
+            </th>
+            <th scope="col" class="px-2 py-2 text-right font-medium">
+              Hours
+            </th>
+            <th scope="col" class="px-2 py-2 text-right font-medium">
+              12h
+            </th>
+            <th scope="col" class="py-2 pl-2 text-right font-medium">
+              Nights
+            </th>
+          </tr>
+        </thead>
+        <tbody class="divide-y">
+          {summary.perMember.map((member) => {
+            const label = labelOf(member.id);
+            return (
+              <tr>
+                <th scope="row" class="py-2 pr-3 text-left font-normal">
+                  <span class="flex min-w-0 flex-wrap items-center gap-2">
+                    <span class:list={label.missingEmail ? "text-muted-foreground" : "break-all font-medium"}>
+                      {label.text}
+                    </span>
+                    {member.zeroShifts && (
+                      <span class="rounded-md border border-destructive/40 px-2 py-0.5 text-xs text-destructive">
+                        No shifts
+                      </span>
+                    )}
+                    {!member.hasAvailability && member.shifts === 0 && (
+                      <span class="text-xs text-muted-foreground">No availability</span>
+                    )}
+                  </span>
+                </th>
+                <td class="px-2 py-2 text-right tabular-nums">{member.shifts}</td>
+                <td class="px-2 py-2 text-right tabular-nums">{formatDuration(member.minutes)}</td>
+                <td class="px-2 py-2 text-right tabular-nums">{member.longCount}</td>
+                <td class="py-2 pl-2 text-right tabular-nums">{member.nightCount}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  )}
+
+  <div class="mt-4 border-t pt-3">
+    <h3 class="mb-2 text-sm font-semibold">Fairness exceptions</h3>
+    {summary.ruleBreaks.length === 0 ? (
+      <p class="text-sm text-muted-foreground">None: every 12h and night shift keeps the fairness rules.</p>
+    ) : (
+      <>
+        <p class="mb-2 text-xs text-muted-foreground">
+          The assignee has more than one shift of that kind above the lowest count among the people available for it.
+        </p>
+        <ul class="flex flex-col gap-1">
+          {summary.ruleBreaks.map((ruleBreak) => {
+            const counts = countsById.get(ruleBreak.assignee);
+            const count = ruleBreak.kind === "long" ? counts?.longCount : counts?.nightCount;
+            const kind = ruleBreak.kind === "long" ? "12h shifts" : "nights";
+            return (
+              <li class="text-sm">
+                <span class="font-medium">{shiftLabel(ruleBreak.shift)}</span>
+                <span class="text-muted-foreground">
+                  {" "}
+                  · {labelOf(ruleBreak.assignee).text}: {count ?? 0} {kind}, lowest available {ruleBreak.eligibleMin}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </>
+    )}
+  </div>
+
+  {summary.outsideAvailability.length > 0 && (
+    <Alert variant="destructive" className="mt-4">
+      <CircleAlert />
+      <AlertTitle>Assigned outside availability</AlertTitle>
+      <AlertDescription>
+        <ul class="flex flex-col gap-1">
+          {summary.outsideAvailability.map((shift) => (
+            <li>
+              {shiftLabel(shift)} · {shift.employee_id ? labelOf(shift.employee_id).text : "Uncovered"}
+            </li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  )}
+
+  {summary.touchesPreviousNight.length > 0 && (
+    <Alert variant="destructive" className="mt-4">
+      <CircleAlert />
+      <AlertTitle>Back to back with the previous month's last night</AlertTitle>
+      <AlertDescription>
+        <p>The previous month's draft changed after this one was generated. Regenerate this month to fix it.</p>
+        <ul class="flex flex-col gap-1">
+          {summary.touchesPreviousNight.map((shift) => (
+            <li>
+              {shiftLabel(shift)} · {shift.employee_id ? labelOf(shift.employee_id).text : "Uncovered"}
+            </li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  )}
+</section>

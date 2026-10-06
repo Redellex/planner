@@ -170,14 +170,41 @@ export function calendarWeeks(month: string): (string | null)[][] {
   return Array.from({ length: cells.length / 7 }, (_, week) => cells.slice(week * 7, week * 7 + 7));
 }
 
-function timestampToUtcMs(timestamp: string): number {
-  const [hours, minutes] = timeOf(timestamp).split(":").map(Number);
-  return dateToUtcMs(dateOf(timestamp)) + (hours * 60 + minutes) * 60 * 1000;
+const DAY_MINUTES = 24 * 60;
+
+/**
+ * A wall-clock timestamp (`YYYY-MM-DDTHH:MM…`) as minutes on the `Date.UTC` calendar axis (minute 0 is
+ * 1970-01-01T00:00). Every day has 1440 minutes, so differences are wall-clock durations with no DST correction.
+ */
+export function wallClockMinutes(timestamp: string): number {
+  // Fixed positions read by char code: the generator and the schedule summary parse every window this way, and on a
+  // cold Worker the split/map version alone cost several ms of the Free plan's 10 ms CPU budget.
+  return (
+    Date.UTC(digitsAt(timestamp, 0, 4), digitsAt(timestamp, 5, 7) - 1, digitsAt(timestamp, 8, 10)) / 60000 +
+    digitsAt(timestamp, 11, 13) * 60 +
+    digitsAt(timestamp, 14, 16)
+  );
+}
+
+/** The decimal digits of `text` in `[start, end)` as a number. */
+function digitsAt(text: string, start: number, end: number): number {
+  let value = 0;
+  for (let index = start; index < end; index++) {
+    value = value * 10 + text.charCodeAt(index) - 48;
+  }
+  return value;
+}
+
+/** The inverse of `wallClockMinutes`: `"YYYY-MM-DDTHH:MM:00"`. */
+export function timestampFromWallClockMinutes(minutes: number): string {
+  const day = Math.floor(minutes / DAY_MINUTES);
+  const minuteOfDay = minutes - day * DAY_MINUTES;
+  return `${toDateString(day * DAY_MS)}T${pad(Math.floor(minuteOfDay / 60))}:${pad(minuteOfDay % 60)}:00`;
 }
 
 /** Wall-clock length of a window in minutes, with no DST correction (00:00–00:00 is always 24h). */
 export function windowMinutes(row: WindowTimes): number {
-  return (timestampToUtcMs(row.ends_at) - timestampToUtcMs(row.starts_at)) / 60000;
+  return wallClockMinutes(row.ends_at) - wallClockMinutes(row.starts_at);
 }
 
 /** `"0h"`, `"8h"`, `"37h 20m"` style text for a number of minutes. */
@@ -225,6 +252,17 @@ export function formatMonth(month: string): string {
 /** `"00:00 – 04:00 (from Sat 31 Oct)"`: the day-1 part of an overnight window from the previous month. */
 export function formatCarryOver(row: WindowTimes): string {
   return `00:00 – ${timeOf(row.ends_at)} (from ${formatDay(dateOf(row.starts_at))})`;
+}
+
+/** A station day runs from 06:00 to 06:00 the next day (see the schedule). */
+export const STATION_DAY_START = "06:00";
+
+/**
+ * Whether a window starting at `startsAt` falls in the previous month's last station night (day 1, before 06:00).
+ * The generator reads such windows for the previous month, so RLS freezes them while that month is not editable.
+ */
+export function startsInPreviousStationNight(startsAt: string): boolean {
+  return startsAt.slice(8, 10) === "01" && timeOf(startsAt) < STATION_DAY_START;
 }
 
 // Unlike the wall-clock window strings, a timestamptz value (e.g. availability_locks.locked_at) is a real

@@ -11,9 +11,11 @@ import { createClient } from "@/lib/supabase";
 import {
   addMonths,
   calendarWeeks,
+  currentStationMonth,
   dateOf,
   formatCarryOver,
   formatDay,
+  formatMonth,
   GENERIC_LOAD_ERROR,
   logAvailabilityError,
   monthOfDate,
@@ -104,6 +106,15 @@ const selectedWindows = windowsByDay.get(selectedDay) ?? [];
 const firstDay = monthStart(month);
 const carryOverLabel = carryOver ? formatCarryOver(carryOver) : null;
 const selectedCarryOver = selectedDay === firstDay ? carryOverLabel : null;
+// Windows starting on day 1 before 06:00 belong to the previous month's last station night (the schedule reads them
+// for that month), so RLS freezes them while the previous month is running or locked.
+const previousMonth = addMonths(month, -1);
+const previousMonthClosed =
+  lockStateUnknown || previousMonth === currentStationMonth() || lockedMonths.has(previousMonth);
+const stationNightNotice =
+  selectedDay === firstDay && previousMonthClosed
+    ? `Windows starting before 06:00 on this day count for ${formatMonth(previousMonth)}'s last night shift and can no longer be changed.`
+    : null;
 const selectedLabel = formatDay(selectedDay);
 // Write feedback belongs to the day panel; a load failure is shown separately at the top.
 const feedback = feedbackError
@@ -141,6 +152,7 @@ const feedback = feedbackError
         selectedLabel={selectedLabel}
         windows={selectedWindows}
         carryOverText={selectedCarryOver}
+        stationNightNotice={stationNightNotice}
         locked={locked}
         lockStateUnknown={lockStateUnknown}
         feedback={feedback}
