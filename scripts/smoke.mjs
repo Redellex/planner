@@ -1,7 +1,7 @@
 // Smoke test: proves the built app, the Cloudflare adapter, the Supabase auth flow, role enforcement (including the
-// manager endpoints refusing an employee's and an anonymous POST), the availability/lock flow and the manager's team
-// availability view still work together. The manager steps need the seeded manager (supabase/seed.sql) or
-// SMOKE_MANAGER_* env.
+// manager endpoints refusing an employee's and an anonymous POST), the availability/lock flow, the manager's team
+// availability view and the draft schedule flow (generate, view, unlock refused while a draft exists, discard, unlock)
+// still work together. The manager steps need the seeded manager (supabase/seed.sql) or SMOKE_MANAGER_* env.
 // Zero dependencies on purpose. Run against a live server: BASE_URL=http://localhost:4321 node scripts/smoke.mjs
 
 import { Buffer } from "node:buffer";
@@ -43,6 +43,13 @@ const crudRedirect = `/availability?month=${crudMonth}&day=${crudDay}`;
 let crudWindowId;
 // Left in place for the manager's team view; the smoke user is fresh on every run, so each run adds one.
 const teamDay = `${crudMonth}-02`;
+
+// The schedule steps generate a draft for crudMonth, which locks it, and end with discard + unlock so the next run's
+// availability steps there still work. If a run dies in between, discard the draft on /manager/schedule and unlock
+// the month on /manager/months.
+const schedulePage = `/manager/schedule?month=${crudMonth}`;
+// Mirrors UNLOCK_WITH_DRAFT_ERROR in src/lib/schedule.ts (the /manager/months unlock refusal while a draft exists).
+const unlockWithDraftError = "Discard this month's draft schedule before unlocking it.";
 
 function cookieHeader() {
   return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
@@ -99,6 +106,16 @@ function sessionUserId() {
 // The 403 page, not the endpoint's redirect: the middleware rewrote the request before the handler ran.
 function isAccessDenied(actual) {
   return pageText(actual.body).includes("Access denied");
+}
+
+// The draft panel of /manager/schedule carries `data-schedule-draft` only while the month has a draft.
+function hasScheduleDraft(actual) {
+  return actual.body.includes("data-schedule-draft");
+}
+
+// The no-draft panel, not just a missing marker: a page that could not load its data renders no panel at all.
+function showsNoScheduleDraft(actual) {
+  return !hasScheduleDraft(actual) && pageText(actual.body).includes("No draft for ");
 }
 
 // Compare redirects on pathname + search so absolute and relative Location headers both match.
@@ -202,11 +219,22 @@ const steps = [
   ],
   // The middleware re-reads the role on every request, so a successful promotion would show here as 200.
   ["employee still forbidden after the promotion attempt", () => request("/manager/users"), { status: 403 }],
+  // Generating would lock crudMonth and write a draft; the manager's schedule page below shows it did neither.
+  [
+    "employee cannot generate a schedule",
+    () => request("/api/manager/schedule/generate", { method: "POST", form: { month: crudMonth } }),
+    { status: 403, check: isAccessDenied },
+  ],
   ["signout clears session", () => request("/api/auth/signout", { method: "POST" }), { status: 302, location: "/" }],
   ["dashboard redirects after signout", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
   [
     "anonymous lock request goes to sign-in",
     () => request("/api/manager/months/lock", { method: "POST", form: { month: smokeMonthValue, action: "lock" } }),
+    { status: 302, location: "/auth/signin" },
+  ],
+  [
+    "anonymous generate request goes to sign-in",
+    () => request("/api/manager/schedule/generate", { method: "POST", form: { month: crudMonth } }),
     { status: 302, location: "/auth/signin" },
   ],
   [
@@ -253,6 +281,41 @@ const steps = [
   [
     "manager unlocks the smoke month",
     () => request("/api/manager/months/lock", { method: "POST", form: { month: smokeMonthValue, action: "unlock" } }),
+    { status: 302, location: "/manager/months?updated=1" },
+  ],
+  [
+    "schedule has no draft and the month is open after the refused generates",
+    () => request(schedulePage),
+    {
+      status: 200,
+      check: (actual) =>
+        showsNoScheduleDraft(actual) && pageText(actual.body).includes("Open — employees can still edit"),
+    },
+  ],
+  [
+    "manager generates a draft schedule",
+    () => request("/api/manager/schedule/generate", { method: "POST", form: { month: crudMonth } }),
+    // The status param comes first: /manager/schedule?generated=1&month=YYYY-MM.
+    { status: 302, location: `/manager/schedule?generated=1&month=${crudMonth}` },
+  ],
+  ["schedule page shows the draft", () => request(schedulePage), { status: 200, check: hasScheduleDraft }],
+  [
+    "unlock is refused while the month has a draft",
+    () => request("/api/manager/months/lock", { method: "POST", form: { month: crudMonth, action: "unlock" } }),
+    {
+      status: 302,
+      location: "/manager/months?error=",
+      check: (actual) => new URL(actual.location, BASE_URL).searchParams.get("error") === unlockWithDraftError,
+    },
+  ],
+  [
+    "manager discards the draft",
+    () => request("/api/manager/schedule/discard", { method: "POST", form: { month: crudMonth } }),
+    { status: 302, location: `/manager/schedule?discarded=1&month=${crudMonth}` },
+  ],
+  [
+    "manager unlocks the schedule month",
+    () => request("/api/manager/months/lock", { method: "POST", form: { month: crudMonth, action: "unlock" } }),
     { status: 302, location: "/manager/months?updated=1" },
   ],
   [

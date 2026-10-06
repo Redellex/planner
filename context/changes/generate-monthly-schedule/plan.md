@@ -660,30 +660,30 @@ The header comment is updated. If a run dies between generate and unlock, recove
 
 #### Automated
 
-- [x] 3.1 Schedule lib tests pass
-- [x] 3.2 Route inventory guard passes with the new rows
-- [x] 3.3 No colour literals in the new views
-- [x] 3.4 Full unit suite, lint, type-check and build pass
+- [x] 3.1 Schedule lib tests pass — df595c7
+- [x] 3.2 Route inventory guard passes with the new rows — df595c7
+- [x] 3.3 No colour literals in the new views — df595c7
+- [x] 3.4 Full unit suite, lint, type-check and build pass — df595c7
 
 #### Manual
 
-- [x] 3.5 Generate shows calendar, day panel and summary with every shift inside availability
-- [x] 3.6 Regenerate requires the confirm step and replaces the draft
-- [x] 3.7 Discard empties the view and unlock works only after discarding
-- [x] 3.8 Uncovered shifts and days with no one assigned are shown
-- [x] 3.9 Employee gets the 403 page on /manager/schedule
-- [x] 3.10 Kitchen sink shows every state legibly
+- [x] 3.5 Generate shows calendar, day panel and summary with every shift inside availability — df595c7
+- [x] 3.6 Regenerate requires the confirm step and replaces the draft — df595c7
+- [x] 3.7 Discard empties the view and unlock works only after discarding — df595c7
+- [x] 3.8 Uncovered shifts and days with no one assigned are shown — df595c7
+- [x] 3.9 Employee gets the 403 page on /manager/schedule — df595c7
+- [x] 3.10 Kitchen sink shows every state legibly — df595c7
 
 ### Phase 4: Smoke and documentation
 
 #### Automated
 
-- [ ] 4.1 Smoke passes against a local server with a reset database
-- [ ] 4.2 Smoke passes a second time without a reset
-- [ ] 4.3 Docs formatting is clean
-- [ ] 4.4 Full gates still pass
+- [x] 4.1 Smoke passes against a local server with a reset database
+- [x] 4.2 Smoke passes a second time without a reset
+- [x] 4.3 Docs formatting is clean
+- [x] 4.4 Full gates still pass
 
 #### Manual
 
-- [ ] 4.5 CLAUDE.md Schedule section explains station day, patterns and refused unlock
-- [ ] 4.6 Test-plan §6.5 is concrete enough to add a new invariant
+- [x] 4.5 CLAUDE.md Schedule section explains station day, patterns and refused unlock
+- [x] 4.6 Test-plan §6.5 is concrete enough to add a new invariant
