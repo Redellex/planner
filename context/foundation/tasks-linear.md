@@ -48,7 +48,7 @@ The roadmap's Backlog Handoff table already asks for "stable human-readable iden
 | T-01       | #24   | [T-01] Test runner and station-time logic (unit tests on UTC)                | roadmap, testing — **closed** (done)     | —         | —          |
 | T-02       | #27   | [T-02] Database rules: ownership, month lock and roles (pgTAP)               | roadmap, testing — **closed** (done)     | —         | —          |
 | QG-01      | #29   | [QG-01] Quality-gate hooks: agent hooks and pre-commit tests on staged files | roadmap, testing — **closed** (done)     | —         | —          |
-| T-03       | #31   | [T-03] Route gating and honest availability reads                            | roadmap, testing — open (PR #32)         | —         | —          |
+| T-03       | #31   | [T-03] Route gating and honest availability reads                            | roadmap, testing — **closed** (done)     | —         | —          |
 | Q-01       | #7    | [Q-01] Expected request and data volume (qps)?                               | roadmap, question                        | M-1       | —          |
 | P-01       | #8    | [P-01] Export/print schedule (FR-008)                                        | roadmap, parked                          | —         | —          |
 | P-02       | #9    | [P-02] Notify employees when schedule is published (FR-009)                  | roadmap, parked                          | —         | —          |
