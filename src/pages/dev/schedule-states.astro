@@ -1,0 +1,365 @@
+---
+// Kitchen sink for /manager/schedule: every state of the view, side by side, rendered by the real components from
+// fixture data. Dev only (the visual gate for context/changes/generate-monthly-schedule); 404 in production.
+// No database access and no user data: the windows below are wall-clock fixtures, never passed through Date, and the
+// drafts are generated from them (or written by hand) on the fly.
+import { CircleAlert } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import MonthTabs from "@/components/availability/MonthTabs.astro";
+import ScheduleActions from "@/components/schedule/ScheduleActions.astro";
+import ScheduleCalendar from "@/components/schedule/ScheduleCalendar.astro";
+import ScheduleDayPanel from "@/components/schedule/ScheduleDayPanel.astro";
+import ScheduleSummary from "@/components/schedule/ScheduleSummary.astro";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { buildWindow, calendarWeeks, daysInMonth, formatDay } from "@/lib/availability";
+import {
+  CONFIRM_REPLACE_ERROR,
+  DISCARDED_MESSAGE,
+  GENERATE_LOAD_ERROR,
+  GENERATED_MESSAGE,
+  GENERIC_SCHEDULE_WRITE_ERROR,
+  INVALID_MONTH_ERROR,
+  MONTH_UNLOCKED_ERROR,
+  NO_DRAFT_ERROR,
+  NOT_PERMITTED_ERROR,
+  SCHEDULE_LOAD_ERROR,
+  shiftsByStationDay,
+  SUPABASE_NOT_CONFIGURED_ERROR,
+  type ScheduleMember,
+} from "@/lib/schedule";
+import { generateSchedule, type GeneratedShift, type ScheduleWindow } from "@/lib/schedule-generator";
+import { summarizeSchedule, type ScheduleSummary as DraftSummary } from "@/lib/schedule-summary";
+
+// Outside dev: 404 with an empty body (the template below renders only in dev). A frontmatter `return` would do,
+// but it crashes @typescript-eslint/no-misused-promises in .astro files.
+const isDev = import.meta.env.DEV;
+if (!isDev) {
+  Astro.response.status = 404;
+}
+
+// A fixed past month keeps the screenshots stable; every write to it is refused anyway.
+const month = "2026-04";
+const months = ["2026-03", "2026-04", "2026-05", "2026-06"];
+const lockedMonths = new Set(["2026-04"]);
+const weeks = calendarWeeks(month);
+const generatedAt = "2026-03-20T09:30:00+00:00";
+
+const ALICE: ScheduleMember = {
+  id: "00000000-0000-4000-8000-00000000d001",
+  email: "alice@example.com",
+  role: "employee",
+};
+const BOB: ScheduleMember = { id: "00000000-0000-4000-8000-00000000d002", email: "bob@example.com", role: "employee" };
+const CAROL: ScheduleMember = {
+  id: "00000000-0000-4000-8000-00000000d003",
+  email: "carol@example.com",
+  role: "employee",
+};
+const DAVE: ScheduleMember = {
+  id: "00000000-0000-4000-8000-00000000d005",
+  email: "dave@example.com",
+  role: "employee",
+};
+const ERIN: ScheduleMember = {
+  id: "00000000-0000-4000-8000-00000000d006",
+  email: "erin@example.com",
+  role: "employee",
+};
+const NO_EMAIL: ScheduleMember = { id: "3f2a9c1b-0000-4000-8000-00000000d004", email: "", role: "manager" };
+const members = [ALICE, BOB, CAROL, DAVE, ERIN, NO_EMAIL];
+// Four people available all month: with only two, the night after a night shift blocks the next 06:00 start, so the
+// same person would get every night (see schedule-generator.test.ts).
+const fullTeam = [ALICE, BOB, DAVE, ERIN];
+const membersById = new Map(members.map((member) => [member.id, member]));
+
+/** A 24h window per day (06:00 to the next 06:00), so the full team can cover the whole month. */
+function allMonth(employee_id: string, skip: (date: string) => "skip" | "no-night" | null): ScheduleWindow[] {
+  return daysInMonth(month).flatMap((date) => {
+    const kind = skip(date);
+    if (kind === "skip") return [];
+    return [{ employee_id, ...buildWindow(date, "06:00", kind === "no-night" ? "00:00" : "06:00") }];
+  });
+}
+
+// Fully covered: the full team is available all month; Carol has one 2h window (too short for any shift).
+const carolWindow: ScheduleWindow = { employee_id: CAROL.id, ...buildWindow("2026-04-05", "10:00", "12:00") };
+const coveredWindows = [...fullTeam.flatMap((member) => allMonth(member.id, () => null)), carolWindow];
+const covered = generateSchedule({ month, windows: coveredWindows }).shifts;
+
+// Gaps: nobody is available 00:00–06:00 after station day 3, and nobody at all on station day 10.
+const NIGHT_GAP_DAY = "2026-04-03";
+const EMPTY_DAY = "2026-04-10";
+const gapRule = (date: string) => (date === EMPTY_DAY ? "skip" : date === NIGHT_GAP_DAY ? "no-night" : null);
+const gapWindows = [...fullTeam.flatMap((member) => allMonth(member.id, gapRule)), carolWindow];
+const gaps = generateSchedule({ month, windows: gapWindows }).shifts;
+
+function view(shifts: GeneratedShift[], windows: ScheduleWindow[]) {
+  const byDay = shiftsByStationDay(shifts);
+  const coverage = new Map(
+    [...byDay].map(([day, dayShifts]) => [
+      day,
+      { total: dayShifts.length, assigned: dayShifts.filter((shift) => shift.employee_id !== null).length },
+    ]),
+  );
+  return { byDay, coverage, summary: summarizeSchedule({ month, members, windows, shifts }) };
+}
+const coveredView = view(covered, coveredWindows);
+const gapsView = view(gaps, gapWindows);
+
+// Rule breaks and an assignment outside availability cannot come from the generator, so this summary is written by
+// hand (S-04 overrides will produce them).
+const lateNight: GeneratedShift = {
+  starts_at: "2026-04-12T18:00:00",
+  ends_at: "2026-04-13T06:00:00",
+  employee_id: ALICE.id,
+};
+const longDay: GeneratedShift = {
+  starts_at: "2026-04-14T06:00:00",
+  ends_at: "2026-04-14T18:00:00",
+  employee_id: ALICE.id,
+};
+const outside: GeneratedShift = {
+  starts_at: "2026-04-20T14:00:00",
+  ends_at: "2026-04-20T22:00:00",
+  employee_id: BOB.id,
+};
+const ruleBreakSummary: DraftSummary = {
+  perMember: [
+    {
+      id: ALICE.id,
+      shifts: 34,
+      minutes: 360 * 60,
+      longCount: 16,
+      nightCount: 12,
+      hasAvailability: true,
+      zeroShifts: false,
+    },
+    {
+      id: BOB.id,
+      shifts: 30,
+      minutes: 320 * 60,
+      longCount: 13,
+      nightCount: 9,
+      hasAvailability: true,
+      zeroShifts: false,
+    },
+  ],
+  uncovered: [],
+  daysWithNoOne: [],
+  ruleBreaks: [
+    { kind: "night", shift: lateNight, assignee: ALICE.id, eligibleMin: 9 },
+    { kind: "long", shift: lateNight, assignee: ALICE.id, eligibleMin: 13 },
+    { kind: "long", shift: longDay, assignee: ALICE.id, eligibleMin: 13 },
+  ],
+  outsideAvailability: [outside],
+};
+
+const noDraftStates = [
+  { title: "No draft, open month", canGenerate: true, locked: false },
+  { title: "No draft, locked month", canGenerate: true, locked: true },
+  { title: "Current month, no draft (no generate)", canGenerate: false, locked: true },
+];
+
+const draftStates = [
+  { title: "Draft (Regenerate + Discard)", canGenerate: true, confirming: false, feedback: null },
+  { title: "Confirm panel (?confirm=replace)", canGenerate: true, confirming: true, feedback: null },
+  { title: "Current month draft (Discard only)", canGenerate: false, confirming: false, feedback: null },
+  {
+    title: "Success: generated",
+    canGenerate: true,
+    confirming: false,
+    feedback: { kind: "success" as const, message: GENERATED_MESSAGE },
+  },
+];
+
+// Every allow-listed ?error= message, in the state it arrives in.
+const errorStates = [
+  { message: INVALID_MONTH_ERROR, hasDraft: false },
+  { message: SUPABASE_NOT_CONFIGURED_ERROR, hasDraft: false },
+  { message: CONFIRM_REPLACE_ERROR, hasDraft: true },
+  { message: GENERATE_LOAD_ERROR, hasDraft: false },
+  { message: NOT_PERMITTED_ERROR, hasDraft: false },
+  { message: MONTH_UNLOCKED_ERROR, hasDraft: false },
+  { message: NO_DRAFT_ERROR, hasDraft: false },
+  { message: GENERIC_SCHEDULE_WRITE_ERROR, hasDraft: true },
+];
+---
+
+{isDev && (
+  <Layout title="Schedule states">
+    <div class="min-h-screen bg-background p-4">
+      <div class="mx-auto flex w-full max-w-6xl flex-col gap-10">
+        <header class="flex flex-col gap-1">
+          <h1 class="text-2xl font-semibold">Schedule states</h1>
+          <p class="text-sm text-muted-foreground">
+            Dev-only kitchen sink. Fixture availability for {month}; forms on this page do not submit. Loading — N/A:
+            SSR + full-page form POST.
+          </p>
+        </header>
+
+        <section aria-labelledby="states-unknown" class="flex flex-col gap-3">
+          <h2 id="states-unknown" class="text-sm font-medium text-muted-foreground">
+            Read unknown: only the load error, the month tabs and the lock status
+          </h2>
+          <div class="mx-auto w-full max-w-2xl">
+            <Alert variant="destructive" className="mb-4">
+              <CircleAlert />
+              <AlertDescription>{SCHEDULE_LOAD_ERROR}</AlertDescription>
+            </Alert>
+            <MonthTabs
+              months={months}
+              current={month}
+              lockedMonths={lockedMonths}
+              hrefFor={(option) => `/dev/schedule-states?month=${option}`}
+            />
+            <p class="text-center text-sm text-muted-foreground">
+              Lock state unknown — the month locks could not be loaded
+            </p>
+          </div>
+        </section>
+
+        <section aria-labelledby="states-actions" class="flex flex-col gap-3">
+          <h2 id="states-actions" class="text-sm font-medium text-muted-foreground">
+            Actions
+          </h2>
+          <div class="grid gap-6 lg:grid-cols-2">
+            {noDraftStates.map((state, index) => (
+              <div class="flex flex-col gap-2">
+                <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">{state.title}</h3>
+                <ScheduleActions
+                  month={month}
+                  day={`${month}-01`}
+                  canGenerate={state.canGenerate}
+                  draft={null}
+                  locked={state.locked}
+                  confirming={false}
+                  feedback={null}
+                  idPrefix={`no-draft-${index}-`}
+                />
+              </div>
+            ))}
+            {draftStates.map((state, index) => (
+              <div class="flex flex-col gap-2">
+                <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">{state.title}</h3>
+                <ScheduleActions
+                  month={month}
+                  day={`${month}-01`}
+                  canGenerate={state.canGenerate}
+                  draft={{ generatedAt }}
+                  locked={true}
+                  confirming={state.confirming}
+                  feedback={state.feedback}
+                  idPrefix={`draft-${index}-`}
+                />
+              </div>
+            ))}
+            <div class="flex flex-col gap-2">
+              <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Success: discarded</h3>
+              <ScheduleActions
+                month={month}
+                day={`${month}-01`}
+                canGenerate={true}
+                draft={null}
+                locked={true}
+                confirming={false}
+                feedback={{ kind: "success", message: DISCARDED_MESSAGE }}
+                idPrefix="discarded-"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="states-errors" class="flex flex-col gap-3">
+          <h2 id="states-errors" class="text-sm font-medium text-muted-foreground">
+            Every allow-listed error
+          </h2>
+          <div class="grid gap-6 lg:grid-cols-2">
+            {errorStates.map((state, index) => (
+              <ScheduleActions
+                month={month}
+                day={`${month}-01`}
+                canGenerate={true}
+                draft={state.hasDraft ? { generatedAt } : null}
+                locked={true}
+                confirming={false}
+                feedback={{ kind: "error", message: state.message }}
+                idPrefix={`error-${index}-`}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section aria-labelledby="states-covered" class="flex flex-col gap-3">
+          <h2 id="states-covered" class="text-sm font-medium text-muted-foreground">
+            Fully covered draft (generated from fixtures; Carol's 2h window gets no shift)
+          </h2>
+          <div class="mx-auto w-full max-w-2xl">
+            <ScheduleCalendar
+              month={month}
+              weeks={weeks}
+              selectedDay="2026-04-15"
+              coverage={coveredView.coverage}
+              uncoveredCount={coveredView.summary.uncovered.length}
+              daysWithNoOne={coveredView.summary.daysWithNoOne}
+            />
+            <ScheduleDayPanel
+              selectedLabel={formatDay("2026-04-15")}
+              shifts={coveredView.byDay.get("2026-04-15") ?? []}
+              members={membersById}
+              idPrefix="covered-"
+            />
+            <ScheduleSummary month={month} summary={coveredView.summary} members={membersById} idPrefix="covered-" />
+          </div>
+        </section>
+
+        <section aria-labelledby="states-gaps" class="flex flex-col gap-3">
+          <h2 id="states-gaps" class="text-sm font-medium text-muted-foreground">
+            Draft with uncovered shifts: night after {formatDay(NIGHT_GAP_DAY)} uncovered, no one on
+            {formatDay(EMPTY_DAY)}; zero-shift member (Carol)
+          </h2>
+          <div class="mx-auto w-full max-w-2xl">
+            <ScheduleCalendar
+              month={month}
+              weeks={weeks}
+              selectedDay={NIGHT_GAP_DAY}
+              coverage={gapsView.coverage}
+              uncoveredCount={gapsView.summary.uncovered.length}
+              daysWithNoOne={gapsView.summary.daysWithNoOne}
+            />
+            <div class="flex flex-col gap-6">
+              <ScheduleDayPanel
+                selectedLabel={formatDay(NIGHT_GAP_DAY)}
+                shifts={gapsView.byDay.get(NIGHT_GAP_DAY) ?? []}
+                members={membersById}
+                idPrefix="gap-night-"
+              />
+              <ScheduleDayPanel
+                selectedLabel={formatDay(EMPTY_DAY)}
+                shifts={gapsView.byDay.get(EMPTY_DAY) ?? []}
+                members={membersById}
+                idPrefix="gap-empty-"
+              />
+            </div>
+            <ScheduleSummary month={month} summary={gapsView.summary} members={membersById} idPrefix="gaps-" />
+          </div>
+        </section>
+
+        <section aria-labelledby="states-rule-breaks" class="flex flex-col gap-3">
+          <h2 id="states-rule-breaks" class="text-sm font-medium text-muted-foreground">
+            Rule breaks and an assignment outside availability (hand-written summary)
+          </h2>
+          <div class="mx-auto w-full max-w-2xl">
+            <ScheduleSummary month={month} summary={ruleBreakSummary} members={membersById} idPrefix="breaks-" />
+          </div>
+        </section>
+      </div>
+    </div>
+  </Layout>
+)}
+
+<script>
+  // Fixture forms: keep them inert so a click here never reaches /api/manager/schedule/*.
+  document.addEventListener("submit", (event) => {
+    event.preventDefault();
+  });
+</script>

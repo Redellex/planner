@@ -646,33 +646,33 @@ The header comment is updated. If a run dies between generate and unlock, recove
 
 #### Automated
 
-- [x] 2.1 fast-check installed as a devDependency
-- [x] 2.2 Generator, summary and helper unit tests pass
-- [x] 2.3 Property suite passes
-- [x] 2.4 Full unit suite, lint and type-check pass
+- [x] 2.1 fast-check installed as a devDependency — 3411781
+- [x] 2.2 Generator, summary and helper unit tests pass — 3411781
+- [x] 2.3 Property suite passes — 3411781
+- [x] 2.4 Full unit suite, lint and type-check pass — 3411781
 
 #### Manual
 
-- [x] 2.5 Deliberately broken generator fails the property suite with a printed seed
-- [x] 2.6 Median generateSchedule time on the 40-person fixture is below 5 ms and recorded
+- [x] 2.5 Deliberately broken generator fails the property suite with a printed seed — 3411781
+- [x] 2.6 Median generateSchedule time on the 40-person fixture is below 5 ms and recorded — 3411781
 
 ### Phase 3: Manager flow (endpoints + /manager/schedule)
 
 #### Automated
 
-- [ ] 3.1 Schedule lib tests pass
-- [ ] 3.2 Route inventory guard passes with the new rows
-- [ ] 3.3 No colour literals in the new views
-- [ ] 3.4 Full unit suite, lint, type-check and build pass
+- [x] 3.1 Schedule lib tests pass
+- [x] 3.2 Route inventory guard passes with the new rows
+- [x] 3.3 No colour literals in the new views
+- [x] 3.4 Full unit suite, lint, type-check and build pass
 
 #### Manual
 
-- [ ] 3.5 Generate shows calendar, day panel and summary with every shift inside availability
-- [ ] 3.6 Regenerate requires the confirm step and replaces the draft
-- [ ] 3.7 Discard empties the view and unlock works only after discarding
-- [ ] 3.8 Uncovered shifts and days with no one assigned are shown
-- [ ] 3.9 Employee gets the 403 page on /manager/schedule
-- [ ] 3.10 Kitchen sink shows every state legibly
+- [x] 3.5 Generate shows calendar, day panel and summary with every shift inside availability
+- [x] 3.6 Regenerate requires the confirm step and replaces the draft
+- [x] 3.7 Discard empties the view and unlock works only after discarding
+- [x] 3.8 Uncovered shifts and days with no one assigned are shown
+- [x] 3.9 Employee gets the 403 page on /manager/schedule
+- [x] 3.10 Kitchen sink shows every state legibly
 
 ### Phase 4: Smoke and documentation
 

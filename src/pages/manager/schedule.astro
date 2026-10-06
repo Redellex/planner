@@ -1,0 +1,214 @@
+---
+import { CircleAlert } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import MonthTabs from "@/components/availability/MonthTabs.astro";
+import ScheduleActions from "@/components/schedule/ScheduleActions.astro";
+import ScheduleCalendar from "@/components/schedule/ScheduleCalendar.astro";
+import ScheduleDayPanel from "@/components/schedule/ScheduleDayPanel.astro";
+import ScheduleSummary from "@/components/schedule/ScheduleSummary.astro";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase";
+import { loadAllPages } from "@/lib/team-availability";
+import { summarizeSchedule, type ScheduleSummary as DraftSummary } from "@/lib/schedule-summary";
+import {
+  calendarWeeks,
+  currentStationMonth,
+  formatDay,
+  formatStationInstant,
+  monthOfDate,
+  monthStart,
+  parseDate,
+  parseMonth,
+  upcomingMonths,
+} from "@/lib/availability";
+import {
+  DISCARDED_MESSAGE,
+  GENERATED_MESSAGE,
+  generatableMonths,
+  loadScheduleInputs,
+  logScheduleError,
+  managerScheduleUrl,
+  resolveScheduleFeedbackError,
+  SCHEDULE_LOAD_ERROR,
+  SCHEDULE_PAGE_SIZE,
+  scheduleMonths,
+  shiftsByStationDay,
+  SUPABASE_NOT_CONFIGURED_ERROR,
+  type ScheduleMember,
+  type ScheduleShiftRow,
+} from "@/lib/schedule";
+
+// Manager-only through MANAGER_ROUTES in src/lib/route-access.ts; RLS lets only managers read drafts and every
+// profile and window. Read-only view: generate and discard are form POSTs to /api/manager/schedule/*.
+const months = scheduleMonths();
+const stationMonth = currentStationMonth();
+const [defaultMonth] = upcomingMonths();
+const requestedMonth = parseMonth(Astro.url.searchParams.get("month"));
+const month = requestedMonth && months.includes(requestedMonth) ? requestedMonth : defaultMonth;
+const requestedDay = parseDate(Astro.url.searchParams.get("day"));
+// Every calendar date of the month starts one station day, so a date of the month is a valid station day.
+const selectedDay = requestedDay && monthOfDate(requestedDay) === month ? requestedDay : monthStart(month);
+const canGenerate = generatableMonths().includes(month);
+
+// Result of the last generate or discard, from the redirect URL; only known messages are shown as-is.
+const feedbackError = resolveScheduleFeedbackError(Astro.url.searchParams.get("error"));
+const feedback = feedbackError
+  ? { kind: "error" as const, message: feedbackError }
+  : Astro.url.searchParams.get("generated") === "1"
+    ? { kind: "success" as const, message: GENERATED_MESSAGE }
+    : Astro.url.searchParams.get("discarded") === "1"
+      ? { kind: "success" as const, message: DISCARDED_MESSAGE }
+      : null;
+
+let members: ScheduleMember[] = [];
+let summary: DraftSummary<ScheduleShiftRow> | null = null;
+let shifts: ScheduleShiftRow[] = [];
+let draft: { generatedAt: string } | null = null;
+// month (YYYY-MM) -> locked_at (timestamptz)
+const lockedAt = new Map<string, string>();
+let lockStateUnknown = false;
+// Set when any read failed, so nothing on the page can read as "no draft", "uncovered" or "No shifts".
+let scheduleUnknown = false;
+let loadError: string | null = null;
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+if (!supabase) {
+  loadError = SUPABASE_NOT_CONFIGURED_ERROR;
+  scheduleUnknown = true;
+  lockStateUnknown = true;
+} else {
+  const [inputs, draftResult, shiftsResult, locksResult] = await Promise.all([
+    loadScheduleInputs(supabase, month),
+    supabase.from("schedules").select("month, generated_at").eq("month", monthStart(month)).maybeSingle(),
+    loadAllPages(
+      (from, to) =>
+        supabase
+          .from("schedule_shifts")
+          .select("id, starts_at, ends_at, employee_id", { count: "exact" })
+          .eq("month", monthStart(month))
+          .order("starts_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, to),
+      SCHEDULE_PAGE_SIZE,
+    ),
+    supabase.from("availability_locks").select("month, locked_at").in("month", months.map(monthStart)),
+  ]);
+
+  if (draftResult.error) {
+    logScheduleError("could not load the draft", draftResult.error);
+  }
+  if (shiftsResult.error) {
+    logScheduleError("could not load the draft shifts", shiftsResult.error);
+  }
+  if (locksResult.error) {
+    logScheduleError("could not load month locks", locksResult.error);
+    lockStateUnknown = true;
+  } else {
+    for (const lock of locksResult.data) {
+      lockedAt.set(lock.month.slice(0, 7), lock.locked_at);
+    }
+  }
+
+  if (inputs.status === "unknown" || draftResult.error || shiftsResult.data === null || locksResult.error) {
+    scheduleUnknown = true;
+    loadError = SCHEDULE_LOAD_ERROR;
+  } else {
+    members = inputs.members;
+    if (draftResult.data) {
+      draft = { generatedAt: draftResult.data.generated_at };
+      shifts = shiftsResult.data;
+      summary = summarizeSchedule({ month, members, windows: inputs.windows, shifts });
+    }
+  }
+}
+
+const membersById = new Map(members.map((member) => [member.id, member]));
+const byStationDay = shiftsByStationDay(shifts);
+const coverage = new Map(
+  [...byStationDay].map(([day, dayShifts]) => [
+    day,
+    { total: dayShifts.length, assigned: dayShifts.filter((shift) => shift.employee_id !== null).length },
+  ]),
+);
+const selectedShifts = byStationDay.get(selectedDay) ?? [];
+// The confirm panel only makes sense for a draft that can be regenerated.
+const confirming = Astro.url.searchParams.get("confirm") === "replace" && draft !== null && canGenerate;
+
+const lockedMonths = new Set(lockedAt.keys());
+const monthLockedAt = lockedAt.get(month);
+const isCurrentMonth = month === stationMonth;
+const lockStatus = isCurrentMonth
+  ? "In progress — employees can no longer edit this month"
+  : lockStateUnknown
+    ? "Lock state unknown — the month locks could not be loaded"
+    : monthLockedAt
+      ? `Locked since ${formatStationInstant(monthLockedAt)}`
+      : "Open — employees can still edit";
+const monthHref = (option: string): string => managerScheduleUrl({ month: option });
+---
+
+<Layout title="Schedule">
+  <div class="min-h-screen bg-background p-4">
+    <div class="mx-auto w-full max-w-2xl">
+      <h1 class="mb-6 text-center text-2xl font-semibold">Schedule</h1>
+      {loadError && (
+        <Alert variant="destructive" className="mb-4">
+          <CircleAlert />
+          <AlertDescription>{loadError}</AlertDescription>
+        </Alert>
+      )}
+
+      <MonthTabs months={months} current={month} lockedMonths={lockedMonths} hrefFor={monthHref} />
+
+      <p class="mb-6 text-center text-sm text-muted-foreground">
+        {lockStatus}
+        {!isCurrentMonth && (
+          <>
+            {" · "}
+            <a href="/manager/months" class="text-primary underline-offset-4 hover:underline">
+              Manage month locks
+            </a>
+          </>
+        )}
+      </p>
+
+      {!scheduleUnknown && (
+        <>
+          <ScheduleActions
+            month={month}
+            day={selectedDay}
+            canGenerate={canGenerate}
+            draft={draft}
+            locked={isCurrentMonth || monthLockedAt !== undefined}
+            confirming={confirming}
+            feedback={feedback}
+          />
+
+          {summary && (
+            <>
+              <ScheduleCalendar
+                month={month}
+                weeks={calendarWeeks(month)}
+                selectedDay={selectedDay}
+                coverage={coverage}
+                uncoveredCount={summary.uncovered.length}
+                daysWithNoOne={summary.daysWithNoOne}
+              />
+
+              <ScheduleDayPanel selectedLabel={formatDay(selectedDay)} shifts={selectedShifts} members={membersById} />
+
+              <ScheduleSummary month={month} summary={summary} members={membersById} />
+            </>
+          )}
+        </>
+      )}
+
+      <div class="mt-6 text-center">
+        <a href="/dashboard" class:list={buttonVariants({ variant: "outline" })}>
+          Back to dashboard
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>

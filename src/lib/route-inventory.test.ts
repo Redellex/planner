@@ -24,6 +24,7 @@ const EXPECTED_ACCESS: Record<string, AccessClass> = {
   // Dev-only kitchen sinks: public routes that answer 404 themselves outside `astro dev`.
   "/dev/availability-states": "public",
   "/dev/manager-users-states": "public",
+  "/dev/schedule-states": "public",
   "/dashboard": "signed-in",
   "/availability": "signed-in",
   "/api/availability/create": "signed-in",
@@ -32,8 +33,11 @@ const EXPECTED_ACCESS: Record<string, AccessClass> = {
   "/manager/users": "manager",
   "/manager/months": "manager",
   "/manager/availability": "manager",
+  "/manager/schedule": "manager",
   "/api/manager/months/lock": "manager",
   "/api/manager/users/role": "manager",
+  "/api/manager/schedule/generate": "manager",
+  "/api/manager/schedule/discard": "manager",
 };
 
 const OUTCOMES: Record<AccessClass, [anonymous: string, employee: string, manager: string]> = {

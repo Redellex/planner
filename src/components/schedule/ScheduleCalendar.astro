@@ -1,0 +1,98 @@
+---
+import { CircleAlert } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { dayOfMonth, formatDay, formatMonth } from "@/lib/availability";
+import { managerScheduleUrl } from "@/lib/schedule";
+import { cn } from "@/lib/utils";
+
+interface Props {
+  month: string;
+  weeks: (string | null)[][];
+  selectedDay: string;
+  /** Station day (`YYYY-MM-DD`) -> its shift count and how many of them are assigned. */
+  coverage: Map<string, { total: number; assigned: number }>;
+  /** The draft's uncovered shifts in the whole month. */
+  uncoveredCount: number;
+  /** Station days whose shifts are all uncovered. */
+  daysWithNoOne: string[];
+}
+
+const { month, weeks, selectedDay, coverage, uncoveredCount, daysWithNoOne } = Astro.props;
+
+const WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+---
+
+<section aria-label={`Schedule calendar for ${formatMonth(month)}`} class="mb-6">
+  {daysWithNoOne.length > 0 && (
+    <Alert variant="destructive" className="mb-3">
+      <CircleAlert />
+      <AlertTitle>
+        No one is assigned on {daysWithNoOne.length === 1 ? "1 day" : `${daysWithNoOne.length} days`}
+      </AlertTitle>
+      <AlertDescription>
+        <ul class="flex flex-wrap gap-x-3 gap-y-1">
+          {daysWithNoOne.map((day) => (
+            <li>{formatDay(day)}</li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  )}
+  <p class="mb-3 text-center text-sm text-muted-foreground">
+    {uncoveredCount === 0
+      ? "Every shift is assigned."
+      : `${uncoveredCount} ${uncoveredCount === 1 ? "shift is" : "shifts are"} uncovered.`}
+  </p>
+
+  <div aria-hidden="true" class="mb-1 grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
+    {WEEKDAY_HEADERS.map((header) => (
+      <span>{header}</span>
+    ))}
+  </div>
+  <div class="grid grid-cols-7 gap-1">
+    {weeks.flat().map((day) => {
+      if (!day) {
+        return <span aria-hidden="true" class="min-h-11 sm:min-h-16" />;
+      }
+      const { total, assigned } = coverage.get(day) ?? { total: 0, assigned: 0 };
+      const uncovered = total - assigned;
+      const selected = day === selectedDay;
+      const summary =
+        uncovered === 0
+          ? `${assigned} of ${total} shifts assigned`
+          : `${assigned} of ${total} shifts assigned, ${uncovered} uncovered`;
+      return (
+        <a
+          href={managerScheduleUrl({ month, day })}
+          aria-current={selected ? "date" : undefined}
+          aria-label={`${formatDay(day)}: ${summary}`}
+          class:list={cn(
+            "flex min-h-11 flex-col items-center gap-0.5 rounded-md border p-1 text-xs transition-colors outline-none sm:min-h-16 sm:items-start",
+            // Focus is a ring, never a fill, so it stays distinct from the selected day.
+            "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+            uncovered > 0 && !selected && "border-destructive/40",
+            selected
+              ? "border-primary bg-primary text-primary-foreground"
+              : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          )}
+        >
+          <span class="font-semibold">{dayOfMonth(day)}</span>
+          <span class="hidden sm:block">
+            {assigned}/{total}
+          </span>
+          {uncovered > 0 && (
+            <span
+              class:list={cn(
+                "flex items-center gap-0.5 text-xs",
+                selected ? "text-primary-foreground" : "text-destructive",
+              )}
+            >
+              <CircleAlert className="size-3" />
+              <span class="hidden sm:inline">{uncovered} uncovered</span>
+            </span>
+          )}
+        </a>
+      );
+    })}
+  </div>
+</section>
