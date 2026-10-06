@@ -215,7 +215,7 @@ Status as of 2026-10-06: M-1 is 4/6 done.
 - #1 (F-01) was delivered in PR #10 and archived to `context/archive/2026-09-25-role-aware-access-control/`.
 - #2 (S-01) was delivered in PR #12 (review reports in PR #13) and archived to `context/archive/2026-09-26-employee-availability-management/`.
 - #3 (S-02) was delivered in PR #21 and archived to `context/archive/2026-09-29-manager-availability-visibility/`.
-- #4 (S-03, north star) was delivered in PR #35 (merged 2026-10-06). Its change folder `context/changes/generate-monthly-schedule/` is not archived yet.
+- #4 (S-03, north star) was delivered in PR #35 and archived to `context/archive/2026-10-06-generate-monthly-schedule/`.
 
 1. **#5 (S-04)** is the only open slice that can start, so it moves to `status:ready`. Its handoff from S-03 (draft model, unlock refused while a draft exists, the missing update policy, `summarizeSchedule` as the warning source, the cross-month boundary) is in the issue body and in `roadmap.md`. A schedule with a day that has no one assigned cannot be accepted or published. #6 (S-05) waits on it.
-2. **After S-03's merge:** push its migrations to the hosted project (`npx supabase db push`), check a generate request's `cpuTime` with `wrangler tail`, and archive the change folder.
+2. **After S-03's merge:** push its migrations to the hosted project (`npx supabase db push`), and check a generate request's `cpuTime` with `wrangler tail`.
