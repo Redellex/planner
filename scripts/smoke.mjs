@@ -1,7 +1,7 @@
 // Smoke test: proves the built app, the Cloudflare adapter, the Supabase auth flow, role enforcement (including the
 // manager endpoints refusing an employee's and an anonymous POST), the availability/lock flow, the manager's team
-// availability view and the draft schedule flow (generate, view, unlock refused while a draft exists, discard, unlock)
-// still work together. The manager steps need the seeded manager (supabase/seed.sql) or SMOKE_MANAGER_* env.
+// availability view and the draft schedule flow (generate, view, an override refused for an employee, then warned,
+// confirmed and shown, unlock refused while a draft exists, discard, unlock) still work together. The manager steps need the seeded manager (supabase/seed.sql) or SMOKE_MANAGER_* env.
 // Zero dependencies on purpose. Run against a live server: BASE_URL=http://localhost:4321 node scripts/smoke.mjs
 
 import { Buffer } from "node:buffer";
@@ -50,6 +50,10 @@ const teamDay = `${crudMonth}-02`;
 const schedulePage = `/manager/schedule?month=${crudMonth}`;
 // Mirrors UNLOCK_WITH_DRAFT_ERROR in src/lib/schedule.ts (the /manager/months unlock refusal while a draft exists).
 const unlockWithDraftError = "Discard this month's draft schedule before unlocking it.";
+// The override steps change the first shift of crudMonth's day 1 (read from the page's `data-shift-id`) to the
+// manager, who has no windows there, so the change is outside availability and needs the confirm step.
+const scheduleDayPage = `/manager/schedule?month=${crudMonth}&day=${crudDay}`;
+let overrideShiftId;
 
 function cookieHeader() {
   return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
@@ -123,6 +127,36 @@ function relativeLocation(location) {
   if (!location) return "";
   const url = new URL(location, BASE_URL);
   return url.pathname + url.search;
+}
+
+// The value of the selected "Who" option in the /manager/schedule row of `shiftId` (its `<li data-shift-id>` up to
+// the next row or the end of the list), or undefined when the row or a selected option is missing.
+function selectedAssignee(html, shiftId) {
+  const start = html.indexOf(`data-shift-id="${shiftId}"`);
+  if (start === -1) return undefined;
+  const rest = html.slice(start + 1);
+  const ends = [rest.indexOf("data-shift-id="), rest.indexOf("</ul>")].filter((index) => index !== -1);
+  const row = ends.length > 0 ? rest.slice(0, Math.min(...ends)) : rest;
+  const selected = (row.match(/<option\b[^>]*>/g) ?? []).find((tag) => /\sselected(?:=""|\s|>)/.test(tag));
+  return selected === undefined ? undefined : /\svalue="([^"]*)"/.exec(selected)?.[1];
+}
+
+// Runs `run` signed in as the fresh smoke user (an employee), then signs that session out and restores the manager's
+// cookies, so a manager-only endpoint can be tried with an id only the manager could read.
+async function asSmokeUser(run) {
+  const managerCookies = new Map(jar);
+  jar.clear();
+  try {
+    const signin = await request("/api/auth/signin", { method: "POST", form: { email, password } });
+    if (signin.status !== 302 || relativeLocation(signin.location) !== "/") {
+      throw new Error(`smoke user sign-in failed: ${signin.status} ${signin.location}`);
+    }
+    return await run();
+  } finally {
+    await request("/api/auth/signout", { method: "POST" }).catch(() => undefined);
+    jar.clear();
+    for (const [name, value] of managerCookies) jar.set(name, value);
+  }
 }
 
 const steps = [
@@ -305,6 +339,69 @@ const steps = [
     "schedule page shows the draft",
     () => request(schedulePage),
     { status: 200, check: hasScheduleDraft },
+    { needs: "scheduleMonthClean" },
+  ],
+  [
+    "manager reads a shift id from the draft's day 1",
+    () => request(scheduleDayPage),
+    {
+      status: 200,
+      check: (actual) => {
+        overrideShiftId = /data-shift-id="([0-9a-f-]{36})"/.exec(actual.body)?.[1];
+        return overrideShiftId !== undefined;
+      },
+    },
+    { needs: "scheduleMonthClean" },
+  ],
+  // The middleware rewrites the employee's POST to the 403 page before the handler runs, so nothing is written; the
+  // manager's override below still needs the confirm step, and the page then shows the manager's assignment only.
+  [
+    "employee cannot override a shift",
+    () =>
+      asSmokeUser(() =>
+        request("/api/manager/schedule/override", {
+          method: "POST",
+          form: { month: crudMonth, day: crudDay, shift: overrideShiftId, employee: sessionUserId() },
+        }),
+      ),
+    { status: 403, check: isAccessDenied },
+    { needs: "scheduleMonthClean" },
+  ],
+  [
+    "override outside availability asks for confirmation",
+    () =>
+      request("/api/manager/schedule/override", {
+        method: "POST",
+        form: { month: crudMonth, day: crudDay, shift: overrideShiftId, employee: managerId },
+      }),
+    {
+      status: 302,
+      // A getter: the shift id is read by an earlier step.
+      get location() {
+        return `/manager/schedule?month=${crudMonth}&day=${crudDay}&confirm=override&shift=${overrideShiftId}&employee=${managerId}`;
+      },
+    },
+    { needs: "scheduleMonthClean" },
+  ],
+  [
+    "confirmed override saves the shift",
+    () =>
+      request("/api/manager/schedule/override", {
+        method: "POST",
+        form: { month: crudMonth, day: crudDay, shift: overrideShiftId, employee: managerId, confirm: "override" },
+      }),
+    {
+      status: 302,
+      get location() {
+        return `/manager/schedule?overridden=1&month=${crudMonth}&day=${crudDay}&shift=${overrideShiftId}`;
+      },
+    },
+    { needs: "scheduleMonthClean" },
+  ],
+  [
+    "schedule page shows the manager on the overridden shift",
+    () => request(scheduleDayPage),
+    { status: 200, check: (actual) => selectedAssignee(actual.body, overrideShiftId) === managerId },
     { needs: "scheduleMonthClean" },
   ],
   [

@@ -645,9 +645,9 @@ Add the publish and unpublish endpoints and the published state of the draft car
 
 #### Automated
 
-- [x] 2.1 Unit tests pass, including the new summary, override and URL cases: `npm test`
-- [x] 2.2 Lint passes: `npm run lint`
-- [x] 2.3 Type check passes: `npx astro check`
+- [x] 2.1 Unit tests pass, including the new summary, override and URL cases: `npm test` — 08be8a8
+- [x] 2.2 Lint passes: `npm run lint` — 08be8a8
+- [x] 2.3 Type check passes: `npx astro check` — 08be8a8
 
 #### Manual
 
@@ -657,10 +657,10 @@ Add the publish and unpublish endpoints and the published state of the draft car
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass, including the route inventory row: `npm test`
-- [ ] 3.2 Lint and type check pass: `npm run lint`, `npx astro check`
-- [ ] 3.3 Colour-literal check passes on the schedule views: `npm run check:ui`
-- [ ] 3.4 Smoke passes against a local stack and build, including the new override steps: `npm run smoke`
+- [x] 3.1 Unit tests pass, including the route inventory row: `npm test`
+- [x] 3.2 Lint and type check pass: `npm run lint`, `npx astro check`
+- [x] 3.3 Colour-literal check passes on the schedule views: `npm run check:ui`
+- [x] 3.4 Smoke passes against a local stack and build, including the new override steps: `npm run smoke`
 
 #### Manual
 

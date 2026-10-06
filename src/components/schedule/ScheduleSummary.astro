@@ -117,6 +117,36 @@ const countsById = new Map(summary.perMember.map((member) => [member.id, member]
     )}
   </div>
 
+  <div class="mt-4 border-t pt-3">
+    <h3 class="mb-2 text-sm font-semibold">Hard-rule exceptions</h3>
+    {summary.sameDay.length === 0 && summary.backToBack.length === 0 ? (
+      <p class="text-sm text-muted-foreground">
+        None: nobody has two shifts in one station day or two shifts back to back.
+      </p>
+    ) : (
+      <ul class="flex flex-col gap-1">
+        {summary.sameDay.map(({ assignee, shifts: [first, second] }) => (
+          <li class="text-sm">
+            <span class="font-medium">{formatDay(stationDayOf(first.starts_at))}</span>
+            <span class="text-muted-foreground">
+              {" "}
+              · {labelOf(assignee).text}: two shifts that station day ({formatWindow(first)} and {formatWindow(second)})
+            </span>
+          </li>
+        ))}
+        {summary.backToBack.map(({ assignee, first, second }) => (
+          <li class="text-sm">
+            <span class="font-medium">{shiftLabel(first)}</span>
+            <span class="text-muted-foreground">
+              {" "}
+              · {labelOf(assignee).text}: back to back with {shiftLabel(second)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+
   {summary.outsideAvailability.length > 0 && (
     <Alert variant="destructive" className="mt-4">
       <CircleAlert />
@@ -138,9 +168,32 @@ const countsById = new Map(summary.perMember.map((member) => [member.id, member]
       <CircleAlert />
       <AlertTitle>Back to back with the previous month's last night</AlertTitle>
       <AlertDescription>
-        <p>The previous month's draft changed after this one was generated. Regenerate this month to fix it.</p>
+        <p>
+          The same person works the previous month's last night and this 06:00 start. Override the shift or regenerate
+          this month to fix it.
+        </p>
         <ul class="flex flex-col gap-1">
           {summary.touchesPreviousNight.map((shift) => (
+            <li>
+              {shiftLabel(shift)} · {shift.employee_id ? labelOf(shift.employee_id).text : "Uncovered"}
+            </li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  )}
+
+  {summary.touchesNextMorning.length > 0 && (
+    <Alert variant="destructive" className="mt-4">
+      <CircleAlert />
+      <AlertTitle>Back to back with the next month's first morning</AlertTitle>
+      <AlertDescription>
+        <p>
+          The same person works this month's last night and the next month's 06:00 start on day 1. Override the shift or
+          regenerate this month to fix it.
+        </p>
+        <ul class="flex flex-col gap-1">
+          {summary.touchesNextMorning.map((shift) => (
             <li>
               {shiftLabel(shift)} · {shift.employee_id ? labelOf(shift.employee_id).text : "Uncovered"}
             </li>
