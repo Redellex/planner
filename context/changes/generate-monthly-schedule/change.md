@@ -1,7 +1,7 @@
 ---
 change_id: generate-monthly-schedule
 title: Generate monthly schedule
-status: implementing
+status: implemented
 created: 2026-10-06
 updated: 2026-10-06
 archived_at: null

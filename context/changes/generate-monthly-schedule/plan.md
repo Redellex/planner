@@ -678,12 +678,12 @@ The header comment is updated. If a run dies between generate and unlock, recove
 
 #### Automated
 
-- [x] 4.1 Smoke passes against a local server with a reset database
-- [x] 4.2 Smoke passes a second time without a reset
-- [x] 4.3 Docs formatting is clean
-- [x] 4.4 Full gates still pass
+- [x] 4.1 Smoke passes against a local server with a reset database — 451e666
+- [x] 4.2 Smoke passes a second time without a reset — 451e666
+- [x] 4.3 Docs formatting is clean — 451e666
+- [x] 4.4 Full gates still pass — 451e666
 
 #### Manual
 
-- [x] 4.5 CLAUDE.md Schedule section explains station day, patterns and refused unlock
-- [x] 4.6 Test-plan §6.5 is concrete enough to add a new invariant
+- [x] 4.5 CLAUDE.md Schedule section explains station day, patterns and refused unlock — 451e666
+- [x] 4.6 Test-plan §6.5 is concrete enough to add a new invariant — 451e666
