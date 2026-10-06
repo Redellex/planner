@@ -19,15 +19,21 @@ import {
   GENERATE_LOAD_ERROR,
   GENERATED_MESSAGE,
   GENERIC_SCHEDULE_WRITE_ERROR,
+  INVALID_ASSIGNEE_ERROR,
   INVALID_MONTH_ERROR,
   MONTH_UNLOCKED_ERROR,
   NO_DRAFT_ERROR,
+  NO_SCHEDULE_ERROR,
   NOT_PERMITTED_ERROR,
   OVERRIDDEN_MESSAGE,
+  PUBLISH_GAPS_ERROR,
+  PUBLISHED_MESSAGE,
   SCHEDULE_LOAD_ERROR,
+  SCHEDULE_PUBLISHED_ERROR,
   shiftsByStationDay,
   STALE_SHIFT_ERROR,
   SUPABASE_NOT_CONFIGURED_ERROR,
+  UNPUBLISHED_MESSAGE,
   type ScheduleMember,
 } from "@/lib/schedule";
 import { generateSchedule, type GeneratedShift, type ScheduleWindow } from "@/lib/schedule-generator";
@@ -47,6 +53,9 @@ const months = ["2026-03", "2026-04", "2026-05", "2026-06"];
 const lockedMonths = new Set(["2026-04"]);
 const weeks = calendarWeeks(month);
 const generatedAt = "2026-03-20T09:30:00+00:00";
+const publishedAt = "2026-03-27T14:05:00+00:00";
+const draftCard = { generatedAt, publishedAt: null };
+const publishedCard = { generatedAt, publishedAt };
 
 const ALICE: ScheduleMember = {
   id: "00000000-0000-4000-8000-00000000d001",
@@ -266,27 +275,95 @@ const noDraftStates = [
 ];
 
 const draftStates = [
-  { title: "Draft (Regenerate + Discard)", canGenerate: true, confirming: false, feedback: null },
-  { title: "Confirm panel (?confirm=replace)", canGenerate: true, confirming: true, feedback: null },
-  { title: "Current month draft (Discard only)", canGenerate: false, confirming: false, feedback: null },
+  {
+    title: "Draft, every day covered (Publish + Regenerate + Discard)",
+    canGenerate: true,
+    confirming: false,
+    draft: draftCard,
+    daysWithNoOne: 0,
+    feedback: null,
+  },
+  {
+    title: "Draft with days that have no one (publish notice)",
+    canGenerate: true,
+    confirming: false,
+    draft: draftCard,
+    daysWithNoOne: 2,
+    feedback: null,
+  },
+  {
+    title: "Draft with 1 day that has no one",
+    canGenerate: true,
+    confirming: false,
+    draft: draftCard,
+    daysWithNoOne: 1,
+    feedback: null,
+  },
+  {
+    title: "Confirm panel (?confirm=replace)",
+    canGenerate: true,
+    confirming: true,
+    draft: draftCard,
+    daysWithNoOne: 2,
+    feedback: null,
+  },
+  {
+    title: "Current month draft (Publish + Discard)",
+    canGenerate: false,
+    confirming: false,
+    draft: draftCard,
+    daysWithNoOne: 0,
+    feedback: null,
+  },
   {
     title: "Success: generated",
     canGenerate: true,
     confirming: false,
+    draft: draftCard,
+    daysWithNoOne: 2,
     feedback: { kind: "success" as const, message: GENERATED_MESSAGE },
+  },
+  {
+    title: "Published (Unpublish only)",
+    canGenerate: true,
+    confirming: false,
+    draft: publishedCard,
+    daysWithNoOne: 0,
+    feedback: null,
+  },
+  {
+    title: "Success: published",
+    canGenerate: true,
+    confirming: false,
+    draft: publishedCard,
+    daysWithNoOne: 0,
+    feedback: { kind: "success" as const, message: PUBLISHED_MESSAGE },
+  },
+  {
+    title: "Success: unpublished",
+    canGenerate: true,
+    confirming: false,
+    draft: draftCard,
+    daysWithNoOne: 0,
+    feedback: { kind: "success" as const, message: UNPUBLISHED_MESSAGE },
   },
 ];
 
-// Every allow-listed ?error= message, in the state it arrives in.
+// Every allow-listed ?error= message, in the state it arrives in (STALE_SHIFT_ERROR renders in its shift's row, below;
+// with no such row on the selected day it lands on a draft card like INVALID_ASSIGNEE_ERROR).
 const errorStates = [
-  { message: INVALID_MONTH_ERROR, hasDraft: false },
-  { message: SUPABASE_NOT_CONFIGURED_ERROR, hasDraft: false },
-  { message: CONFIRM_REPLACE_ERROR, hasDraft: true },
-  { message: GENERATE_LOAD_ERROR, hasDraft: false },
-  { message: NOT_PERMITTED_ERROR, hasDraft: false },
-  { message: MONTH_UNLOCKED_ERROR, hasDraft: false },
-  { message: NO_DRAFT_ERROR, hasDraft: false },
-  { message: GENERIC_SCHEDULE_WRITE_ERROR, hasDraft: true },
+  { message: INVALID_MONTH_ERROR, draft: null, daysWithNoOne: 0 },
+  { message: SUPABASE_NOT_CONFIGURED_ERROR, draft: null, daysWithNoOne: 0 },
+  { message: CONFIRM_REPLACE_ERROR, draft: draftCard, daysWithNoOne: 2 },
+  { message: GENERATE_LOAD_ERROR, draft: null, daysWithNoOne: 0 },
+  { message: NOT_PERMITTED_ERROR, draft: null, daysWithNoOne: 0 },
+  { message: MONTH_UNLOCKED_ERROR, draft: null, daysWithNoOne: 0 },
+  { message: NO_DRAFT_ERROR, draft: null, daysWithNoOne: 0 },
+  { message: GENERIC_SCHEDULE_WRITE_ERROR, draft: draftCard, daysWithNoOne: 2 },
+  { message: SCHEDULE_PUBLISHED_ERROR, draft: publishedCard, daysWithNoOne: 0 },
+  { message: PUBLISH_GAPS_ERROR, draft: draftCard, daysWithNoOne: 2 },
+  { message: NO_SCHEDULE_ERROR, draft: null, daysWithNoOne: 0 },
+  { message: INVALID_ASSIGNEE_ERROR, draft: draftCard, daysWithNoOne: 0 },
 ];
 ---
 
@@ -336,6 +413,7 @@ const errorStates = [
                   day={`${month}-01`}
                   canGenerate={state.canGenerate}
                   draft={null}
+                  daysWithNoOne={0}
                   locked={state.locked}
                   confirming={false}
                   feedback={null}
@@ -350,7 +428,8 @@ const errorStates = [
                   month={month}
                   day={`${month}-01`}
                   canGenerate={state.canGenerate}
-                  draft={{ generatedAt }}
+                  draft={state.draft}
+                  daysWithNoOne={state.daysWithNoOne}
                   locked={true}
                   confirming={state.confirming}
                   feedback={state.feedback}
@@ -365,6 +444,7 @@ const errorStates = [
                 day={`${month}-01`}
                 canGenerate={true}
                 draft={null}
+                daysWithNoOne={0}
                 locked={true}
                 confirming={false}
                 feedback={{ kind: "success", message: DISCARDED_MESSAGE }}
@@ -384,7 +464,8 @@ const errorStates = [
                 month={month}
                 day={`${month}-01`}
                 canGenerate={true}
-                draft={state.hasDraft ? { generatedAt } : null}
+                draft={state.draft}
+                daysWithNoOne={state.daysWithNoOne}
                 locked={true}
                 confirming={false}
                 feedback={{ kind: "error", message: state.message }}

@@ -11,6 +11,7 @@ import {
   loadScheduleInputs,
   logScheduleError,
   managerScheduleUrl,
+  SCHEDULE_PUBLISHED_ERROR,
   SUPABASE_NOT_CONFIGURED_ERROR,
 } from "@/lib/schedule";
 
@@ -29,11 +30,19 @@ export const POST: APIRoute = async (context) => {
     return context.redirect(managerScheduleUrl({ month, error: SUPABASE_NOT_CONFIGURED_ERROR }));
   }
 
-  // An existing draft is replaced only after the explicit confirm step.
-  const existing = await supabase.from("schedules").select("month").eq("month", monthStart(month)).maybeSingle();
+  // A published month is frozen (replace_schedule_draft also refuses it, SP001); an existing draft is replaced only
+  // after the explicit confirm step.
+  const existing = await supabase
+    .from("schedules")
+    .select("month, published_at")
+    .eq("month", monthStart(month))
+    .maybeSingle();
   if (existing.error) {
     logScheduleError("could not read the draft", existing.error);
     return context.redirect(managerScheduleUrl({ month, error: describeScheduleWriteError(existing.error) }));
+  }
+  if (existing.data && existing.data.published_at !== null) {
+    return context.redirect(managerScheduleUrl({ month, error: SCHEDULE_PUBLISHED_ERROR }));
   }
   if (existing.data && !replace) {
     return context.redirect(managerScheduleUrl({ month, error: CONFIRM_REPLACE_ERROR }));

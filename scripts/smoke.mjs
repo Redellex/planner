@@ -1,7 +1,9 @@
 // Smoke test: proves the built app, the Cloudflare adapter, the Supabase auth flow, role enforcement (including the
 // manager endpoints refusing an employee's and an anonymous POST), the availability/lock flow, the manager's team
-// availability view and the draft schedule flow (generate, view, an override refused for an employee, then warned,
-// confirmed and shown, unlock refused while a draft exists, discard, unlock) still work together. The manager steps need the seeded manager (supabase/seed.sql) or SMOKE_MANAGER_* env.
+// availability view and the draft schedule flow (generate and publish refused for an employee and an anonymous user;
+// generate, view, an override refused for an employee, then warned, confirmed and shown, publish refused while days
+// have no one, unlock refused while a draft exists, discard, unlock) still work together. The manager steps need the
+// seeded manager (supabase/seed.sql) or SMOKE_MANAGER_* env.
 // Zero dependencies on purpose. Run against a live server: BASE_URL=http://localhost:4321 node scripts/smoke.mjs
 
 import { Buffer } from "node:buffer";
@@ -50,6 +52,9 @@ const teamDay = `${crudMonth}-02`;
 const schedulePage = `/manager/schedule?month=${crudMonth}`;
 // Mirrors UNLOCK_WITH_DRAFT_ERROR in src/lib/schedule.ts (the /manager/months unlock refusal while a draft exists).
 const unlockWithDraftError = "Discard this month's draft schedule before unlocking it.";
+// Mirrors PUBLISH_GAPS_ERROR in src/lib/schedule.ts: the smoke month's draft is almost all Uncovered, so publishing it
+// is always refused (a successful publish is covered by pgTAP and the manual walkthrough, not here).
+const publishGapsError = "Assign someone on every day before publishing.";
 // The override steps change the first shift of crudMonth's day 1 (read from the page's `data-shift-id`) to the
 // manager, who has no windows there, so the change is outside availability and needs the confirm step.
 const scheduleDayPage = `/manager/schedule?month=${crudMonth}&day=${crudDay}`;
@@ -115,6 +120,11 @@ function isAccessDenied(actual) {
 // The draft panel of /manager/schedule carries `data-schedule-draft` only while the month has a draft.
 function hasScheduleDraft(actual) {
   return actual.body.includes("data-schedule-draft");
+}
+
+// A published month's panel also carries `data-schedule-published`.
+function isSchedulePublished(actual) {
+  return actual.body.includes("data-schedule-published");
 }
 
 // The no-draft panel, not just a missing marker: a page that could not load its data renders no panel at all.
@@ -259,6 +269,12 @@ const steps = [
     () => request("/api/manager/schedule/generate", { method: "POST", form: { month: crudMonth } }),
     { status: 403, check: isAccessDenied },
   ],
+  // Publishing needs a draft, so this month has nothing to publish yet; the same page check below proves no effect.
+  [
+    "employee cannot publish a schedule",
+    () => request("/api/manager/schedule/publish", { method: "POST", form: { month: crudMonth } }),
+    { status: 403, check: isAccessDenied },
+  ],
   ["signout clears session", () => request("/api/auth/signout", { method: "POST" }), { status: 302, location: "/" }],
   ["dashboard redirects after signout", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
   [
@@ -269,6 +285,11 @@ const steps = [
   [
     "anonymous generate request goes to sign-in",
     () => request("/api/manager/schedule/generate", { method: "POST", form: { month: crudMonth } }),
+    { status: 302, location: "/auth/signin" },
+  ],
+  [
+    "anonymous publish request goes to sign-in",
+    () => request("/api/manager/schedule/publish", { method: "POST", form: { month: crudMonth } }),
     { status: 302, location: "/auth/signin" },
   ],
   [
@@ -318,7 +339,7 @@ const steps = [
     { status: 302, location: "/manager/months?updated=1" },
   ],
   [
-    "schedule has no draft and the month is open after the refused generates",
+    "schedule has no draft and the month is open after the refused generates and publishes",
     () => request(schedulePage),
     {
       status: 200,
@@ -402,6 +423,24 @@ const steps = [
     "schedule page shows the manager on the overridden shift",
     () => request(scheduleDayPage),
     { status: 200, check: (actual) => selectedAssignee(actual.body, overrideShiftId) === managerId },
+    { needs: "scheduleMonthClean" },
+  ],
+  [
+    "publish is refused while days have no one",
+    () => request("/api/manager/schedule/publish", { method: "POST", form: { month: crudMonth } }),
+    {
+      status: 302,
+      location: `/manager/schedule?error=${encodeURIComponent(publishGapsError)}&month=${crudMonth}`,
+      check: (actual) =>
+        relativeLocation(actual.location) ===
+        `/manager/schedule?error=${encodeURIComponent(publishGapsError)}&month=${crudMonth}`,
+    },
+    { needs: "scheduleMonthClean" },
+  ],
+  [
+    "schedule stays a draft after the refused publish",
+    () => request(schedulePage),
+    { status: 200, check: (actual) => hasScheduleDraft(actual) && !isSchedulePublished(actual) },
     { needs: "scheduleMonthClean" },
   ],
   [

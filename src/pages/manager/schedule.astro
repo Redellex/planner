@@ -34,20 +34,22 @@ import {
   managerScheduleUrl,
   OVERRIDDEN_MESSAGE,
   parseShiftParam,
+  PUBLISHED_MESSAGE,
   resolveScheduleFeedbackError,
   SCHEDULE_LOAD_ERROR,
   SCHEDULE_PAGE_SIZE,
   scheduleMonths,
   shiftsByStationDay,
   SUPABASE_NOT_CONFIGURED_ERROR,
+  UNPUBLISHED_MESSAGE,
   type ScheduleMember,
   type ScheduleShiftRow,
   type ScheduleWindowRow,
 } from "@/lib/schedule";
 
 // Manager-only through MANAGER_ROUTES in src/lib/route-access.ts; RLS lets only managers read drafts and every
-// profile and window. No writes here: generate, discard and override are
-// form POSTs to /api/manager/schedule/*.
+// profile and window. No writes here: generate, discard, override, publish and unpublish are form POSTs to
+// /api/manager/schedule/*.
 const months = scheduleMonths();
 const stationMonth = currentStationMonth();
 const [defaultMonth] = upcomingMonths();
@@ -58,7 +60,8 @@ const requestedDay = parseDate(Astro.url.searchParams.get("day"));
 const selectedDay = requestedDay && monthOfDate(requestedDay) === month ? requestedDay : monthStart(month);
 const canGenerate = generatableMonths().includes(month);
 
-// Result of the last generate, discard or override, from the redirect URL; only known messages are shown as-is.
+// Result of the last generate, discard, override, publish or unpublish, from the redirect URL; only known messages are
+// shown as-is.
 const feedbackError = resolveScheduleFeedbackError(Astro.url.searchParams.get("error"));
 const feedback = feedbackError
   ? { kind: "error" as const, message: feedbackError }
@@ -68,7 +71,11 @@ const feedback = feedbackError
       ? { kind: "success" as const, message: DISCARDED_MESSAGE }
       : Astro.url.searchParams.get("overridden") === "1"
         ? { kind: "success" as const, message: OVERRIDDEN_MESSAGE }
-        : null;
+        : Astro.url.searchParams.get("published") === "1"
+          ? { kind: "success" as const, message: PUBLISHED_MESSAGE }
+          : Astro.url.searchParams.get("unpublished") === "1"
+            ? { kind: "success" as const, message: UNPUBLISHED_MESSAGE }
+            : null;
 // The overridden shift (`&shift=`): its feedback or confirm panel renders in its row when it is on the selected day.
 const shiftParam = parseShiftParam(Astro.url.searchParams.get("shift"));
 
@@ -155,8 +162,9 @@ const coverage = new Map(
   ]),
 );
 const selectedShifts = byStationDay.get(selectedDay) ?? [];
-// The confirm panel only makes sense for a draft that can be regenerated.
-const confirming = Astro.url.searchParams.get("confirm") === "replace" && draft !== null && canGenerate;
+// The confirm panel only makes sense for an unpublished draft that can be regenerated.
+const confirming =
+  Astro.url.searchParams.get("confirm") === "replace" && draft !== null && draft.publishedAt === null && canGenerate;
 // Overrides are open on an unpublished draft read in full (the summary is set only then).
 const editable = summary !== null && draft !== null && draft.publishedAt === null;
 
@@ -243,6 +251,7 @@ const monthHref = (option: string): string => managerScheduleUrl({ month: option
             day={selectedDay}
             canGenerate={canGenerate}
             draft={draft}
+            daysWithNoOne={summary?.daysWithNoOne.length ?? 0}
             locked={isCurrentMonth || monthLockedAt !== undefined}
             confirming={confirming}
             feedback={cardFeedback}

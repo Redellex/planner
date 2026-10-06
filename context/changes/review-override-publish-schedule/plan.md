@@ -657,10 +657,10 @@ Add the publish and unpublish endpoints and the published state of the draft car
 
 #### Automated
 
-- [x] 3.1 Unit tests pass, including the route inventory row: `npm test`
-- [x] 3.2 Lint and type check pass: `npm run lint`, `npx astro check`
-- [x] 3.3 Colour-literal check passes on the schedule views: `npm run check:ui`
-- [x] 3.4 Smoke passes against a local stack and build, including the new override steps: `npm run smoke`
+- [x] 3.1 Unit tests pass, including the route inventory row: `npm test` — 504e714
+- [x] 3.2 Lint and type check pass: `npm run lint`, `npx astro check` — 504e714
+- [x] 3.3 Colour-literal check passes on the schedule views: `npm run check:ui` — 504e714
+- [x] 3.4 Smoke passes against a local stack and build, including the new override steps: `npm run smoke` — 504e714
 
 #### Manual
 
@@ -674,11 +674,11 @@ Add the publish and unpublish endpoints and the published state of the draft car
 
 #### Automated
 
-- [ ] 4.1 Unit tests pass, including the route inventory rows: `npm test`
-- [ ] 4.2 Database rules tests still pass: `npm run test:db`
-- [ ] 4.3 Lint, type check and colour literals pass: `npm run lint`, `npx astro check`, `npm run check:ui`
-- [ ] 4.4 Production build succeeds: `npm run build`
-- [ ] 4.5 Smoke passes against the local stack, including the publish refusal and the employee 403: `npm run smoke`
+- [x] 4.1 Unit tests pass, including the route inventory rows: `npm test`
+- [x] 4.2 Database rules tests still pass: `npm run test:db`
+- [x] 4.3 Lint, type check and colour literals pass: `npm run lint`, `npx astro check`, `npm run check:ui`
+- [x] 4.4 Production build succeeds: `npm run build`
+- [x] 4.5 Smoke passes against the local stack, including the publish refusal and the employee 403: `npm run smoke`
 
 #### Manual
 
