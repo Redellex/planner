@@ -674,11 +674,11 @@ Add the publish and unpublish endpoints and the published state of the draft car
 
 #### Automated
 
-- [x] 4.1 Unit tests pass, including the route inventory rows: `npm test`
-- [x] 4.2 Database rules tests still pass: `npm run test:db`
-- [x] 4.3 Lint, type check and colour literals pass: `npm run lint`, `npx astro check`, `npm run check:ui`
-- [x] 4.4 Production build succeeds: `npm run build`
-- [x] 4.5 Smoke passes against the local stack, including the publish refusal and the employee 403: `npm run smoke`
+- [x] 4.1 Unit tests pass, including the route inventory rows: `npm test` — 166119a
+- [x] 4.2 Database rules tests still pass: `npm run test:db` — 166119a
+- [x] 4.3 Lint, type check and colour literals pass: `npm run lint`, `npx astro check`, `npm run check:ui` — 166119a
+- [x] 4.4 Production build succeeds: `npm run build` — 166119a
+- [x] 4.5 Smoke passes against the local stack, including the publish refusal and the employee 403: `npm run smoke` — 166119a
 
 #### Manual
 
