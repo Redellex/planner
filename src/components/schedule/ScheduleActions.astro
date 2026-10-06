@@ -79,7 +79,7 @@ const headingId = `${idPrefix}schedule-actions-heading`;
       <div class="flex flex-wrap items-center gap-2">
         {canGenerate && !confirming && (
           <a
-            href={managerScheduleUrl({ month, day, confirm: true })}
+            href={managerScheduleUrl({ month, day, confirm: "replace" })}
             class:list={buttonVariants({ variant: "secondary", size: "sm" })}
           >
             Regenerate

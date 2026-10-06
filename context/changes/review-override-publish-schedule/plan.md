@@ -632,10 +632,10 @@ Add the publish and unpublish endpoints and the published state of the draft car
 
 #### Automated
 
-- [x] 1.1 Migrations apply cleanly on a reset: `npx supabase db reset`
-- [x] 1.2 Database rules tests pass, including the new override, publish, freeze and unpublish asserts: `npm run test:db`
-- [x] 1.3 Types regenerated and type check passes: `npx astro check`
-- [x] 1.4 Unit tests still pass: `npm test`
+- [x] 1.1 Migrations apply cleanly on a reset: `npx supabase db reset` — 0e1296f
+- [x] 1.2 Database rules tests pass, including the new override, publish, freeze and unpublish asserts: `npm run test:db` — 0e1296f
+- [x] 1.3 Types regenerated and type check passes: `npx astro check` — 0e1296f
+- [x] 1.4 Unit tests still pass: `npm test` — 0e1296f
 
 #### Manual
 
@@ -645,9 +645,9 @@ Add the publish and unpublish endpoints and the published state of the draft car
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass, including the new summary, override and URL cases: `npm test`
-- [ ] 2.2 Lint passes: `npm run lint`
-- [ ] 2.3 Type check passes: `npx astro check`
+- [x] 2.1 Unit tests pass, including the new summary, override and URL cases: `npm test`
+- [x] 2.2 Lint passes: `npm run lint`
+- [x] 2.3 Type check passes: `npx astro check`
 
 #### Manual
 

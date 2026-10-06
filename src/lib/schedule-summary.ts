@@ -56,6 +56,31 @@ export interface ScheduleSummary<S extends SummaryShift = SummaryShift> {
    * back-to-back across months. Empty for a draft generated after the previous month's draft.
    */
   touchesPreviousNight: S[];
+  /** Two shifts of one person in one station day: one entry per pair, ordered by start (an override can add one). */
+  sameDay: SameDayPair<S>[];
+  /**
+   * One shift of a person ending exactly when another of theirs starts, inside the month, ordered by start. A pair
+   * that is also a same-day pair is reported in both lists.
+   */
+  backToBack: BackToBackPair<S>[];
+  /**
+   * Shifts ending when the next month's first morning shift starts (06:00 on its day 1), held by that shift's
+   * assignee: back-to-back across months, the mirror of `touchesPreviousNight`. Empty without a next-month draft.
+   */
+  touchesNextMorning: S[];
+}
+
+export interface SameDayPair<S extends SummaryShift = SummaryShift> {
+  assignee: string;
+  /** In start order. */
+  shifts: [S, S];
+}
+
+export interface BackToBackPair<S extends SummaryShift = SummaryShift> {
+  assignee: string;
+  /** Ends exactly when `second` starts. */
+  first: S;
+  second: S;
 }
 
 interface Counts {
@@ -70,7 +95,8 @@ function contains(spans: readonly AvailabilitySpan[] | undefined, start: number,
 }
 
 /**
- * Counts, uncovered shifts, days with no one, 12h/night rule breaks and outside-availability assignments of a draft.
+ * Counts, uncovered shifts, days with no one, 12h/night rule breaks, outside-availability assignments and the
+ * per-person hard rules (same station day, back to back, across both month boundaries) of a draft.
  * The 12h rule (and the night rule, the same with night counts): an assigned shift breaks it when its assignee's count
  * is more than 1 above the lowest count among the members whose merged availability contains the shift.
  */
@@ -81,6 +107,8 @@ export function summarizeSchedule<S extends SummaryShift>(input: {
   shifts: readonly S[];
   /** The previous month's draft shift ending at 06:00 on day 1, if that month has a draft. */
   previousNight?: SummaryShift | null;
+  /** The next month's draft shift starting at 06:00 on its day 1, if that month has a draft. */
+  nextMorning?: SummaryShift | null;
 }): ScheduleSummary<S> {
   const days = stationDays(input.month);
   const monthStart = days[0].start;
@@ -165,6 +193,56 @@ export function summarizeSchedule<S extends SummaryShift>(input: {
           .map(({ shift }) => shift)
       : [];
 
+  // The per-person hard rules, over assigned shifts only (uncovered shifts have no one to break them), in start order.
+  const assigned = timed
+    .flatMap((entry) => (entry.shift.employee_id === null ? [] : [{ ...entry, assignee: entry.shift.employee_id }]))
+    .sort((a, b) => a.start - b.start);
+
+  const byPersonDay = new Map<string, typeof assigned>();
+  for (const entry of assigned) {
+    const key = `${entry.assignee}|${entry.day}`;
+    const group = byPersonDay.get(key);
+    if (group) {
+      group.push(entry);
+    } else {
+      byPersonDay.set(key, [entry]);
+    }
+  }
+  const sameDayPairs: { starts: [number, number]; pair: SameDayPair<S> }[] = [];
+  for (const group of byPersonDay.values()) {
+    for (let first = 0; first < group.length; first++) {
+      for (let second = first + 1; second < group.length; second++) {
+        sameDayPairs.push({
+          starts: [group[first].start, group[second].start],
+          pair: { assignee: group[first].assignee, shifts: [group[first].shift, group[second].shift] },
+        });
+      }
+    }
+  }
+  const sameDay = sameDayPairs
+    .sort((a, b) => a.starts[0] - b.starts[0] || a.starts[1] - b.starts[1])
+    .map(({ pair }) => pair);
+
+  const byPersonStart = new Map(assigned.map((entry) => [`${entry.assignee}|${entry.start}`, entry]));
+  const backToBack: BackToBackPair<S>[] = [];
+  for (const first of assigned) {
+    const second = byPersonStart.get(`${first.assignee}|${first.end}`);
+    if (second) {
+      backToBack.push({ assignee: first.assignee, first: first.shift, second: second.shift });
+    }
+  }
+
+  const nextMorning = input.nextMorning;
+  const touchesNextMorning =
+    nextMorning?.employee_id != null
+      ? timed
+          .filter(
+            ({ shift, end }) =>
+              shift.employee_id === nextMorning.employee_id && end === wallClockMinutes(nextMorning.starts_at),
+          )
+          .map(({ shift }) => shift)
+      : [];
+
   return {
     perMember,
     uncovered,
@@ -172,5 +250,8 @@ export function summarizeSchedule<S extends SummaryShift>(input: {
     ruleBreaks,
     outsideAvailability,
     touchesPreviousNight,
+    sameDay,
+    backToBack,
+    touchesNextMorning,
   };
 }
