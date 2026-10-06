@@ -45,7 +45,7 @@ A gas-station manager currently builds the monthly shift schedule by hand in a s
 | S-01 | employee-availability-management | Employee can create/edit their own monthly availability; locks once generation starts | F-01          | FR-001, Access Control         | done        |
 | S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | done        |
 | S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | in-progress |
-| S-04 | review-override-publish-schedule | Manager reviews, overrides (with conflict warnings), and publishes the schedule       | S-03          | FR-004, FR-005, FR-006         | proposed    |
+| S-04 | review-override-publish-schedule | Manager reviews, overrides (with conflict warnings), and publishes the schedule       | S-03          | FR-004, FR-005, FR-006         | in-progress |
 | S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | proposed    |
 
 ## Baseline
@@ -140,7 +140,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
   - **Conflict warnings come from `summarizeSchedule`** (`src/lib/schedule-summary.ts`). It recounts from the stored shifts and raw windows: `outsideAvailability` is the FR-004 override warning (always empty for a generated draft), `ruleBreaks` the 12h/night fairness warnings, `perMember.zeroShifts` the "No shifts" flag, and `daysWithNoOne` must block accept and publish. It does not check one-shift-per-station-day or touching shifts per person: overrides can break those hard rules, so S-04 must add a check for them.
   - **Cross-month boundary (impl review F1, 2026-10-06).** Windows starting on day 1 of M+1 before 06:00 count for M's last station night: RLS freezes them while M is locked, and generating M reads them. Generating M+1 blocks M's last-night assignee from 06:00 on day 1, and `summarizeSchedule(...).touchesPreviousNight` reports the conflict when M's draft changed afterwards. S-04 overrides of day 1 06:00 or of M's last night must re-check it.
 - **Risk:** Depends entirely on S-03 producing a real draft to act on; sequenced immediately after so the full manager workflow (generate → adjust → publish) is validated end-to-end before employee-facing viewing lands.
-- **Status:** proposed
+- **Status:** in-progress
 
 ### S-05: View published schedule
 

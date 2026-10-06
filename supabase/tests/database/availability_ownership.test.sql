@@ -17,6 +17,7 @@ insert into auth.users (id, email) values
 update public.profiles set role = 'manager' where id = '10000000-0000-4000-8000-0000000000c1';
 
 -- M+1 must be open whatever the local or CI state.
+delete from public.schedules where month = :'m1';
 delete from public.availability_locks where month = :'m1';
 
 -- A's target window: day 5 of M+1, 09:00-17:00.
