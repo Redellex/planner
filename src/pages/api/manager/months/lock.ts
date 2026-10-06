@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { createClient } from "@/lib/supabase";
 import { monthStart, parseMonth } from "@/lib/availability";
+import { UNLOCK_WITH_DRAFT_ERROR } from "@/lib/schedule";
 
 type LockAction = "lock" | "unlock";
 
@@ -39,6 +40,15 @@ export const POST: APIRoute = async (context) => {
       : await supabase.from("availability_locks").delete().eq("month", monthStart(month));
 
   if (error) {
+    // A month with a draft schedule cannot be unlocked: schedules.month restricts deleting its lock row.
+    if (action === "unlock" && error.code === "23503") {
+      // eslint-disable-next-line no-console -- the only record of a raw database error is the Worker log
+      console.error("Months: unlock refused while a draft schedule exists", {
+        code: error.code,
+        message: error.message,
+      });
+      return redirectWithError(context, UNLOCK_WITH_DRAFT_ERROR);
+    }
     return redirectWithError(context, error.message);
   }
 
