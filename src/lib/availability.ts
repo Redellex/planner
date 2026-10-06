@@ -170,14 +170,27 @@ export function calendarWeeks(month: string): (string | null)[][] {
   return Array.from({ length: cells.length / 7 }, (_, week) => cells.slice(week * 7, week * 7 + 7));
 }
 
-function timestampToUtcMs(timestamp: string): number {
+const DAY_MINUTES = 24 * 60;
+
+/**
+ * A wall-clock timestamp (`YYYY-MM-DDTHH:MM…`) as minutes on the `Date.UTC` calendar axis (minute 0 is
+ * 1970-01-01T00:00). Every day has 1440 minutes, so differences are wall-clock durations with no DST correction.
+ */
+export function wallClockMinutes(timestamp: string): number {
   const [hours, minutes] = timeOf(timestamp).split(":").map(Number);
-  return dateToUtcMs(dateOf(timestamp)) + (hours * 60 + minutes) * 60 * 1000;
+  return dateToUtcMs(dateOf(timestamp)) / 60000 + hours * 60 + minutes;
+}
+
+/** The inverse of `wallClockMinutes`: `"YYYY-MM-DDTHH:MM:00"`. */
+export function timestampFromWallClockMinutes(minutes: number): string {
+  const day = Math.floor(minutes / DAY_MINUTES);
+  const minuteOfDay = minutes - day * DAY_MINUTES;
+  return `${toDateString(day * DAY_MS)}T${pad(Math.floor(minuteOfDay / 60))}:${pad(minuteOfDay % 60)}:00`;
 }
 
 /** Wall-clock length of a window in minutes, with no DST correction (00:00–00:00 is always 24h). */
 export function windowMinutes(row: WindowTimes): number {
-  return (timestampToUtcMs(row.ends_at) - timestampToUtcMs(row.starts_at)) / 60000;
+  return wallClockMinutes(row.ends_at) - wallClockMinutes(row.starts_at);
 }
 
 /** `"0h"`, `"8h"`, `"37h 20m"` style text for a number of minutes. */

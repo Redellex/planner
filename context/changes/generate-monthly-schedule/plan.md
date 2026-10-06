@@ -632,29 +632,29 @@ The header comment is updated. If a run dies between generate and unlock, recove
 
 #### Automated
 
-- [x] 1.1 Migration applies on a clean stack
-- [x] 1.2 Types regenerated and include schedules, schedule_shifts and replace_schedule_draft
-- [x] 1.3 Database rules tests pass, including the new file
-- [x] 1.4 Station time zone guard still passes
-- [x] 1.5 Lint, type-check and unit tests pass
+- [x] 1.1 Migration applies on a clean stack — 3f75a6e
+- [x] 1.2 Types regenerated and include schedules, schedule_shifts and replace_schedule_draft — 3f75a6e
+- [x] 1.3 Database rules tests pass, including the new file — 3f75a6e
+- [x] 1.4 Station time zone guard still passes — 3f75a6e
+- [x] 1.5 Lint, type-check and unit tests pass — 3f75a6e
 
 #### Manual
 
-- [x] 1.6 Unlock of a month with a draft is refused with the discard-first message
+- [x] 1.6 Unlock of a month with a draft is refused with the discard-first message — 3f75a6e
 
 ### Phase 2: Generator core (pure, property-tested)
 
 #### Automated
 
-- [ ] 2.1 fast-check installed as a devDependency
-- [ ] 2.2 Generator, summary and helper unit tests pass
-- [ ] 2.3 Property suite passes
-- [ ] 2.4 Full unit suite, lint and type-check pass
+- [x] 2.1 fast-check installed as a devDependency
+- [x] 2.2 Generator, summary and helper unit tests pass
+- [x] 2.3 Property suite passes
+- [x] 2.4 Full unit suite, lint and type-check pass
 
 #### Manual
 
-- [ ] 2.5 Deliberately broken generator fails the property suite with a printed seed
-- [ ] 2.6 Median generateSchedule time on the 40-person fixture is below 5 ms and recorded
+- [x] 2.5 Deliberately broken generator fails the property suite with a printed seed
+- [x] 2.6 Median generateSchedule time on the 40-person fixture is below 5 ms and recorded
 
 ### Phase 3: Manager flow (endpoints + /manager/schedule)
 
