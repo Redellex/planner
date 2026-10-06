@@ -5,7 +5,7 @@
 -- draft exists), PRD FR-003. Refused writes are checked as postgres afterwards: as the denied actor, RLS would hide
 -- the rows anyway.
 begin;
-select plan(42);
+select plan(50);
 
 -- Station months, derived once; now() is fixed for the transaction.
 select
@@ -317,6 +317,31 @@ select isnt_empty(
   format($$ delete from public.availability_locks where month = %L returning month $$, :'m1'),
   'Mg can unlock M+1 once its draft is discarded'
 );
+reset role;
+
+-- Privileges: no table-level UPDATE (S-04 must grant update columns explicitly), no anon RPC.
+select is(has_table_privilege('authenticated', 'public.schedules', 'UPDATE'), false,
+  'authenticated has no table-level UPDATE on schedules');
+select is(has_table_privilege('authenticated', 'public.schedule_shifts', 'UPDATE'), false,
+  'authenticated has no table-level UPDATE on schedule_shifts');
+select is(has_table_privilege('anon', 'public.schedules', 'UPDATE'), false,
+  'anon has no table-level UPDATE on schedules');
+select is(has_table_privilege('anon', 'public.schedule_shifts', 'UPDATE'), false,
+  'anon has no table-level UPDATE on schedule_shifts');
+select is(has_function_privilege('anon', 'public.replace_schedule_draft(date, jsonb)', 'execute'), false,
+  'anon cannot execute replace_schedule_draft');
+
+-- anon gets nothing: a draft for M+1 exists again (written as the owner).
+insert into public.availability_locks (month) values (:'m1') on conflict do nothing;
+insert into public.schedules (month) values (:'m1');
+insert into public.schedule_shifts (month, starts_at, ends_at) values
+  (:'m1', :'m1'::date + interval '06:00', :'m1'::date + interval '18:00');
+select is((select count(*) from public.schedule_shifts where month = :'m1'), 1::bigint,
+  'control: the M+1 draft has a shift');
+set local role anon;
+set local request.jwt.claims = '{"role":"anon"}';
+select is_empty($$ select month from public.schedules $$, 'anon cannot read drafts');
+select is_empty($$ select id from public.schedule_shifts $$, 'anon cannot read draft shifts');
 reset role;
 
 select * from finish();

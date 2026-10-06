@@ -55,7 +55,12 @@ export const POST: APIRoute = async (context) => {
     return context.redirect(managerScheduleUrl({ month, error: GENERATE_LOAD_ERROR }));
   }
 
-  const { shifts } = generateSchedule({ month, windows: inputs.windows });
+  // The previous month's last night ends at 06:00 on day 1, so its assignee cannot start then.
+  const { shifts } = generateSchedule({
+    month,
+    windows: inputs.windows,
+    previousNight: inputs.previousNight?.employee_id ?? null,
+  });
 
   // The only write: deletes the old draft (its shifts cascade) and inserts the new one in one transaction. If the
   // month was unlocked since the lock above, the schedules.month foreign key refuses it (23503).

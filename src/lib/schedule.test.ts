@@ -14,6 +14,7 @@ import {
   shiftsByStationDay,
   stationDayOf,
   type ScheduleMember,
+  type ScheduleShiftRow,
   type ScheduleWindowRow,
 } from "./schedule";
 import { summarizeSchedule } from "./schedule-summary";
@@ -43,6 +44,7 @@ describe("database errors map to allow-listed messages", () => {
   it.each([
     ["42501", NOT_PERMITTED_ERROR],
     ["23503", MONTH_UNLOCKED_ERROR],
+    ["23505", CONFIRM_REPLACE_ERROR],
     ["23P01", GENERIC_SCHEDULE_WRITE_ERROR],
   ])("maps %s to %s", (code, message) => {
     expect(describeScheduleWriteError({ code, message: "raw database text" })).toBe(message);
@@ -117,29 +119,71 @@ const CARRY_OVER: ScheduleWindowRow = {
   ends_at: "2026-11-01T18:00:00",
 };
 
+const LAST_NIGHT_WINDOW: ScheduleWindowRow = {
+  id: "w9",
+  employee_id: "a",
+  starts_at: "2026-12-01T00:00:00",
+  ends_at: "2026-12-01T08:00:00",
+};
+const PREVIOUS_NIGHT: ScheduleShiftRow = {
+  id: "s0",
+  starts_at: "2026-10-31T18:00:00",
+  ends_at: "2026-11-01T06:00:00",
+  employee_id: "b",
+};
+
 function ok<T>(data: T[]): PagedResult<T> {
   return { data, error: null };
 }
 const FAILED: PagedResult<never> = { data: null, error: { message: "boom" } };
 
+function results(overrides: Partial<Parameters<typeof buildScheduleInputs>[0]> = {}) {
+  return {
+    members: ok([ALICE, BOB]),
+    windows: ok([MONTH_WINDOW]),
+    carryOvers: ok<ScheduleWindowRow>([]),
+    lastNightWindows: ok<ScheduleWindowRow>([]),
+    previousNight: ok<ScheduleShiftRow>([]),
+    ...overrides,
+  };
+}
+
 describe("schedule inputs are ready only when every list was read in full", () => {
   it.each([
-    ["the members read failed", { members: FAILED, windows: ok([MONTH_WINDOW]), carryOvers: ok([]) }],
-    ["the windows read failed", { members: ok([ALICE, BOB]), windows: FAILED, carryOvers: ok([]) }],
-    ["the carry-over read failed", { members: ok([ALICE, BOB]), windows: ok([MONTH_WINDOW]), carryOvers: FAILED }],
-  ])("is unknown when %s", (_name, results) => {
-    expect(buildScheduleInputs(results)).toEqual({ status: "unknown" });
+    ["the members read failed", results({ members: FAILED })],
+    ["the windows read failed", results({ windows: FAILED })],
+    ["the carry-over read failed", results({ carryOvers: FAILED })],
+    ["the next month's day-1 night read failed", results({ lastNightWindows: FAILED })],
+    ["the previous month's last night read failed", results({ previousNight: FAILED })],
+  ])("is unknown when %s", (_name, input) => {
+    expect(buildScheduleInputs(input)).toEqual({ status: "unknown" });
   });
 
-  it("joins the carry-overs and the month's windows", () => {
+  it("joins the carry-overs, the month's windows and the next month's day-1 night windows", () => {
     expect(
-      buildScheduleInputs({ members: ok([ALICE, BOB]), windows: ok([MONTH_WINDOW]), carryOvers: ok([CARRY_OVER]) }),
-    ).toEqual({ status: "ready", members: [ALICE, BOB], windows: [CARRY_OVER, MONTH_WINDOW] });
+      buildScheduleInputs(
+        results({
+          carryOvers: ok([CARRY_OVER]),
+          lastNightWindows: ok([LAST_NIGHT_WINDOW]),
+          previousNight: ok([PREVIOUS_NIGHT]),
+        }),
+      ),
+    ).toEqual({
+      status: "ready",
+      members: [ALICE, BOB],
+      windows: [CARRY_OVER, MONTH_WINDOW, LAST_NIGHT_WINDOW],
+      previousNight: PREVIOUS_NIGHT,
+    });
+  });
+
+  it("has no previous night when the previous month has no draft (a legitimate none)", () => {
+    const inputs = buildScheduleInputs(results());
+    expect(inputs.status === "ready" && inputs.previousNight).toBeNull();
   });
 
   it("flags a member without availability only after a complete read", () => {
     // The legitimate "none": Bob has no window at all, and every list was read in full.
-    const inputs = buildScheduleInputs({ members: ok([ALICE, BOB]), windows: ok([MONTH_WINDOW]), carryOvers: ok([]) });
+    const inputs = buildScheduleInputs(results());
     expect(inputs.status).toBe("ready");
     if (inputs.status !== "ready") return;
     const summary = summarizeSchedule({

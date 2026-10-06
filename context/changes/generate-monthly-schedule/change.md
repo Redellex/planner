@@ -1,7 +1,7 @@
 ---
 change_id: generate-monthly-schedule
 title: Generate monthly schedule
-status: implemented
+status: impl_reviewed
 created: 2026-10-06
 updated: 2026-10-06
 archived_at: null
@@ -41,3 +41,19 @@ archived_at: null
   - the pattern score's "even hours" is the sum of squared hours, not the plan's "spread" (max − min), which ignores a gain while anyone else is still at 0;
   - in the most-constrained-first order, a tie fills the night first, so after a day off for everyone the night run goes to whoever has fewer nights.
 - Result on that case: part-timers 2/1/2 shifts, nights 19/9 (was 28/0). The full unit and property suites pass, and the CPU proxy is unchanged (median 1.5 ms fragmented, 3.5 ms dense).
+
+### Impl review F1 — the month's last station night (2026-10-06)
+
+- Reverses the plan's "Next-month windows" non-goal. Calendar-day availability (00:00–00:00) left every month's last night (M+1-01 00:00–06:00) uncovered.
+- New migration `20261006130000_lock_last_station_night_windows.sql`: every availability write policy also requires the month of `starts_at - 6h` to be editable. A window starting on day 1 before 06:00 therefore freezes with the previous month (pgTAP `availability_station_night.test.sql`). `/availability` shows such windows read-only on day 1, with a notice.
+- `loadScheduleInputs` also reads M+1 windows starting before 06:00 on day 1, and M−1's draft shift ending at `M-01 06:00` (`previousNight`).
+- `generateSchedule` blocks that assignee from 06:00 on day 1. `summarizeSchedule` reports `touchesPreviousNight` when M−1's draft changed later. `/manager/schedule` shows M−1's last night on day 1.
+- The property suite now draws day-1 night windows and an optional previous-night assignee. Disabling the block makes properties 3 and 5 fail with a seed.
+
+### Impl review F2/F3 (2026-10-06)
+
+- F2: a one-day lookahead (`nextMorningLoss`) keeps a night off the only person eligible for the next day's 06:00 start, both in the night's candidate order and as a pattern score right after uncovered minutes. It has a regression test.
+- F3, on 40 people × a 00:00–00:00 window every day (1,200 windows):
+  - Warm median: 3.7 → ~1.3 ms. Cold first call: 13–15 → ~9.5 ms. Summary cold: 5.5 → ~3.5 ms. All under Node, in the scratchpad.
+  - Changes: a fixed-position `wallClockMinutes` parse and an eligibility bitmap for the greedy candidate count.
+  - The rest of the cold cost is V8 warm-up. Check `cpuTime` with `wrangler tail` after deploy.

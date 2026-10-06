@@ -9,11 +9,16 @@ interface Props {
   shifts: SummaryShift[];
   /** Profile id -> profile, for the assignee labels. */
   members: Map<string, { id: string; email: string }>;
+  /**
+   * Day 1 only: the previous month's last night (it ends at 06:00 on this day), shown read-only before the shifts,
+   * with that month's label.
+   */
+  previousNight?: { shift: SummaryShift; monthLabel: string } | null;
   /** Prepended to every element id; set it when a page renders more than one of these (the kitchen sink). */
   idPrefix?: string;
 }
 
-const { selectedLabel, shifts, members, idPrefix = "" } = Astro.props;
+const { selectedLabel, shifts, members, previousNight = null, idPrefix = "" } = Astro.props;
 const headingId = `${idPrefix}schedule-selected-day-heading`;
 
 function assigneeLabel(employeeId: string) {
@@ -26,6 +31,14 @@ function assigneeLabel(employeeId: string) {
   <h2 id={headingId} class="mb-3 text-base font-semibold">
     {selectedLabel}
   </h2>
+
+  {previousNight && (
+    <p class="mb-2 text-sm text-muted-foreground">
+      {formatWindow(previousNight.shift)} ·{" "}
+      {previousNight.shift.employee_id ? assigneeLabel(previousNight.shift.employee_id).text : "Uncovered"} (from{" "}
+      {previousNight.monthLabel}'s draft)
+    </p>
+  )}
 
   {shifts.length === 0 ? (
     <p class="text-sm text-muted-foreground">No shifts on this day.</p>

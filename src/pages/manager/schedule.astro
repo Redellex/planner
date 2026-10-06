@@ -12,9 +12,11 @@ import { createClient } from "@/lib/supabase";
 import { loadAllPages } from "@/lib/team-availability";
 import { summarizeSchedule, type ScheduleSummary as DraftSummary } from "@/lib/schedule-summary";
 import {
+  addMonths,
   calendarWeeks,
   currentStationMonth,
   formatDay,
+  formatMonth,
   formatStationInstant,
   monthOfDate,
   monthStart,
@@ -65,6 +67,8 @@ let members: ScheduleMember[] = [];
 let summary: DraftSummary<ScheduleShiftRow> | null = null;
 let shifts: ScheduleShiftRow[] = [];
 let draft: { generatedAt: string } | null = null;
+// The previous month's draft shift ending at 06:00 on day 1, shown on day 1 and checked for back-to-back shifts.
+let previousNight: ScheduleShiftRow | null = null;
 // month (YYYY-MM) -> locked_at (timestamptz)
 const lockedAt = new Map<string, string>();
 let lockStateUnknown = false;
@@ -115,10 +119,11 @@ if (!supabase) {
     loadError = SCHEDULE_LOAD_ERROR;
   } else {
     members = inputs.members;
+    previousNight = inputs.previousNight;
     if (draftResult.data) {
       draft = { generatedAt: draftResult.data.generated_at };
       shifts = shiftsResult.data;
-      summary = summarizeSchedule({ month, members, windows: inputs.windows, shifts });
+      summary = summarizeSchedule({ month, members, windows: inputs.windows, shifts, previousNight });
     }
   }
 }
@@ -196,7 +201,16 @@ const monthHref = (option: string): string => managerScheduleUrl({ month: option
                 daysWithNoOne={summary.daysWithNoOne}
               />
 
-              <ScheduleDayPanel selectedLabel={formatDay(selectedDay)} shifts={selectedShifts} members={membersById} />
+              <ScheduleDayPanel
+                selectedLabel={formatDay(selectedDay)}
+                shifts={selectedShifts}
+                members={membersById}
+                previousNight={
+                  previousNight && selectedDay === monthStart(month)
+                    ? { shift: previousNight, monthLabel: formatMonth(addMonths(month, -1)) }
+                    : null
+                }
+              />
 
               <ScheduleSummary month={month} summary={summary} members={membersById} />
             </>

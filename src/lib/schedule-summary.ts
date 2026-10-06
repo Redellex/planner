@@ -51,6 +51,11 @@ export interface ScheduleSummary<S extends SummaryShift = SummaryShift> {
   ruleBreaks: RuleBreak<S>[];
   /** Assigned shifts that are not inside the assignee's merged availability. */
   outsideAvailability: S[];
+  /**
+   * Shifts starting when the previous month's last night ends (06:00 on day 1), held by that night's assignee:
+   * back-to-back across months. Empty for a draft generated after the previous month's draft.
+   */
+  touchesPreviousNight: S[];
 }
 
 interface Counts {
@@ -74,6 +79,8 @@ export function summarizeSchedule<S extends SummaryShift>(input: {
   members: readonly { id: string }[];
   windows: readonly ScheduleWindow[];
   shifts: readonly S[];
+  /** The previous month's draft shift ending at 06:00 on day 1, if that month has a draft. */
+  previousNight?: SummaryShift | null;
 }): ScheduleSummary<S> {
   const days = stationDays(input.month);
   const monthStart = days[0].start;
@@ -147,11 +154,23 @@ export function summarizeSchedule<S extends SummaryShift>(input: {
     return { id, ...memberCounts, hasAvailability, zeroShifts: hasAvailability && memberCounts.shifts === 0 };
   });
 
+  const previousNight = input.previousNight;
+  const touchesPreviousNight =
+    previousNight?.employee_id != null
+      ? timed
+          .filter(
+            ({ shift, start }) =>
+              shift.employee_id === previousNight.employee_id && start === wallClockMinutes(previousNight.ends_at),
+          )
+          .map(({ shift }) => shift)
+      : [];
+
   return {
     perMember,
     uncovered,
     daysWithNoOne: days.filter((_, index) => !coveredDays.has(index)).map((day) => day.date),
     ruleBreaks,
     outsideAvailability,
+    touchesPreviousNight,
   };
 }

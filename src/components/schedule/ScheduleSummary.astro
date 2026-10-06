@@ -132,4 +132,21 @@ const countsById = new Map(summary.perMember.map((member) => [member.id, member]
       </AlertDescription>
     </Alert>
   )}
+
+  {summary.touchesPreviousNight.length > 0 && (
+    <Alert variant="destructive" className="mt-4">
+      <CircleAlert />
+      <AlertTitle>Back to back with the previous month's last night</AlertTitle>
+      <AlertDescription>
+        <p>The previous month's draft changed after this one was generated. Regenerate this month to fix it.</p>
+        <ul class="flex flex-col gap-1">
+          {summary.touchesPreviousNight.map((shift) => (
+            <li>
+              {shiftLabel(shift)} · {shift.employee_id ? labelOf(shift.employee_id).text : "Uncovered"}
+            </li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  )}
 </section>

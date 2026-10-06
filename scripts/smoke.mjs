@@ -291,14 +291,22 @@ const steps = [
       check: (actual) =>
         showsNoScheduleDraft(actual) && pageText(actual.body).includes("Open — employees can still edit"),
     },
+    // The steps below generate, discard and unlock this month: never against a draft or lock the smoke did not make.
+    { gate: "scheduleMonthClean" },
   ],
   [
     "manager generates a draft schedule",
     () => request("/api/manager/schedule/generate", { method: "POST", form: { month: crudMonth } }),
     // The status param comes first: /manager/schedule?generated=1&month=YYYY-MM.
     { status: 302, location: `/manager/schedule?generated=1&month=${crudMonth}` },
+    { needs: "scheduleMonthClean" },
   ],
-  ["schedule page shows the draft", () => request(schedulePage), { status: 200, check: hasScheduleDraft }],
+  [
+    "schedule page shows the draft",
+    () => request(schedulePage),
+    { status: 200, check: hasScheduleDraft },
+    { needs: "scheduleMonthClean" },
+  ],
   [
     "unlock is refused while the month has a draft",
     () => request("/api/manager/months/lock", { method: "POST", form: { month: crudMonth, action: "unlock" } }),
@@ -307,16 +315,19 @@ const steps = [
       location: "/manager/months?error=",
       check: (actual) => new URL(actual.location, BASE_URL).searchParams.get("error") === unlockWithDraftError,
     },
+    { needs: "scheduleMonthClean" },
   ],
   [
     "manager discards the draft",
     () => request("/api/manager/schedule/discard", { method: "POST", form: { month: crudMonth } }),
     { status: 302, location: `/manager/schedule?discarded=1&month=${crudMonth}` },
+    { needs: "scheduleMonthClean" },
   ],
   [
     "manager unlocks the schedule month",
     () => request("/api/manager/months/lock", { method: "POST", form: { month: crudMonth, action: "unlock" } }),
     { status: 302, location: "/manager/months?updated=1" },
+    { needs: "scheduleMonthClean" },
   ],
   [
     "manager signout clears session",
@@ -326,7 +337,14 @@ const steps = [
 ];
 
 let failed = 0;
-for (const [name, run, expected] of steps) {
+// A failed gate step skips every later step that needs it (each skip counts as a failure).
+const failedGates = new Set();
+for (const [name, run, expected, { gate, needs } = {}] of steps) {
+  if (needs && failedGates.has(needs)) {
+    console.log(`SKIP  ${name}  -> precondition "${needs}" failed`);
+    failed++;
+    continue;
+  }
   // A step that throws (e.g. an unreadable session cookie) fails on its own instead of aborting the run.
   const actual = await Promise.resolve()
     .then(run)
@@ -338,6 +356,7 @@ for (const [name, run, expected] of steps) {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}  -> ${actual.status} ${actual.location}`);
   if (!ok) {
     failed++;
+    if (gate) failedGates.add(gate);
     console.log(`      expected ${expected.status} ${expected.location ?? ""}`);
   }
 }

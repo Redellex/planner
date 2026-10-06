@@ -84,14 +84,15 @@ function allMonth(employee_id: string, skip: (date: string) => "skip" | "no-nigh
 // Fully covered: the full team is available all month; Carol has one 2h window (too short for any shift).
 const carolWindow: ScheduleWindow = { employee_id: CAROL.id, ...buildWindow("2026-04-05", "10:00", "12:00") };
 const coveredWindows = [...fullTeam.flatMap((member) => allMonth(member.id, () => null)), carolWindow];
-const covered = generateSchedule({ month, windows: coveredWindows }).shifts;
+// Generated in dev only: outside dev the page is an empty 404 and must not spend Worker CPU on fixtures.
+const covered = isDev ? generateSchedule({ month, windows: coveredWindows }).shifts : [];
 
 // Gaps: nobody is available 00:00–06:00 after station day 3, and nobody at all on station day 10.
 const NIGHT_GAP_DAY = "2026-04-03";
 const EMPTY_DAY = "2026-04-10";
 const gapRule = (date: string) => (date === EMPTY_DAY ? "skip" : date === NIGHT_GAP_DAY ? "no-night" : null);
 const gapWindows = [...fullTeam.flatMap((member) => allMonth(member.id, gapRule)), carolWindow];
-const gaps = generateSchedule({ month, windows: gapWindows }).shifts;
+const gaps = isDev ? generateSchedule({ month, windows: gapWindows }).shifts : [];
 
 function view(shifts: GeneratedShift[], windows: ScheduleWindow[]) {
   const byDay = shiftsByStationDay(shifts);
@@ -103,11 +104,12 @@ function view(shifts: GeneratedShift[], windows: ScheduleWindow[]) {
   );
   return { byDay, coverage, summary: summarizeSchedule({ month, members, windows, shifts }) };
 }
-const coveredView = view(covered, coveredWindows);
-const gapsView = view(gaps, gapWindows);
+const coveredView = view(covered, isDev ? coveredWindows : []);
+const gapsView = view(gaps, isDev ? gapWindows : []);
 
-// Rule breaks and an assignment outside availability cannot come from the generator, so this summary is written by
-// hand (S-04 overrides will produce them).
+// An assignment outside availability never comes from the generator, and the rule breaks it reports depend on the
+// team (e.g. two people covering every night), so this summary is written by hand to show every warning at once
+// (S-04 overrides will produce them too).
 const lateNight: GeneratedShift = {
   starts_at: "2026-04-12T18:00:00",
   ends_at: "2026-04-13T06:00:00",
@@ -121,6 +123,18 @@ const longDay: GeneratedShift = {
 const outside: GeneratedShift = {
   starts_at: "2026-04-20T14:00:00",
   ends_at: "2026-04-20T22:00:00",
+  employee_id: BOB.id,
+};
+// A 1 Apr 06:00 start for the person who worked the 31 Mar night: only a later change to March's draft causes it.
+const firstMorning: GeneratedShift = {
+  starts_at: "2026-04-01T06:00:00",
+  ends_at: "2026-04-01T18:00:00",
+  employee_id: ALICE.id,
+};
+// March's last night as /manager/schedule shows it on 1 April.
+const marchLastNight: GeneratedShift = {
+  starts_at: "2026-03-31T18:00:00",
+  ends_at: "2026-04-01T06:00:00",
   employee_id: BOB.id,
 };
 const ruleBreakSummary: DraftSummary = {
@@ -146,6 +160,7 @@ const ruleBreakSummary: DraftSummary = {
   ],
   uncovered: [],
   daysWithNoOne: [],
+  touchesPreviousNight: [firstMorning],
   ruleBreaks: [
     { kind: "night", shift: lateNight, assignee: ALICE.id, eligibleMin: 9 },
     { kind: "long", shift: lateNight, assignee: ALICE.id, eligibleMin: 13 },
@@ -308,6 +323,15 @@ const errorStates = [
               members={membersById}
               idPrefix="covered-"
             />
+            <div class="mt-6">
+              <ScheduleDayPanel
+                selectedLabel={formatDay("2026-04-01")}
+                shifts={coveredView.byDay.get("2026-04-01") ?? []}
+                members={membersById}
+                previousNight={{ shift: marchLastNight, monthLabel: "March 2026" }}
+                idPrefix="covered-day1-"
+              />
+            </div>
             <ScheduleSummary month={month} summary={coveredView.summary} members={membersById} idPrefix="covered-" />
           </div>
         </section>
@@ -346,7 +370,8 @@ const errorStates = [
 
         <section aria-labelledby="states-rule-breaks" class="flex flex-col gap-3">
           <h2 id="states-rule-breaks" class="text-sm font-medium text-muted-foreground">
-            Rule breaks and an assignment outside availability (hand-written summary)
+            Rule breaks, an assignment outside availability and a shift back to back with the previous month
+            (hand-written summary)
           </h2>
           <div class="mx-auto w-full max-w-2xl">
             <ScheduleSummary month={month} summary={ruleBreakSummary} members={membersById} idPrefix="breaks-" />

@@ -128,3 +128,28 @@ describe("counts, uncovered shifts and days with no one come from the draft itse
     expect(summary.perMember.at(0)).toMatchObject({ hasAvailability: false, zeroShifts: false });
   });
 });
+
+describe("a shift back to back with the previous month's last night is reported", () => {
+  const windows = [window(A, "2026-11-01T06:00:00", "2026-11-01T18:00:00")];
+  const draft = [shift("2026-11-01T06:00:00", "2026-11-01T18:00:00", A)];
+
+  function withPreviousNight(employee_id: string | null) {
+    return summarizeSchedule({
+      month: MONTH,
+      members: [{ id: A }, { id: B }],
+      windows,
+      shifts: draft,
+      previousNight: shift("2026-10-31T18:00:00", "2026-11-01T06:00:00", employee_id),
+    });
+  }
+
+  it("lists A's 1 Nov 06:00 start after A's 31 Oct night", () => {
+    expect(withPreviousNight(A).touchesPreviousNight).toEqual(draft);
+  });
+
+  it("lists nothing after B's or an uncovered 31 Oct night, or without a previous draft", () => {
+    expect(withPreviousNight(B).touchesPreviousNight).toEqual([]);
+    expect(withPreviousNight(null).touchesPreviousNight).toEqual([]);
+    expect(summarize(windows, draft).touchesPreviousNight).toEqual([]);
+  });
+});

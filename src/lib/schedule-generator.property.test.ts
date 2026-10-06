@@ -35,6 +35,8 @@ interface Fixture {
   /** Minutes of M-01 06:00 and of M+1-01 06:00. */
   stationStart: number;
   stationEnd: number;
+  /** The assignee of the previous month's last night (it ends at M-01 06:00), or null without a previous draft. */
+  previousNight: string | null;
 }
 
 function pad(value: number): string {
@@ -69,7 +71,7 @@ function memberId(index: number): string {
 }
 
 /** Builds the fixture from per-member windows given as [startSlot, endSlot) relative to M-01 00:00. */
-function buildFixture(month: string, slotWindows: [number, number][][]): Fixture {
+function buildFixture(month: string, slotWindows: [number, number][][], previousNight: number | null = null): Fixture {
   const midnight = monthMidnight(month);
   const members = slotWindows.map((_, index) => memberId(index));
   const windows: ScheduleWindow[] = [];
@@ -93,11 +95,13 @@ function buildFixture(month: string, slotWindows: [number, number][][]): Fixture
     slots,
     stationStart: midnight + 6 * 60,
     stationEnd: midnight + daysIn(month) * DAY + 6 * 60,
+    previousNight: previousNight === null ? null : members[previousNight % members.length],
   };
 }
 
 // Per member: an optional carry-over starting on M−1's last day, then non-overlapping windows of 30 min–24h that
-// start in M, separated by gaps from 0 (touching) to 5 days.
+// start in M or on M+1-01 before 06:00 (the month's last station night), separated by gaps from 0 (touching) to 5
+// days. Optionally one member worked the previous month's last night.
 const memberWindowsArb = fc.record({
   carryOver: fc.option(fc.record({ start: fc.integer({ min: 0, max: 47 }), length: fc.integer({ min: 1, max: 48 }) }), {
     nil: undefined,
@@ -112,8 +116,12 @@ const memberWindowsArb = fc.record({
 });
 
 const fixtureArb = fc
-  .tuple(fc.constantFrom(...MONTHS), fc.array(memberWindowsArb, { minLength: 1, maxLength: 10 }))
-  .map(([month, members]) => {
+  .tuple(
+    fc.constantFrom(...MONTHS),
+    fc.array(memberWindowsArb, { minLength: 1, maxLength: 10 }),
+    fc.option(fc.nat(), { nil: null }),
+  )
+  .map(([month, members, previousNight]) => {
     const monthSlots = daysIn(month) * SLOTS_PER_DAY;
     const slotWindows = members.map(({ carryOver, steps }) => {
       const result: [number, number][] = [];
@@ -125,13 +133,13 @@ const fixtureArb = fc
       }
       for (const { gap, length } of steps) {
         const from = cursor + gap;
-        if (from >= monthSlots) break; // every window starts in M
+        if (from >= monthSlots + 12) break; // every window starts before M+1-01 06:00
         result.push([from, from + length]);
         cursor = from + length;
       }
       return result;
     });
-    return buildFixture(month, slotWindows);
+    return buildFixture(month, slotWindows, previousNight);
   });
 
 // 4–10 members, each covering every station day of the month with touching windows of random lengths; the first
@@ -160,9 +168,8 @@ const fullyAvailableArb = fc
       let step = 0;
       while (cursor < stationEnd) {
         const remaining = stationEnd - cursor;
-        let length = remaining <= SLOTS_PER_DAY ? remaining : (lengths[step] ?? SLOTS_PER_DAY);
-        // Never leave a remainder that would have to start in M+1 (after M+1-01 00:00).
-        if (remaining > SLOTS_PER_DAY && remaining - length <= 12) length = remaining - 13;
+        // A last window may start on M+1-01 before 06:00: it is read as the month's last station night.
+        const length = remaining <= SLOTS_PER_DAY ? remaining : (lengths[step] ?? SLOTS_PER_DAY);
         result.push([cursor, cursor + length]);
         cursor += length;
         step++;
@@ -234,7 +241,10 @@ function expectedRuleBreaks(fixture: Fixture, shifts: TimedShift[]): string[] {
 }
 
 function generate(fixture: Fixture): TimedShift[] {
-  return timed(fixture, generateSchedule({ month: fixture.month, windows: fixture.windows }).shifts);
+  return timed(
+    fixture,
+    generateSchedule({ month: fixture.month, windows: fixture.windows, previousNight: fixture.previousNight }).shifts,
+  );
 }
 
 describe("generated schedules keep the hard rules for any availability", () => {
@@ -274,7 +284,7 @@ describe("generated schedules keep the hard rules for any availability", () => {
     );
   });
 
-  it("3. no person has two shifts on one station day or two touching shifts", () => {
+  it("3. no person has two shifts on one station day or two touching shifts, the previous month's night included", () => {
     fc.assert(
       fc.property(fixtureArb, (fixture) => {
         const byMember = new Map<string, TimedShift[]>();
@@ -286,6 +296,12 @@ describe("generated schedules keep the hard rules for any availability", () => {
           expect(new Set(own.map((shift) => shift.day)).size).toBe(own.length);
           const starts = new Set(own.map((shift) => shift.start));
           for (const shift of own) expect(starts.has(shift.end), shift.shift.ends_at).toBe(false);
+        }
+        if (fixture.previousNight !== null) {
+          const touching = (byMember.get(fixture.previousNight) ?? []).filter(
+            (shift) => shift.start === fixture.stationStart,
+          );
+          expect(touching).toEqual([]);
         }
       }),
     );
@@ -303,6 +319,8 @@ describe("generated schedules keep the hard rules for any availability", () => {
                 shift.shift.employee_id === member &&
                 (shift.day === uncovered.day || shift.end === uncovered.start || shift.start === uncovered.end),
             );
+            const afterPreviousNight = member === fixture.previousNight && uncovered.start === fixture.stationStart;
+            if (afterPreviousNight) continue;
             expect(blocked, `${member} could take ${uncovered.shift.starts_at}`).toBe(true);
           }
         }
@@ -310,7 +328,7 @@ describe("generated schedules keep the hard rules for any availability", () => {
     );
   });
 
-  it("5. every 12h or night rule break is reported by summarizeSchedule", () => {
+  it("5. every 12h or night rule break is reported by summarizeSchedule, and nothing touches the previous night", () => {
     fc.assert(
       fc.property(fixtureArb, (fixture) => {
         const shifts = generate(fixture);
@@ -319,7 +337,16 @@ describe("generated schedules keep the hard rules for any availability", () => {
           members: fixture.members.map((id) => ({ id })),
           windows: fixture.windows,
           shifts: shifts.map((shift) => shift.shift),
+          previousNight:
+            fixture.previousNight === null
+              ? null
+              : {
+                  starts_at: toTimestamp(fixture.stationStart - 12 * 60),
+                  ends_at: toTimestamp(fixture.stationStart),
+                  employee_id: fixture.previousNight,
+                },
         });
+        expect(summary.touchesPreviousNight).toEqual([]);
         const reported = summary.ruleBreaks
           .map((entry) => `${entry.kind} ${entry.shift.starts_at} ${entry.assignee} ${entry.eligibleMin}`)
           .sort();
@@ -347,9 +374,10 @@ describe("generated schedules keep the hard rules for any availability", () => {
   it("7. the output is deterministic and does not depend on the order of the windows", () => {
     fc.assert(
       fc.property(fixtureArb, (fixture) => {
-        const first = generateSchedule({ month: fixture.month, windows: fixture.windows });
-        expect(generateSchedule({ month: fixture.month, windows: fixture.windows })).toEqual(first);
-        expect(generateSchedule({ month: fixture.month, windows: [...fixture.windows].reverse() })).toEqual(first);
+        const input = { month: fixture.month, windows: fixture.windows, previousNight: fixture.previousNight };
+        const first = generateSchedule(input);
+        expect(generateSchedule(input)).toEqual(first);
+        expect(generateSchedule({ ...input, windows: [...fixture.windows].reverse() })).toEqual(first);
       }),
     );
   });

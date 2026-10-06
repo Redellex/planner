@@ -18,6 +18,7 @@ import {
   parseMonth,
   parseTime,
   sameWeekdayDatesInMonth,
+  startsInPreviousStationNight,
   teamAvailabilityMonths,
   timestampFromWallClockMinutes,
   upcomingMonths,
@@ -343,6 +344,22 @@ describe("same-day windows carry no next-day marker and keep their minutes", () 
 
   it("compact text has no +1 and keeps the half hour", () => {
     expect(formatWindowCompact(SAME_DAY_OCT_31)).toBe("08:30–16");
+  });
+});
+
+describe("a window starting on day 1 before 06:00 belongs to the previous month's last station night", () => {
+  it("00:00 and 05:59 on the 1st are in the previous month's last night", () => {
+    expect(startsInPreviousStationNight("2026-12-01T00:00:00")).toBe(true);
+    expect(startsInPreviousStationNight("2026-12-01T05:59:00")).toBe(true);
+  });
+
+  it("06:00 on the 1st starts the month's own first station day", () => {
+    expect(startsInPreviousStationNight("2026-12-01T06:00:00")).toBe(false);
+  });
+
+  it("before 06:00 on any other day stays in the month", () => {
+    expect(startsInPreviousStationNight("2026-12-02T02:00:00")).toBe(false);
+    expect(startsInPreviousStationNight("2026-12-10T01:00:00")).toBe(false);
   });
 });
 

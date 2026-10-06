@@ -314,6 +314,63 @@ describe("availability outside the month's station days is ignored, a carry-over
   });
 });
 
+describe("the month's last night reaches 06:00 on day 1 of the next month", () => {
+  it("covers 30 Nov 18:00 – 1 Dec 06:00 from calendar-day windows that include 1 Dec 00:00", () => {
+    // As /availability stores whole days: 30 Nov 00:00 → 1 Dec 00:00, then 1 Dec 00:00 → 2 Dec 00:00 (the part
+    // before 06:00 is read for November).
+    const windows = [
+      window(A, "2026-11-30T00:00:00", "2026-12-01T00:00:00"),
+      window(A, "2026-12-01T00:00:00", "2026-12-02T00:00:00"),
+    ];
+    const { shifts } = generateSchedule({ month: "2026-11", windows });
+    expect(shifts.at(-1)?.ends_at).toBe("2026-12-01T06:00:00");
+    expect(shifts.at(-1)?.employee_id).toBe(A);
+  });
+});
+
+describe("the previous month's last night blocks its assignee from 06:00 on day 1", () => {
+  const windows = [...allNovember(A), ...allNovember(B)];
+
+  it.each([
+    [A, B],
+    [B, A],
+  ])("after %s's 31 Oct night, the 1 Nov 06:00 start goes to %s", (previousNight, expected) => {
+    const { shifts } = generateSchedule({ month: "2026-11", windows, previousNight });
+    expect(shiftAt(shifts, "2026-11-01T06:00:00")?.employee_id).toBe(expected);
+  });
+
+  it("leaves the 1 Nov 06:00 start uncovered when its only candidate worked the 31 Oct night", () => {
+    const { shifts } = generateSchedule({ month: "2026-11", windows: allNovember(A), previousNight: A });
+    expect(shiftAt(shifts, "2026-11-01T06:00:00")?.employee_id).toBeNull();
+    expect(shiftsOf(shifts, A).some((shift) => shift.starts_at.startsWith("2026-11-01"))).toBe(true);
+  });
+
+  it("ignores a previous-night assignee with no availability this month", () => {
+    const withoutPrevious = generateSchedule({ month: "2026-11", windows });
+    const withStranger = generateSchedule({ month: "2026-11", windows, previousNight: C });
+    expect(withStranger).toEqual(withoutPrevious);
+  });
+});
+
+describe("a night is kept off the only person who can start the next day at 06:00", () => {
+  it("gives the 3 Nov night to B, so A can take 4 Nov from 06:00 and nothing coverable is left uncovered", () => {
+    // A: 3 Nov 18:00 → 4 Nov 18:00 (two touching windows); B: only the 3 Nov night. Splitting the night between them
+    // would block A, the only candidate for 4 Nov 06:00; covering it costs nothing on 3 Nov.
+    const windows = [
+      window(A, "2026-11-03T18:00:00", "2026-11-04T06:00:00"),
+      window(A, "2026-11-04T06:00:00", "2026-11-04T18:00:00"),
+      window(B, "2026-11-03T18:00:00", "2026-11-04T06:00:00"),
+    ];
+    const { shifts } = generateSchedule({ month: "2026-11", windows });
+    const coverable = shifts.filter(
+      (shift) => shift.starts_at >= "2026-11-03T18:00:00" && shift.ends_at <= "2026-11-04T18:00:00",
+    );
+    expect(coverable.every((shift) => shift.employee_id !== null)).toBe(true);
+    expect(shiftAt(shifts, "2026-11-04T06:00:00")?.employee_id).toBe(A);
+    expect(shifts.find((shift) => shift.ends_at === "2026-11-04T06:00:00")?.employee_id).toBe(B);
+  });
+});
+
 describe("12h shifts across a DST night are 12h of wall-clock time", () => {
   it.each([
     { month: "2026-10", night: "2026-10-24", next: "2026-10-25", after: "2026-10-26" }, // the fall-back night

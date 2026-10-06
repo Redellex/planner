@@ -27,7 +27,8 @@ export const INVALID_MONTH_ERROR = "Invalid month";
 export const SUPABASE_NOT_CONFIGURED_ERROR = "Supabase is not configured";
 export const CONFIRM_REPLACE_ERROR = "Confirm replacing the current draft";
 /** A team read for generation was not complete; the month stays locked and no draft is written. */
-export const GENERATE_LOAD_ERROR = "Could not read the team's availability. Nothing was generated.";
+export const GENERATE_LOAD_ERROR =
+  "Could not read the team's availability. Nothing was generated; the month stays locked.";
 export const NOT_PERMITTED_ERROR = "Not permitted";
 /** The month's lock disappeared before the draft was written (schedules.month FK, SQLSTATE 23503). */
 export const MONTH_UNLOCKED_ERROR = "The month was unlocked; generate again";
@@ -75,6 +76,10 @@ export function describeScheduleWriteError(error: { code: string; message: strin
       return NOT_PERMITTED_ERROR;
     case "23503":
       return MONTH_UNLOCKED_ERROR;
+    // A draft for the month appeared between the existing-draft check and the replace (double submit, or two
+    // managers at once): ask for the explicit replace instead of reporting a failure.
+    case "23505":
+      return CONFIRM_REPLACE_ERROR;
     default:
       logScheduleError("unmapped write error", { code: error.code, message: error.message });
       return GENERIC_SCHEDULE_WRITE_ERROR;
@@ -141,8 +146,16 @@ export type ScheduleInputs =
   | {
       status: "ready";
       members: ScheduleMember[];
-      /** The month's windows plus the previous month's windows that run past day 1 06:00 (carry-overs). */
+      /**
+       * The month's windows, the previous month's windows that run past day 1 06:00 (carry-overs) and the next
+       * month's windows starting on day 1 before 06:00 (the month's last station night).
+       */
       windows: ScheduleWindowRow[];
+      /**
+       * The previous month's draft shift that ends at 06:00 on day 1 (its last night), or null when that month has no
+       * draft. Its assignee must not start at 06:00 on day 1 (no back-to-back shifts across months).
+       */
+      previousNight: ScheduleShiftRow | null;
     };
 
 /**
@@ -154,12 +167,25 @@ export function buildScheduleInputs(results: {
   members: PagedResult<ScheduleMember>;
   windows: PagedResult<ScheduleWindowRow>;
   carryOvers: PagedResult<ScheduleWindowRow>;
+  lastNightWindows: PagedResult<ScheduleWindowRow>;
+  previousNight: PagedResult<ScheduleShiftRow>;
 }): ScheduleInputs {
-  const { members, windows, carryOvers } = results;
-  if (members.data === null || windows.data === null || carryOvers.data === null) {
+  const { members, windows, carryOvers, lastNightWindows, previousNight } = results;
+  if (
+    members.data === null ||
+    windows.data === null ||
+    carryOvers.data === null ||
+    lastNightWindows.data === null ||
+    previousNight.data === null
+  ) {
     return { status: "unknown" };
   }
-  return { status: "ready", members: members.data, windows: [...carryOvers.data, ...windows.data] };
+  return {
+    status: "ready",
+    members: members.data,
+    windows: [...carryOvers.data, ...windows.data, ...lastNightWindows.data],
+    previousNight: previousNight.data[0] ?? null,
+  };
 }
 
 type ScheduleClient = NonNullable<ReturnType<typeof createClient>>;
@@ -169,13 +195,15 @@ type ScheduleClient = NonNullable<ReturnType<typeof createClient>>;
 export const SCHEDULE_PAGE_SIZE = 1000;
 
 /**
- * Reads every profile, every window starting in `month` and every previous-month window that runs past day 1 06:00
- * (the first station day's start), each in full or not at all. Windows starting in the next month are never read:
- * that month is not locked, so they could still change.
+ * Reads every profile, every window starting in `month`, every previous-month window that runs past day 1 06:00 (the
+ * first station day's start) and every next-month window starting on day 1 before 06:00 (the month's last station
+ * night; RLS freezes those while `month` is locked), each in full or not at all, plus the previous month's last night
+ * shift. Later next-month windows are never read: that month is not locked, so they could still change.
  */
 export async function loadScheduleInputs(supabase: ScheduleClient, month: string): Promise<ScheduleInputs> {
   const firstDay = monthStart(month);
-  const [members, windows, carryOvers] = await Promise.all([
+  const nextFirstDay = monthStart(addMonths(month, 1));
+  const [members, windows, carryOvers, lastNightWindows, previousNight] = await Promise.all([
     loadAllPages(
       (from, to) =>
         supabase
@@ -210,6 +238,29 @@ export async function loadScheduleInputs(supabase: ScheduleClient, month: string
           .range(from, to),
       SCHEDULE_PAGE_SIZE,
     ),
+    loadAllPages(
+      (from, to) =>
+        supabase
+          .from("availability_windows")
+          .select("id, employee_id, starts_at, ends_at", { count: "exact" })
+          .gte("starts_at", nextFirstDay)
+          .lt("starts_at", `${nextFirstDay}T06:00:00`)
+          .order("id", { ascending: true })
+          .range(from, to),
+      SCHEDULE_PAGE_SIZE,
+    ),
+    // At most one row: shifts never overlap station-wide.
+    loadAllPages(
+      (from, to) =>
+        supabase
+          .from("schedule_shifts")
+          .select("id, starts_at, ends_at, employee_id", { count: "exact" })
+          .eq("month", monthStart(addMonths(month, -1)))
+          .eq("ends_at", `${firstDay}T06:00:00`)
+          .order("id", { ascending: true })
+          .range(from, to),
+      SCHEDULE_PAGE_SIZE,
+    ),
   ]);
 
   if (members.error) {
@@ -221,7 +272,13 @@ export async function loadScheduleInputs(supabase: ScheduleClient, month: string
   if (carryOvers.error) {
     logScheduleError("could not load team carry-over windows", carryOvers.error);
   }
-  return buildScheduleInputs({ members, windows, carryOvers });
+  if (lastNightWindows.error) {
+    logScheduleError("could not load the next month's day-1 night windows", lastNightWindows.error);
+  }
+  if (previousNight.error) {
+    logScheduleError("could not load the previous month's last night shift", previousNight.error);
+  }
+  return buildScheduleInputs({ members, windows, carryOvers, lastNightWindows, previousNight });
 }
 
 const STATION_DAY_START_MINUTES = 6 * 60;

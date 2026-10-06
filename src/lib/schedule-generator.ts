@@ -7,9 +7,10 @@ import { daysInMonth, timestampFromWallClockMinutes, wallClockMinutes } from "./
 //
 // Station day D = [D 06:00, D+1 06:00) for every calendar date D of the month. Hard rules: an assignment is inside the
 // assignee's merged availability, a person has at most one shift per station day, and never two shifts where one ends
-// exactly when the other starts. Priorities, in order: cover as many minutes as possible; the 12h rule and the night
+// exactly when the other starts (including the previous month's last night, passed in as `previousNight`). Priorities, in order: cover as many minutes as possible; the 12h rule and the night
 // rule (an assignee's count is at most the lowest count among the shift's eligible members + 1); even total hours;
-// fewer shifts. The work is bounded: a greedy pass over days × 5 patterns × at most 4 shifts × members, then a repair
+// fewer shifts. Coverage looks one day ahead: a night is kept off the only person who can start the next day at
+// 06:00. The work is bounded: a greedy pass over days × 5 patterns × at most 4 shifts × members, then a repair
 // pass capped at the number of shifts, then one fill pass.
 
 const DAY_MINUTES = 24 * 60;
@@ -52,6 +53,8 @@ export const STATION_DAY_PATTERNS: readonly (readonly ShiftShape[])[] = PATTERN_
 );
 
 const SHAPE_COUNT = SHIFT_SHAPES.length;
+/** The 06:00/6h shape: every pattern starts with a 06:00 shape, and any availability for one holds this one. */
+const MORNING_SHAPE = 5;
 const MAX_PATTERN_LENGTH = 4;
 
 /** A night shift covers 00:00–06:00, i.e. it ends at the station day's end. */
@@ -149,8 +152,16 @@ export interface GeneratedShift {
 export interface GenerateScheduleInput {
   /** `YYYY-MM`. */
   month: string;
-  /** The month's windows plus carry-overs from the previous month; parts outside the station days are ignored. */
+  /**
+   * The month's windows plus carry-overs from the previous month and next-month windows starting on day 1 before
+   * 06:00; parts outside the station days are ignored.
+   */
   windows: readonly ScheduleWindow[];
+  /**
+   * The assignee of the previous month's last night shift (it ends at 06:00 on day 1), if that month has a draft.
+   * They are blocked from the shifts starting at 06:00 on day 1, as if that night were part of this month.
+   */
+  previousNight?: string | null;
 }
 
 const UNASSIGNED = -1;
@@ -167,6 +178,8 @@ interface RepairMove {
 interface PatternResult {
   members: number[];
   uncoveredMinutes: number;
+  /** Minutes of the next station day's 06:00 start that this pattern's night assignee was the only one for. */
+  nextMorningLoss: number;
   breaks: number;
   /** Sum of squared hours over members with availability: lower is evener, and any move of hours from a busier to
    * a less busy member lowers it (max − min would miss a gain while someone else stays at 0). */
@@ -176,6 +189,7 @@ interface PatternResult {
 
 function betterPattern(a: PatternResult, b: PatternResult): boolean {
   if (a.uncoveredMinutes !== b.uncoveredMinutes) return a.uncoveredMinutes < b.uncoveredMinutes;
+  if (a.nextMorningLoss !== b.nextMorningLoss) return a.nextMorningLoss < b.nextMorningLoss;
   if (a.breaks !== b.breaks) return a.breaks < b.breaks;
   if (a.hoursSquared !== b.hoursSquared) return a.hoursSquared < b.hoursSquared;
   return a.shiftCount < b.shiftCount;
@@ -202,6 +216,8 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
 
   // eligible[day * SHAPE_COUNT + shape]: members whose merged availability contains that shift, ascending.
   const eligible: number[][] = Array.from({ length: dayCount * SHAPE_COUNT }, () => []);
+  // The same as a bitmap, for O(1) membership: eligibleMask[(day * SHAPE_COUNT + shape) * memberCount + member].
+  const eligibleMask = new Uint8Array(dayCount * SHAPE_COUNT * memberCount);
   const hasEligibleShift = new Uint8Array(memberCount);
   for (let member = 0; member < memberCount; member++) {
     for (const span of spansByMember[member]) {
@@ -213,6 +229,7 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
           const start = dayStart + SHIFT_SHAPES[shape].offset;
           if (span.start <= start && start + SHIFT_SHAPES[shape].minutes <= span.end) {
             eligible[day * SHAPE_COUNT + shape].push(member);
+            eligibleMask[(day * SHAPE_COUNT + shape) * memberCount + member] = 1;
             hasEligibleShift[member] = 1;
           }
         }
@@ -235,8 +252,14 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
 
   const shapeAt = (day: number, position: number): number => PATTERN_SHAPES[patternOf[day]][position];
   const nightPosition = (day: number): number => PATTERN_SHAPES[patternOf[day]].length - 1;
+  // The previous month's last night (station day -1) only blocks; it is never moved or counted.
+  const previousNightMember = input.previousNight ? ids.indexOf(input.previousNight) : UNASSIGNED;
   const nightMember = (day: number): number =>
-    day >= 0 && day < dayCount ? memberAt[day * MAX_PATTERN_LENGTH + nightPosition(day)] : UNASSIGNED;
+    day === -1
+      ? previousNightMember
+      : day >= 0 && day < dayCount
+        ? memberAt[day * MAX_PATTERN_LENGTH + nightPosition(day)]
+        : UNASSIGNED;
   const morningMember = (day: number): number =>
     day >= 0 && day < dayCount ? memberAt[day * MAX_PATTERN_LENGTH] : UNASSIGNED;
 
@@ -247,11 +270,30 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
     if (isNightShape(shiftShape)) nightCount[member] += sign;
   };
 
-  /** Lower is better: the agreed candidate key per shift kind; member index (id order) breaks ties. */
-  const candidateBefore = (a: number, b: number, shape: number): boolean => {
+  /**
+   * One-day lookahead for coverage: a night ends at the next station day's 06:00, so its assignee cannot take the
+   * next day's first shift. Availability holding 06–18 or 06–14 also holds 06–12, so the next day's 06:00 start is
+   * lost exactly when `member` is the only one eligible for its 06–12 shape.
+   */
+  const nextMorningLoss = (day: number, member: number): number => {
+    if (day + 1 >= dayCount) return 0;
+    const candidates = eligible[(day + 1) * SHAPE_COUNT + MORNING_SHAPE];
+    return candidates.length === 1 && candidates[0] === member ? SHIFT_SHAPES[MORNING_SHAPE].minutes : 0;
+  };
+
+  /**
+   * Lower is better: for a night shift, a candidate who does not cost the next day's 06:00 start first (coverage is
+   * priority 1); then the agreed key per shift kind; member index (id order) breaks ties.
+   */
+  const candidateBefore = (a: number, b: number, day: number, shape: number): boolean => {
     const shiftShape = SHIFT_SHAPES[shape];
     const long = isLongShape(shiftShape);
     const night = isNightShape(shiftShape);
+    if (night) {
+      const lossA = nextMorningLoss(day, a);
+      const lossB = nextMorningLoss(day, b);
+      if (lossA !== lossB) return lossA < lossB;
+    }
     if (long && longCount[a] !== longCount[b]) return longCount[a] < longCount[b];
     if (night && nightCount[a] !== nightCount[b]) return nightCount[a] < nightCount[b];
     if (minutes[a] !== minutes[b]) return minutes[a] < minutes[b];
@@ -293,9 +335,19 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
       let fewest = Infinity;
       for (let index = 0; index < shapes.length; index++) {
         if (done[index]) continue;
-        let candidates = 0;
-        for (const member of eligible[day * SHAPE_COUNT + shapes[index]]) {
-          if (!blocked(member, shapes[index])) candidates++;
+        // Eligible minus the blocked ones: at most 3 already chosen today, plus last night's assignee at 06:00.
+        const slot = day * SHAPE_COUNT + shapes[index];
+        let candidates = eligible[slot].length;
+        for (const member of chosen) {
+          if (eligibleMask[slot * memberCount + member] === 1) candidates--;
+        }
+        if (
+          SHIFT_SHAPES[shapes[index]].offset === 0 &&
+          previousNight !== UNASSIGNED &&
+          !chosen.includes(previousNight) &&
+          eligibleMask[slot * memberCount + previousNight] === 1
+        ) {
+          candidates--;
         }
         // On a tie the night shift (last position) goes first, so a rested team's night goes to the fewest nights.
         if (candidates < fewest || (candidates === fewest && index === shapes.length - 1)) {
@@ -307,7 +359,8 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
       const shape = shapes[position];
       let best = UNASSIGNED;
       for (const member of eligible[day * SHAPE_COUNT + shape]) {
-        if (!blocked(member, shape) && (best === UNASSIGNED || candidateBefore(member, best, shape))) best = member;
+        if (!blocked(member, shape) && (best === UNASSIGNED || candidateBefore(member, best, day, shape)))
+          best = member;
       }
       if (best !== UNASSIGNED) {
         assigned[position] = best;
@@ -318,6 +371,8 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
 
     let uncoveredMinutes = 0;
     let breaks = 0;
+    const nightAssignee = assigned[shapes.length - 1];
+    const lookaheadLoss = nightAssignee === UNASSIGNED ? 0 : nextMorningLoss(day, nightAssignee);
     for (let position = 0; position < shapes.length; position++) {
       const member = assigned[position];
       if (member === UNASSIGNED) {
@@ -337,6 +392,7 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
     return {
       members: assigned,
       uncoveredMinutes,
+      nextMorningLoss: lookaheadLoss,
       breaks,
       hoursSquared,
       shiftCount: shapes.length,
@@ -440,7 +496,10 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
           continue;
         }
         // A swap: `member` takes the shift `to` works that day.
-        if (!eligible[day * SHAPE_COUNT + toShape].includes(member) || !clearOfNeighbours(member, day, toShape))
+        if (
+          eligibleMask[(day * SHAPE_COUNT + toShape) * memberCount + member] !== 1 ||
+          !clearOfNeighbours(member, day, toShape)
+        )
           continue;
         consider(
           day,
@@ -462,8 +521,14 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
     return true;
   };
 
+  // tryMoveOff depends only on the schedule, which changes only when a move succeeds, so within one iteration a
+  // person whose move failed is not tried again for the same kind.
+  const failedLong = new Uint8Array(memberCount);
+  const failedNight = new Uint8Array(memberCount);
   for (let iteration = 0; iteration < repairCap; iteration++) {
     let moved = false;
+    failedLong.fill(0);
+    failedNight.fill(0);
     for (let day = 0; day < dayCount && !moved; day++) {
       const shapes = PATTERN_SHAPES[patternOf[day]];
       for (let position = 0; position < shapes.length && !moved; position++) {
@@ -472,11 +537,18 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
         const shape = shapes[position];
         const shiftShape = SHIFT_SHAPES[shape];
         const members = eligible[day * SHAPE_COUNT + shape];
-        if (isLongShape(shiftShape) && longCount[member] > minCount(longCount, members) + 1) {
+        if (!failedLong[member] && isLongShape(shiftShape) && longCount[member] > minCount(longCount, members) + 1) {
           moved = tryMoveOff(member, true);
+          if (!moved) failedLong[member] = 1;
         }
-        if (!moved && isNightShape(shiftShape) && nightCount[member] > minCount(nightCount, members) + 1) {
+        if (
+          !moved &&
+          !failedNight[member] &&
+          isNightShape(shiftShape) &&
+          nightCount[member] > minCount(nightCount, members) + 1
+        ) {
           moved = tryMoveOff(member, false);
+          if (!moved) failedNight[member] = 1;
         }
       }
     }
@@ -491,7 +563,8 @@ export function generateSchedule(input: GenerateScheduleInput): { shifts: Genera
       const shape = shapes[position];
       let best = UNASSIGNED;
       for (const member of eligible[day * SHAPE_COUNT + shape]) {
-        if (free(member, day, shape) && (best === UNASSIGNED || candidateBefore(member, best, shape))) best = member;
+        if (free(member, day, shape) && (best === UNASSIGNED || candidateBefore(member, best, day, shape)))
+          best = member;
       }
       if (best !== UNASSIGNED) assign(day, position, best);
     }
