@@ -12,6 +12,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "smoke": "node scripts/smoke.mjs",
+    "seed:demo": "node scripts/seed-demo-team.mjs",
     "check:ui": "node scripts/check-ui-literals.mjs",
     "test": "vitest run",
     "test:db": "supabase test db"

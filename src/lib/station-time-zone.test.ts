@@ -21,6 +21,11 @@ const sources = [
     pattern: /at time zone '([^']+)'/gi,
   },
   {
+    name: "local seed (at time zone '…')",
+    files: [path.join(repoRoot, "supabase/seed.sql")],
+    pattern: /at time zone '([^']+)'/gi,
+  },
+  {
     name: "database rules tests (at time zone '…')",
     files: readdirSync(dbTestsDir)
       .filter((file) => file.endsWith(".sql"))
@@ -28,8 +33,8 @@ const sources = [
     pattern: /at time zone '([^']+)'/gi,
   },
   {
-    name: 'smoke script (timeZone: "…")',
-    files: [path.join(repoRoot, "scripts/smoke.mjs")],
+    name: 'smoke and demo seed scripts (timeZone: "…")',
+    files: [path.join(repoRoot, "scripts/smoke.mjs"), path.join(repoRoot, "scripts/seed-demo-team.mjs")],
     pattern: /timeZone:\s*"([^"]+)"/g,
   },
 ];

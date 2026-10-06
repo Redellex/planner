@@ -234,6 +234,7 @@ describe("a 5-person team with 3 part-timers and 2 days nobody is available", ()
   // alternate between them. 06–12 | 12–18 | 18–06 with the day's part-timer covers the same 24h as 06–18 | 18–06 with
   // evener hours, but the 12h rule (ranked above even hours) limits how often the day person can give up a 12h day
   // while the other works 12h nights. So every part-timer works some days, not all of them.
+  // `npm run seed:demo` (scripts/seed-demo-team.mjs) writes the same team into a database for a manual Generate.
   const E = "00000000-0000-4000-8000-00000000000e";
   const M = "00000000-0000-4000-8000-000000000001";
   const emptyDays = new Set([10, 20]);
