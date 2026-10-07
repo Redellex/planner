@@ -48,6 +48,8 @@ describe("signed-in pages and their endpoints send anonymous users to sign-in", 
     ["/api/availability/create", SIGNED_IN],
     ["/api/availability/update", SIGNED_IN],
     ["/api/availability/delete", SIGNED_IN],
+    ["/account", SIGNED_IN],
+    ["/api/account/display-name", SIGNED_IN],
   ])("%s", (pathname, expected) => {
     expect(outcomesFor(pathname)).toEqual(expected);
   });
@@ -76,6 +78,8 @@ describe("gates match on segment boundaries, not on string prefixes", () => {
     ["/dashboardX", PUBLIC],
     ["/availability-old", PUBLIC],
     ["/api/availabilityX/create", PUBLIC],
+    ["/accounts", PUBLIC],
+    ["/api/accounts/display-name", PUBLIC],
   ])("%s", (pathname, expected) => {
     expect(outcomesFor(pathname)).toEqual(expected);
   });

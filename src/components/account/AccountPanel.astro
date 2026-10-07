@@ -1,0 +1,67 @@
+---
+// The user's own account: their email, the name colleagues see on /schedule and the form that changes it. Rendered
+// by /account and by the /dev/account-states kitchen sink.
+import { CircleAlert, CircleCheck } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { DISPLAY_NAME_MAX } from "@/lib/account";
+import { calendarName } from "@/lib/manager-users";
+
+interface Props {
+  profile: { id: string; email: string; display_name: string | null };
+  feedback: { kind: "error" | "success"; message: string } | null;
+  idPrefix?: string;
+}
+
+const { profile, feedback, idPrefix = "" } = Astro.props;
+const shownName = profile.display_name ?? calendarName(profile);
+const inputId = `${idPrefix}display-name`;
+const hintId = `${idPrefix}display-name-hint`;
+---
+
+<section aria-label="Account" class="flex flex-col gap-4 rounded-xl border bg-card p-4 text-card-foreground">
+  <dl class="flex flex-col gap-1 text-sm">
+    <dt class="text-muted-foreground">Email</dt>
+    <dd class="font-medium break-all">{profile.email || "No email"}</dd>
+  </dl>
+  <p class="text-sm">
+    Colleagues see you as <span class="font-semibold">{shownName}</span>
+  </p>
+
+  <form method="POST" action="/api/account/display-name" class="flex flex-col gap-2">
+    <label for={inputId} class="text-sm font-medium">
+      Display name
+    </label>
+    <div class="flex flex-wrap items-center gap-2">
+      <Input
+        id={inputId}
+        name="display_name"
+        type="text"
+        maxLength={DISPLAY_NAME_MAX}
+        defaultValue={profile.display_name ?? ""}
+        autoComplete="nickname"
+        aria-describedby={hintId}
+        aria-invalid={feedback?.kind === "error" ? true : undefined}
+        className="max-w-xs flex-1"
+      />
+      <Button type="submit">Save</Button>
+    </div>
+    <p id={hintId} class="text-xs text-muted-foreground">
+      Leave empty to show your email prefix. At most {DISPLAY_NAME_MAX} characters.
+    </p>
+  </form>
+
+  {feedback?.kind === "error" && (
+    <Alert variant="destructive">
+      <CircleAlert />
+      <AlertDescription>{feedback.message}</AlertDescription>
+    </Alert>
+  )}
+  {feedback?.kind === "success" && (
+    <Alert role="status">
+      <CircleCheck />
+      <AlertTitle>{feedback.message}</AlertTitle>
+    </Alert>
+  )}
+</section>

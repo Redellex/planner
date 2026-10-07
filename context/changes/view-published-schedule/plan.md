@@ -508,10 +508,10 @@ The HTTP smoke proves the new pages, the name write and draft invisibility end t
 
 #### Automated
 
-- [x] 1.1 Migration applies on a fresh local stack: `npx supabase db reset`
-- [x] 1.2 Database rules tests pass, including the new asserts: `npm run test:db`
-- [x] 1.3 Generated types contain `display_name`, `get_published_schedule` and `set_display_name`, and `npx astro check` passes
-- [x] 1.4 Lint and unit tests still pass: `npm run lint` and `npm test`
+- [x] 1.1 Migration applies on a fresh local stack: `npx supabase db reset` — bb05260
+- [x] 1.2 Database rules tests pass, including the new asserts: `npm run test:db` — bb05260
+- [x] 1.3 Generated types contain `display_name`, `get_published_schedule` and `set_display_name`, and `npx astro check` passes — bb05260
+- [x] 1.4 Lint and unit tests still pass: `npm run lint` and `npm test` — bb05260
 
 #### Manual
 
@@ -521,9 +521,9 @@ The HTTP smoke proves the new pages, the name write and draft invisibility end t
 
 #### Automated
 
-- [ ] 2.1 Unit tests pass, including `account.test.ts`, the route-access rows and the route inventory: `npm test`
-- [ ] 2.2 Lint and type-check pass: `npm run lint` and `npx astro check`
-- [ ] 2.3 No colour literals in the new view: `npm run check:ui`
+- [x] 2.1 Unit tests pass, including `account.test.ts`, the route-access rows and the route inventory: `npm test`
+- [x] 2.2 Lint and type-check pass: `npm run lint` and `npx astro check`
+- [x] 2.3 No colour literals in the new view: `npm run check:ui`
 
 #### Manual
 

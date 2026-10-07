@@ -1,0 +1,68 @@
+---
+import { CircleAlert } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import AccountPanel from "@/components/account/AccountPanel.astro";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase";
+import {
+  ACCOUNT_LOAD_ERROR,
+  DISPLAY_NAME_UPDATED_MESSAGE,
+  logAccountError,
+  resolveAccountFeedbackError,
+  SUPABASE_NOT_CONFIGURED_ERROR,
+} from "@/lib/account";
+
+const { user } = Astro.locals;
+// Result of the last save, from the redirect URL; only known messages are shown as-is.
+const feedbackError = resolveAccountFeedbackError(Astro.url.searchParams.get("error"));
+const saved = Astro.url.searchParams.get("updated") === "1" && !feedbackError;
+const feedback = feedbackError
+  ? { kind: "error" as const, message: feedbackError }
+  : saved
+    ? { kind: "success" as const, message: DISPLAY_NAME_UPDATED_MESSAGE }
+    : null;
+
+// This page failed to read its data; independent of the URL, so a URL error cannot hide it.
+let loadError: string | null = null;
+let profile: { id: string; email: string; display_name: string | null } | null = null;
+
+const supabase = createClient(Astro.request.headers, Astro.cookies);
+if (!supabase) {
+  loadError = SUPABASE_NOT_CONFIGURED_ERROR;
+} else if (user) {
+  const { data, error } = await supabase.from("profiles").select("email, display_name").eq("id", user.id).maybeSingle();
+  if (error || !data) {
+    logAccountError("could not load own profile", error ?? "no profile row");
+    loadError = ACCOUNT_LOAD_ERROR;
+  } else {
+    profile = { id: user.id, ...data };
+  }
+} else {
+  loadError = ACCOUNT_LOAD_ERROR;
+}
+---
+
+<Layout title="Account">
+  <div class="min-h-screen bg-background p-4">
+    <div class="mx-auto w-full max-w-2xl">
+      <h1 class="mb-6 text-center text-2xl font-semibold">Account</h1>
+      {loadError || !profile ? (
+        <section aria-label="Account" class="rounded-xl border bg-card p-4 text-card-foreground">
+          <Alert variant="destructive">
+            <CircleAlert />
+            <AlertDescription>{loadError ?? ACCOUNT_LOAD_ERROR}</AlertDescription>
+          </Alert>
+        </section>
+      ) : (
+        <AccountPanel profile={profile} feedback={feedback} />
+      )}
+
+      <div class="mt-6 text-center">
+        <a href="/dashboard" class:list={buttonVariants({ variant: "outline" })}>
+          Back to dashboard
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>

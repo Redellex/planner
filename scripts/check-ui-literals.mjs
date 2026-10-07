@@ -24,6 +24,9 @@ const SCOPE = [
   "src/pages/manager/schedule.astro",
   "src/components/schedule/",
   "src/pages/dev/schedule-states.astro",
+  "src/pages/account.astro",
+  "src/components/account/",
+  "src/pages/dev/account-states.astro",
 ];
 
 const PALETTE =
