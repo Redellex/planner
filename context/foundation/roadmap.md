@@ -44,7 +44,7 @@ A gas-station manager currently builds the monthly shift schedule by hand in a s
 | F-01 | role-aware-access-control        | (foundation) Manager/Employee roles exist and are enforced at the auth layer          | —             | Access Control, FR-001, FR-002 | done        |
 | S-01 | employee-availability-management | Employee can create/edit their own monthly availability; locks once generation starts | F-01          | FR-001, Access Control         | done        |
 | S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | done        |
-| S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | in-progress |
+| S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | done        |
 | S-04 | review-override-publish-schedule | Manager reviews, overrides (with conflict warnings), and publishes the schedule       | S-03          | FR-004, FR-005, FR-006         | in-progress |
 | S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | proposed    |
 
@@ -121,7 +121,11 @@ Foundations below assume these are present and do NOT re-scaffold them.
   - Month-wide reads have no `starts_at` index (S-02 decided none is needed at single-station scale); add one if the generator's reads are slow. PostgREST silently caps a read at 1000 rows, so page month-wide reads (S-02 does this in `loadMonthWindows` with `.range()`).
   - A window belongs to its `starts_at` month and may spill into day 1 of the next month; writes require both months to be editable.
   - Durations are wall-clock, with no DST correction.
-- **Status:** in-progress
+- **Delivery (2026-10-06):** implemented in `context/archive/2026-10-06-generate-monthly-schedule/`, merged in PR #35. S-01 handoff outcome: no `starts_at` index was added (team reads are paged through `loadAllPages`); `availability_windows` stays `on delete cascade`, while a deleted account's draft shifts become uncovered (`schedule_shifts.employee_id` is `on delete set null`).
+- **Follow-ups (not in this slice):**
+  - The repair pass may leave night counts less even than possible: in the kitchen-sink gaps fixture (4 people all month) one person gets 8 nights against a lowest of 6.
+  - A shift is assigned only when one window covers the whole fixed-time shift (shortest 6h), so short windows (e.g. 14:25–17:25) leave every shift uncovered. Consider showing shift times on the availability form, or allowing shorter shifts.
+- **Status:** done
 
 ### S-04: Review, override, and publish schedule
 
@@ -140,6 +144,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
   - **Conflict warnings come from `summarizeSchedule`** (`src/lib/schedule-summary.ts`). It recounts from the stored shifts and raw windows: `outsideAvailability` is the FR-004 override warning (always empty for a generated draft), `ruleBreaks` the 12h/night fairness warnings, `perMember.zeroShifts` the "No shifts" flag, and `daysWithNoOne` must block accept and publish. It does not check one-shift-per-station-day or touching shifts per person: overrides can break those hard rules, so S-04 must add a check for them.
   - **Cross-month boundary (impl review F1, 2026-10-06).** Windows starting on day 1 of M+1 before 06:00 count for M's last station night: RLS freezes them while M is locked, and generating M reads them. Generating M+1 blocks M's last-night assignee from 06:00 on day 1, and `summarizeSchedule(...).touchesPreviousNight` reports the conflict when M's draft changed afterwards. S-04 overrides of day 1 06:00 or of M's last night must re-check it.
 - **Risk:** Depends entirely on S-03 producing a real draft to act on; sequenced immediately after so the full manager workflow (generate → adjust → publish) is validated end-to-end before employee-facing viewing lands.
+- **In review (2026-10-07):** implemented in `context/changes/review-override-publish-schedule/`, PR #37. After merge, push `20261007120000_publish_and_override_schedules.sql` and `20261007130000_guard_published_schedule_shifts.sql` to the hosted project.
 - **Status:** in-progress
 
 ### S-05: View published schedule
@@ -168,8 +173,8 @@ Foundations below assume these are present and do NOT re-scaffold them.
 | T-02 (test plan)     | #27      | testing-database-rules            | Database rules: ownership, month lock and roles (pgTAP)                           | —                     | Done in PR #26 — archived 2026-10-03                            |
 | QG-01 (test plan §5) | #29      | quality-gate-hooks                | Quality-gate hooks: agent hooks and pre-commit tests on staged files              | —                     | Done in PR #30 — merged 2026-10-03                              |
 | T-03 (test plan)     | #31      | testing-route-gating-honest-reads | Route gating and honest availability reads                                        | —                     | Done in PR #32 — archived 2026-10-03                            |
-| S-03                 | #4       | generate-monthly-schedule         | Auto-generate conflict-free, fairly-rotated monthly schedule                      | yes                   | Ready — both unknowns resolved 2026-10-06                       |
-| S-04                 | #5       | review-override-publish-schedule  | Manager review/override/publish workflow for generated schedule                   | no                    | Waiting on S-03                                                 |
+| S-03                 | #4       | generate-monthly-schedule         | Auto-generate conflict-free, fairly-rotated monthly schedule                      | —                     | Done in PR #35 — archived 2026-10-06                            |
+| S-04                 | #5       | review-override-publish-schedule  | Manager review/override/publish workflow for generated schedule                   | yes                   | In review in PR #37                                             |
 | S-05                 | #6       | view-published-schedule           | Published schedule grid view for employees and managers                           | no                    | Waiting on S-04                                                 |
 
 ## Open Roadmap Questions
@@ -197,3 +202,4 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **T-01: (test plan, Phase 1) Unit test runner (Vitest on UTC) proves station dates, months and "now" are correct on the Worker and across DST; manual Stryker gate on `src/lib/availability.ts`.** — Archived 2026-10-01 → `context/archive/2026-10-01-testing-station-time/`. Lesson: —.
 - **T-02: (test plan, Phase 2) pgTAP database rules tests (`npm run test:db`, in the CI smoke job) prove an employee cannot read or write another employee's availability, no write reaches a current, past or locked month, and roles cannot be escalated nor the last manager demoted.** — Archived 2026-10-03 → `context/archive/2026-10-03-testing-database-rules/`. Lesson: —.
 - **T-03: (test plan, Phase 3) Unit tests and targeted smoke steps prove the route × role gate holds on every manager page and endpoint after a middleware or role change (a route inventory guard fails on any page or endpoint left outside it), and a failed, truncated or shifting team read shows a load error instead of "No availability submitted".** — Archived 2026-10-03 → `context/archive/2026-10-03-testing-route-gating-honest-reads/`. Lesson: —.
+- **S-03: Manager generates a proposed monthly schedule that assigns every 6–12h shift to an employee, respecting each employee's stated availability and rotating who takes long shifts fairly, with zero conflicting assignments.** — Archived 2026-10-06 → `context/archive/2026-10-06-generate-monthly-schedule/`. Lesson: —.
