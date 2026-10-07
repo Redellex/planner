@@ -5,7 +5,7 @@
 -- draft exists), PRD FR-003. Refused writes are checked as postgres afterwards: as the denied actor, RLS would hide
 -- the rows anyway.
 begin;
-select plan(98);
+select plan(118);
 
 -- Station months, derived once; now() is fixed for the transaction.
 select
@@ -623,6 +623,154 @@ select isnt_empty(
   'Mg can discard unpublished M+1'
 );
 reset role;
+
+-- S-05: get_published_schedule returns a month's shifts with names to every signed-in user, only while it is
+-- published, and never an email or a role. Oracles: plan view-published-schedule (Phase 1 contract), PRD FR-007 and
+-- prd.md:110 (a published schedule is readable by every signed-in user), calendarName in src/lib/manager-users.ts.
+-- Name fixtures: Mg has a display name, C a dotted email, D an email starting with '@', E no email.
+insert into auth.users (id, email) values
+  ('10000000-0000-4000-8000-0000000000e4', 'x.y@db-rules.test'),
+  ('10000000-0000-4000-8000-0000000000e5', '@db-rules.test'),
+  ('10000000-0000-4000-8000-0000000000e6', null);
+update public.profiles set display_name = 'Mia Manager' where id = '10000000-0000-4000-8000-0000000000c4';
+
+-- Every station day is 06-18 assigned and 18-06 uncovered; days 2-5 go to Mg, C, D and E, the rest to A.
+with days as (
+  select d::date as d, row_number() over (order by d) as n
+  from generate_series(:'m1'::date, :'m2'::date - 1, interval '1 day') as d
+),
+shifts as (
+  select d + interval '06:00' as starts_at, d + interval '18:00' as ends_at,
+    (case n
+      when 2 then '10000000-0000-4000-8000-0000000000c4'
+      when 3 then '10000000-0000-4000-8000-0000000000e4'
+      when 4 then '10000000-0000-4000-8000-0000000000e5'
+      when 5 then '10000000-0000-4000-8000-0000000000e6'
+      else '10000000-0000-4000-8000-0000000000a4'
+    end)::uuid as employee_id
+  from days
+  union all
+  select d + interval '18:00', d + interval '1 day 06:00', null from days
+)
+select jsonb_agg(jsonb_build_object('starts_at', starts_at, 'ends_at', ends_at, 'employee_id', employee_id)
+  order by starts_at)::text as draft_named
+from shifts
+\gset
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000c4","role":"authenticated"}';
+select lives_ok(
+  format($$ select public.replace_schedule_draft(%L::date, %L::jsonb) $$, :'m1', :'draft_named'),
+  'Mg can create the named M+1 draft'
+);
+reset role;
+
+select
+  count(*) as named_count,
+  string_agg(id::text || ':' || coalesce(employee_id::text, '-'), ',' order by starts_at, id) as named_rows
+from public.schedule_shifts
+where month = :'m1'
+\gset
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000a4","role":"authenticated"}';
+select is_empty(
+  format($$ select id from public.get_published_schedule(%L::date) $$, :'m1'),
+  'A gets no rows of the M+1 draft through get_published_schedule'
+);
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000c4","role":"authenticated"}';
+select is(
+  (select count(*) from public.schedule_shifts where month = :'m1'),
+  :'named_count'::bigint,
+  'control: Mg reads every shift of the M+1 draft through the table'
+);
+select lives_ok(
+  format($$ select public.publish_schedule(%L::date) $$, :'m1'),
+  'Mg can publish the named M+1 draft'
+);
+
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000a4","role":"authenticated"}';
+select is(
+  (select string_agg(id::text || ':' || coalesce(employee_id::text, '-'), ',' order by starts_at, id)
+    from public.get_published_schedule(:'m1')),
+  :'named_rows',
+  'A gets every shift of published M+1, other people''s and uncovered ones included'
+);
+select is(
+  (select count(*) from public.get_published_schedule(:'m1') where (employee_id is null) <> (assignee_name is null)),
+  0::bigint,
+  'A gets a name on exactly the assigned shifts'
+);
+select is(
+  (select count(*) from public.get_published_schedule(:'m1') where published_at is null),
+  0::bigint,
+  'A gets published_at on every row'
+);
+select is(
+  (select assignee_name from public.get_published_schedule(:'m1') where starts_at = :'m1'::date + interval '1 day 06:00'),
+  'Mia Manager',
+  'a shift of someone with a display name shows the display name'
+);
+select is(
+  (select assignee_name from public.get_published_schedule(:'m1') where starts_at = :'m1'::date + interval '2 days 06:00'),
+  'x.y',
+  'a shift of x.y@db-rules.test shows x.y'
+);
+select is(
+  (select assignee_name from public.get_published_schedule(:'m1') where starts_at = :'m1'::date + interval '3 days 06:00'),
+  '@db-rules.test',
+  'a shift of an email starting with @ shows the whole email'
+);
+select is(
+  (select assignee_name from public.get_published_schedule(:'m1') where starts_at = :'m1'::date + interval '4 days 06:00'),
+  '10000000',
+  'a shift of an account with no email shows the id''s first 8 characters'
+);
+select is(
+  (select assignee_name from public.get_published_schedule(:'m1') where starts_at = :'m1'::date + interval '18:00'),
+  null::text,
+  'an uncovered shift has no name'
+);
+select is_empty(
+  format($$ select month from public.schedules where month = %L $$, :'m1'),
+  'A still cannot read the published M+1 row through the table'
+);
+select is_empty(
+  format($$ select id from public.schedule_shifts where month = %L $$, :'m1'),
+  'A still cannot read the published M+1 shifts through the table'
+);
+
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000c4","role":"authenticated"}';
+select is(
+  (select string_agg(id::text || ':' || coalesce(employee_id::text, '-'), ',' order by starts_at, id)
+    from public.get_published_schedule(:'m1')),
+  :'named_rows',
+  'Mg gets the same rows of published M+1'
+);
+select lives_ok(
+  format($$ select public.unpublish_schedule(%L::date) $$, :'m1'),
+  'Mg can unpublish the named M+1'
+);
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000a4","role":"authenticated"}';
+select is_empty(
+  format($$ select id from public.get_published_schedule(%L::date) $$, :'m1'),
+  'A gets no rows of M+1 again after the unpublish'
+);
+reset role;
+
+select is(
+  pg_get_function_result('public.get_published_schedule(date)'::regprocedure),
+  'TABLE(id uuid, starts_at timestamp without time zone, ends_at timestamp without time zone, employee_id uuid, '
+    'assignee_name text, published_at timestamp with time zone)',
+  'get_published_schedule returns exactly id, times, employee_id, assignee_name and published_at'
+);
+select is(has_function_privilege('anon', 'public.get_published_schedule(date)', 'execute'), false,
+  'anon cannot execute get_published_schedule');
+select is(has_function_privilege('authenticated', 'public.get_published_schedule(date)', 'execute'), true,
+  'authenticated can execute get_published_schedule');
+
+-- The draft is not needed below; the guard section creates its own published M+1.
+delete from public.schedules where month = :'m1';
 
 -- The published guard trigger applies to every direct shift write, even the table owner's, and skips foreign-key
 -- actions, so deleting an account and discarding through public.schedules still work on a published month. (The race

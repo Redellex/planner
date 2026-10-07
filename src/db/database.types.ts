@@ -84,18 +84,21 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          display_name: string | null
           email: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
         }
         Insert: {
           created_at?: string
+          display_name?: string | null
           email: string
           id: string
           role?: Database["public"]["Enums"]["app_role"]
         }
         Update: {
           created_at?: string
+          display_name?: string | null
           email?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
@@ -192,6 +195,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_published_schedule: {
+        Args: { target_month: string }
+        Returns: {
+          assignee_name: string
+          employee_id: string
+          ends_at: string
+          id: string
+          published_at: string
+          starts_at: string
+        }[]
+      }
       is_availability_month_editable: {
         Args: { target_month: string }
         Returns: boolean
@@ -202,6 +216,7 @@ export type Database = {
         Args: { shifts: Json; target_month: string }
         Returns: undefined
       }
+      set_display_name: { Args: { new_name: string }; Returns: undefined }
       unpublish_schedule: { Args: { target_month: string }; Returns: undefined }
     }
     Enums: {
