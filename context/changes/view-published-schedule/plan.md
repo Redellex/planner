@@ -550,8 +550,8 @@ The HTTP smoke proves the new pages, the name write and draft invisibility end t
 
 #### Automated
 
-- [x] 4.1 The smoke run passes against a local preview with a freshly reset local stack: `npm run smoke`
-- [x] 4.2 Lint, unit tests and type-check still pass: `npm run lint`, `npm test` and `npx astro check`
+- [x] 4.1 The smoke run passes against a local preview with a freshly reset local stack: `npm run smoke` — 10479e8
+- [x] 4.2 Lint, unit tests and type-check still pass: `npm run lint`, `npm test` and `npx astro check` — 10479e8
 
 #### Manual
 
