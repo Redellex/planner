@@ -217,5 +217,6 @@ Status as of 2026-10-06: M-1 is 4/6 done.
 - #3 (S-02) was delivered in PR #21 and archived to `context/archive/2026-09-29-manager-availability-visibility/`.
 - #4 (S-03, north star) was delivered in PR #35 and archived to `context/archive/2026-10-06-generate-monthly-schedule/`.
 
-1. **#5 (S-04)** is the only open slice that can start, so it moves to `status:ready`. Its handoff from S-03 (draft model, unlock refused while a draft exists, the missing update policy, `summarizeSchedule` as the warning source, the cross-month boundary) is in the issue body and in `roadmap.md`. A schedule with a day that has no one assigned cannot be accepted or published. #6 (S-05) waits on it.
+1. **#5 (S-04)** is in review in PR #37 (2026-10-07); it moved to `status:ready` when S-03 merged. Its handoff from S-03 (draft model, unlock refused while a draft exists, the missing update policy, `summarizeSchedule` as the warning source, the cross-month boundary) is in the issue body and in `roadmap.md`. A schedule with a day that has no one assigned cannot be accepted or published. #6 (S-05) waits on it.
 2. **After S-03's merge:** push its migrations to the hosted project (`npx supabase db push`), and check a generate request's `cpuTime` with `wrangler tail`.
+3. **After S-04's merge (PR #37):** push its two migrations (`20261007120000_publish_and_override_schedules.sql`, `20261007130000_guard_published_schedule_shifts.sql`), close #5, move #6 (S-05) to `status:ready` and archive `review-override-publish-schedule`.
