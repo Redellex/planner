@@ -515,7 +515,7 @@ The HTTP smoke proves the new pages, the name write and draft invisibility end t
 
 #### Manual
 
-- [ ] 1.5 Sabotage pass: dropping the published filter fails the draft-read assert, then reverted
+- [x] 1.5 Sabotage pass: dropping the published filter fails the draft-read assert, then reverted
 
 ### Phase 2: Display name on /account
 
@@ -527,8 +527,8 @@ The HTTP smoke proves the new pages, the name write and draft invisibility end t
 
 #### Manual
 
-- [ ] 2.4 `/account` saves a trimmed name, refuses 41 characters, and clearing restores the email prefix
-- [ ] 2.5 `/dev/account-states` shows every state legibly in the dark theme
+- [x] 2.4 `/account` saves a trimmed name, refuses 41 characters, and clearing restores the email prefix
+- [x] 2.5 `/dev/account-states` shows every state legibly in the dark theme
 
 ### Phase 3: Published schedule on /schedule
 
@@ -541,10 +541,10 @@ The HTTP smoke proves the new pages, the name write and draft invisibility end t
 
 #### Manual
 
-- [ ] 3.5 Employee sees a published month with names, "You" plus the highlight on own shifts, and no email in the HTML
-- [ ] 3.6 After unpublish both roles see "Not published yet"; the manager also gets the link
-- [ ] 3.7 `/manager/schedule` unchanged apart from the "View published schedule" link
-- [ ] 3.8 `/dev/published-schedule-states` legible in dark theme at phone width and from `lg`
+- [x] 3.5 Employee sees a published month with names, "You" plus the highlight on own shifts, and no email in the HTML
+- [x] 3.6 After unpublish both roles see "Not published yet"; the manager also gets the link
+- [x] 3.7 `/manager/schedule` unchanged apart from the "View published schedule" link
+- [x] 3.8 `/dev/published-schedule-states` legible in dark theme at phone width and from `lg`
 
 ### Phase 4: Smoke steps and documentation
 
@@ -555,4 +555,4 @@ The HTTP smoke proves the new pages, the name write and draft invisibility end t
 
 #### Manual
 
-- [ ] 4.3 CLAUDE.md describes `/schedule`, `/account`, both functions and `--highlight` correctly
+- [x] 4.3 CLAUDE.md describes `/schedule`, `/account`, both functions and `--highlight` correctly
