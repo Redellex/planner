@@ -534,10 +534,10 @@ The HTTP smoke proves the new pages, the name write and draft invisibility end t
 
 #### Automated
 
-- [x] 3.1 Unit tests pass, including `published-schedule.test.ts`, the route-access rows, the route inventory and the existing schedule tests: `npm test`
-- [x] 3.2 Lint and type-check pass: `npm run lint` and `npx astro check`
-- [x] 3.3 No colour literals, including on the edited `ScheduleCalendar`: `npm run check:ui`
-- [x] 3.4 Production build succeeds: `npm run build`
+- [x] 3.1 Unit tests pass, including `published-schedule.test.ts`, the route-access rows, the route inventory and the existing schedule tests: `npm test` — 7179497
+- [x] 3.2 Lint and type-check pass: `npm run lint` and `npx astro check` — 7179497
+- [x] 3.3 No colour literals, including on the edited `ScheduleCalendar`: `npm run check:ui` — 7179497
+- [x] 3.4 Production build succeeds: `npm run build` — 7179497
 
 #### Manual
 
@@ -550,8 +550,8 @@ The HTTP smoke proves the new pages, the name write and draft invisibility end t
 
 #### Automated
 
-- [ ] 4.1 The smoke run passes against a local preview with a freshly reset local stack: `npm run smoke`
-- [ ] 4.2 Lint, unit tests and type-check still pass: `npm run lint`, `npm test` and `npx astro check`
+- [x] 4.1 The smoke run passes against a local preview with a freshly reset local stack: `npm run smoke`
+- [x] 4.2 Lint, unit tests and type-check still pass: `npm run lint`, `npm test` and `npx astro check`
 
 #### Manual
 

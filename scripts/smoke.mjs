@@ -1,9 +1,11 @@
 // Smoke test: proves the built app, the Cloudflare adapter, the Supabase auth flow, role enforcement (including the
 // manager endpoints refusing an employee's and an anonymous POST), the availability/lock flow, the manager's team
-// availability view and the draft schedule flow (generate and publish refused for an employee and an anonymous user;
-// generate, view, an override refused for an employee, then warned, confirmed and shown, publish refused while days
-// have no one, unlock refused while a draft exists, discard, unlock) still work together. The manager steps need the
-// seeded manager (supabase/seed.sql) or SMOKE_MANAGER_* env.
+// availability view, the account page (a display name saved, a too-long one refused, an anonymous POST sent to sign-in),
+// the published schedule page and the draft schedule flow (generate and publish refused for an employee and an
+// anonymous user; generate, view, the draft invisible to the employee on /schedule, an override refused for an
+// employee, then warned, confirmed and shown, publish refused while days have no one, unlock refused while a draft
+// exists, discard, unlock) still work together. The manager steps need the seeded manager (supabase/seed.sql) or
+// SMOKE_MANAGER_* env.
 // Zero dependencies on purpose. Run against a live server: BASE_URL=http://localhost:4321 node scripts/smoke.mjs
 
 import { Buffer } from "node:buffer";
@@ -59,6 +61,9 @@ const publishGapsError = "Assign someone on every day before publishing.";
 // manager, who has no windows there, so the change is outside availability and needs the confirm step.
 const scheduleDayPage = `/manager/schedule?month=${crudMonth}&day=${crudDay}`;
 let overrideShiftId;
+// Mirrors DISPLAY_NAME_TOO_LONG_ERROR and NOT_PUBLISHED_MESSAGE in src/lib/account.ts and src/lib/published-schedule.ts.
+const displayNameTooLongError = "Use at most 40 characters for your name.";
+const notPublishedMessage = "Not published yet";
 
 function cookieHeader() {
   return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
@@ -189,6 +194,27 @@ const steps = [
   ],
   ["dashboard renders for signed-in user", () => request("/dashboard"), { status: 200 }],
   ["availability renders for signed-in user", () => request("/availability"), { status: 200 }],
+  ["published schedule page renders for signed-in user", () => request("/schedule"), { status: 200 }],
+  ["account page renders for signed-in user", () => request("/account"), { status: 200 }],
+  [
+    "display name is saved",
+    () => request("/api/account/display-name", { method: "POST", form: { display_name: "  Smoke User  " } }),
+    { status: 302, location: "/account?updated=1" },
+  ],
+  [
+    "account page shows the saved display name",
+    () => request("/account"),
+    { status: 200, check: (actual) => pageText(actual.body).includes("Colleagues see you as Smoke User") },
+  ],
+  [
+    "display name over 40 characters is refused",
+    () => request("/api/account/display-name", { method: "POST", form: { display_name: "x".repeat(41) } }),
+    {
+      status: 302,
+      location: "/account?error=",
+      check: (actual) => new URL(actual.location, BASE_URL).searchParams.get("error") === displayNameTooLongError,
+    },
+  ],
   [
     "availability create adds a window",
     () => request("/api/availability/create", { method: "POST", form: windowForm }),
@@ -278,6 +304,11 @@ const steps = [
   ["signout clears session", () => request("/api/auth/signout", { method: "POST" }), { status: 302, location: "/" }],
   ["dashboard redirects after signout", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
   [
+    "anonymous display name request goes to sign-in",
+    () => request("/api/account/display-name", { method: "POST", form: { display_name: "Anonymous" } }),
+    { status: 302, location: "/auth/signin" },
+  ],
+  [
     "anonymous lock request goes to sign-in",
     () => request("/api/manager/months/lock", { method: "POST", form: { month: smokeMonthValue, action: "lock" } }),
     { status: 302, location: "/auth/signin" },
@@ -360,6 +391,19 @@ const steps = [
     "schedule page shows the draft",
     () => request(schedulePage),
     { status: 200, check: hasScheduleDraft },
+    { needs: "scheduleMonthClean" },
+  ],
+  // get_published_schedule returns nothing for a draft, so the employee sees no shift of it on /schedule.
+  [
+    "employee does not see the draft on the published schedule page",
+    () => asSmokeUser(() => request(`/schedule?month=${crudMonth}`)),
+    {
+      status: 200,
+      check: (actual) =>
+        pageText(actual.body).includes(notPublishedMessage) &&
+        !isSchedulePublished(actual) &&
+        !actual.body.includes("data-shift-id"),
+    },
     { needs: "scheduleMonthClean" },
   ],
   [
