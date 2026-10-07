@@ -8,6 +8,7 @@ export const PROTECTED_ROUTES: readonly string[] = [
   "/api/availability",
   "/account",
   "/api/account",
+  "/schedule",
 ];
 export const MANAGER_ROUTES: readonly string[] = ["/manager", "/api/manager"];
 

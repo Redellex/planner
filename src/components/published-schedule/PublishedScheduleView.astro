@@ -1,0 +1,107 @@
+---
+// Everything /schedule shows below the month tabs for one `get_published_schedule` result: the load error, "Not
+// published yet", or the published card, the station-day calendar and the selected day. Rendered by /schedule and by
+// the /dev/published-schedule-states kitchen sink.
+import { CircleAlert, Info } from "lucide-react";
+import ScheduleCalendar from "@/components/schedule/ScheduleCalendar.astro";
+import PublishedDayPanel from "@/components/published-schedule/PublishedDayPanel.astro";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { calendarWeeks, formatDay, formatMonth, formatStationInstant } from "@/lib/availability";
+import {
+  NOT_PUBLISHED_MESSAGE,
+  PUBLISHED_SCHEDULE_LOAD_ERROR,
+  publishedScheduleUrl,
+  type PublishedSchedule,
+} from "@/lib/published-schedule";
+import { managerScheduleUrl, shiftsByStationDay } from "@/lib/schedule";
+import { daysWithNoOne } from "@/lib/schedule-summary";
+
+interface Props {
+  /** `YYYY-MM`, one of `scheduleMonths()`. */
+  month: string;
+  /** The selected station day (`YYYY-MM-DD`) of `month`. */
+  selectedDay: string;
+  schedule: PublishedSchedule;
+  /** The viewer's id; their shifts are marked "You". */
+  ownEmployeeId: string | null;
+  /** Managers get a link to /manager/schedule on a month that is not published. */
+  isManager: boolean;
+  /** Prepended to every element id; set it when a page renders more than one of these (the kitchen sink). */
+  idPrefix?: string;
+}
+
+const { month, selectedDay, schedule, ownEmployeeId, isManager, idPrefix = "" } = Astro.props;
+const monthLabel = formatMonth(month);
+const headingId = `${idPrefix}published-schedule-heading`;
+const shifts = schedule.kind === "published" ? schedule.shifts : [];
+const byStationDay = shiftsByStationDay(shifts);
+const labels = new Map(
+  shifts.flatMap((shift) =>
+    shift.employee_id !== null && shift.assignee_name !== null
+      ? [[shift.employee_id, { name: shift.assignee_name }] as const]
+      : [],
+  ),
+);
+const hrefFor = (day: string): string => publishedScheduleUrl({ month, day });
+---
+
+{schedule.kind === "unknown" ? (
+  <div class="mx-auto w-full max-w-2xl">
+    <Alert variant="destructive">
+      <CircleAlert />
+      <AlertDescription>{PUBLISHED_SCHEDULE_LOAD_ERROR}</AlertDescription>
+    </Alert>
+  </div>
+) : schedule.kind === "notPublished" ? (
+  <div class="mx-auto w-full max-w-2xl">
+    <Alert role="status">
+      <Info />
+      <AlertTitle>{NOT_PUBLISHED_MESSAGE}</AlertTitle>
+      <AlertDescription>
+        <p>The {monthLabel} schedule appears here once the manager publishes it.</p>
+        {isManager && (
+          <a href={managerScheduleUrl({ month })} class="text-primary underline-offset-4 hover:underline">
+            Open the {monthLabel} schedule to review and publish it
+          </a>
+        )}
+      </AlertDescription>
+    </Alert>
+  </div>
+) : (
+  <>
+    <div class="mx-auto w-full max-w-2xl">
+      <section
+        aria-labelledby={headingId}
+        data-schedule-published=""
+        class="mb-6 rounded-xl border bg-card p-4 text-card-foreground"
+      >
+        <h2 id={headingId} class="mb-1 text-base font-semibold">
+          Published — {monthLabel}
+        </h2>
+        <p class="text-sm text-muted-foreground">Published {formatStationInstant(schedule.publishedAt)}</p>
+      </section>
+    </div>
+
+    <ScheduleCalendar
+      month={month}
+      weeks={calendarWeeks(month)}
+      selectedDay={selectedDay}
+      shiftsByDay={byStationDay}
+      labels={labels}
+      hrefFor={hrefFor}
+      ownEmployeeId={ownEmployeeId}
+      uncoveredCount={shifts.filter((shift) => shift.employee_id === null).length}
+      daysWithNoOne={daysWithNoOne(month, shifts)}
+      outsideAvailability={[]}
+    />
+
+    <div class="mx-auto w-full max-w-2xl">
+      <PublishedDayPanel
+        selectedLabel={formatDay(selectedDay)}
+        shifts={byStationDay.get(selectedDay) ?? []}
+        ownEmployeeId={ownEmployeeId}
+        idPrefix={idPrefix}
+      />
+    </div>
+  </>
+)}

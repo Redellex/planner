@@ -9,6 +9,7 @@ import ScheduleSummary from "@/components/schedule/ScheduleSummary.astro";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase";
+import { calendarName } from "@/lib/manager-users";
 import { loadAllPages } from "@/lib/team-availability";
 import { applyOverride, overrideWarnings, type OverrideWarning } from "@/lib/schedule-override";
 import { summarizeSchedule, type ScheduleSummary as DraftSummary } from "@/lib/schedule-summary";
@@ -156,6 +157,11 @@ if (!supabase) {
 }
 
 const membersById = new Map(members.map((member) => [member.id, member]));
+// The calendar names a person by their email prefix and shows the full email on hover.
+const calendarLabels = new Map(
+  members.map((member) => [member.id, { name: calendarName(member), title: member.email || undefined }]),
+);
+const calendarHref = (day: string): string => managerScheduleUrl({ month, day });
 const byStationDay = shiftsByStationDay(shifts);
 const selectedShifts = byStationDay.get(selectedDay) ?? [];
 // The confirm panel only makes sense for an unpublished draft that can be regenerated.
@@ -274,7 +280,8 @@ const monthHref = (option: string): string => managerScheduleUrl({ month: option
                 weeks={calendarWeeks(month)}
                 selectedDay={selectedDay}
                 shiftsByDay={byStationDay}
-                members={membersById}
+                labels={calendarLabels}
+                hrefFor={calendarHref}
                 uncoveredCount={summary.uncovered.length}
                 daysWithNoOne={summary.daysWithNoOne}
                 outsideAvailability={summary.outsideAvailability}

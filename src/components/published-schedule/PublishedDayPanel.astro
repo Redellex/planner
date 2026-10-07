@@ -1,0 +1,64 @@
+---
+// The selected station day of a published month, read-only, for every signed-in user. Names come from
+// `get_published_schedule` (display name or email prefix); no email is ever rendered here.
+import { formatDuration, formatWindow, windowMinutes } from "@/lib/availability";
+import type { PublishedShift } from "@/lib/published-schedule";
+import { cn } from "@/lib/utils";
+
+interface Props {
+  selectedLabel: string;
+  /** The selected station day's shifts, in start order (06:00 to the next 06:00). */
+  shifts: PublishedShift[];
+  /** The viewer's id: their rows get the "You" pill and the highlight accent. */
+  ownEmployeeId: string | null;
+  /** Prepended to every element id; set it when a page renders more than one of these (the kitchen sink). */
+  idPrefix?: string;
+}
+
+const { selectedLabel, shifts, ownEmployeeId, idPrefix = "" } = Astro.props;
+const headingId = `${idPrefix}published-selected-day-heading`;
+---
+
+<section aria-labelledby={headingId} class="rounded-xl border bg-card p-4 text-card-foreground">
+  <h2 id={headingId} class="mb-3 text-base font-semibold">
+    {selectedLabel}
+  </h2>
+
+  {shifts.length === 0 ? (
+    <p class="text-sm text-muted-foreground">No shifts on this day.</p>
+  ) : (
+    <ul class="flex flex-col gap-2">
+      {shifts.map((shift) => {
+        const isOwn = ownEmployeeId !== null && shift.employee_id === ownEmployeeId;
+        return (
+          <li
+            data-shift-id={shift.id}
+            class:list={cn(
+              "flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm",
+              isOwn && "-ml-2 border-l-2 border-highlight pl-1.5",
+            )}
+          >
+            <span>
+              {formatWindow(shift)}
+              <span class="text-muted-foreground"> · {formatDuration(windowMinutes(shift))}</span>
+            </span>
+            {shift.employee_id === null ? (
+              <span class="rounded-md border border-destructive/40 px-2 py-0.5 text-xs text-destructive">
+                Uncovered
+              </span>
+            ) : (
+              <span class="flex min-w-0 items-center gap-2">
+                <span class="min-w-0 truncate font-medium">{shift.assignee_name}</span>
+                {isOwn && (
+                  <span class="rounded-md bg-secondary px-1.5 py-0.5 text-xs font-medium text-secondary-foreground">
+                    You
+                  </span>
+                )}
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  )}
+</section>
