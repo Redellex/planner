@@ -255,3 +255,11 @@ export function summarizeSchedule<S extends SummaryShift>(input: {
     touchesNextMorning,
   };
 }
+
+/**
+ * The station dates of `month` with no assigned shift: what blocks publish, the same rule as publish_schedule's
+ * SP003. It depends on the shifts only, so the publish endpoint reads no team, windows or boundary shifts for it.
+ */
+export function daysWithNoOne(month: string, shifts: readonly SummaryShift[]): string[] {
+  return summarizeSchedule({ month, members: [], windows: [], shifts }).daysWithNoOne;
+}

@@ -13,7 +13,10 @@ interface Props {
   canGenerate: boolean;
   /** The stored draft, or null when the month has none; `publishedAt` is null while it is a draft. */
   draft: { generatedAt: string; publishedAt: string | null } | null;
-  /** How many station days of the draft have no one assigned; Publish is offered only at 0. */
+  /**
+   * How many station days have no one assigned; Publish is offered only at 0. On a published month it can only be
+   * non-zero after an assignee's account was deleted (on delete set null), and the card then says so.
+   */
   daysWithNoOne: number;
   /** Whether the month's availability is already locked. */
   locked: boolean;
@@ -59,6 +62,14 @@ const gapsText = daysWithNoOne === 1 ? "1 day has no one" : `${daysWithNoOne} da
   {draft && publishedAt ? (
     <>
       <p class="mb-3 text-sm text-muted-foreground">Published {formatStationInstant(publishedAt)}</p>
+      {daysWithNoOne > 0 && (
+        <Alert variant="destructive" className="mb-3">
+          <CircleAlert />
+          <AlertDescription>
+            Since publishing, {gapsText} (a deleted account's shifts became Uncovered). Unpublish to assign someone.
+          </AlertDescription>
+        </Alert>
+      )}
       <form method="POST" action="/api/manager/schedule/unpublish">
         <input type="hidden" name="month" value={month} />
         <Button type="submit" variant="secondary" size="sm" aria-label={`Unpublish the ${monthLabel} schedule`}>

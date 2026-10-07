@@ -127,6 +127,30 @@ describe("each hard-rule problem an override introduces is warned on its own", (
     ]);
   });
 
+  it("warns back to back when B is given the 10 Nov night that ends at B's 11 Nov 06:00 start", () => {
+    // The mirror of the case above: the overridden shift is the first of the pair, not the second.
+    const { warnings } = warningsFor({
+      windows: [
+        window(B, "2026-11-11T00:00:00", "2026-11-11T12:00:00"),
+        window(A, "2026-11-11T00:00:00", "2026-11-11T06:00:00"),
+      ],
+      shifts: [
+        row("s1", "2026-11-11T00:00:00", "2026-11-11T06:00:00", A),
+        row("s2", "2026-11-11T06:00:00", "2026-11-11T12:00:00", B),
+      ],
+      shiftId: "s1",
+      employeeId: B,
+    });
+    expect(warnings).toEqual([
+      {
+        kind: "backToBack",
+        assignee: B,
+        first: row("s1", "2026-11-11T00:00:00", "2026-11-11T06:00:00", B),
+        second: row("s2", "2026-11-11T06:00:00", "2026-11-11T12:00:00", B),
+      },
+    ]);
+  });
+
   it("warns back to back with October's last night when B, its assignee, is given 1 Nov 06:00", () => {
     const { warnings } = warningsFor({
       windows: [
@@ -296,5 +320,99 @@ describe("only problems the change introduces are warned", () => {
     expect(before.outsideAvailability).toEqual([row("s1", "2026-11-10T06:00:00", "2026-11-10T12:00:00", A)]);
     expect(after.outsideAvailability).toEqual([]);
     expect(warnings).toEqual([]);
+  });
+});
+
+describe("a problem the old assignee already had is warned again for the new one", () => {
+  it("warns outside availability when a shift outside A's windows moves to B, who has none either", () => {
+    const { before, warnings } = warningsFor({
+      windows: [],
+      shifts: [row("s1", "2026-11-10T06:00:00", "2026-11-10T12:00:00", A)],
+      shiftId: "s1",
+      employeeId: B,
+    });
+    expect(before.outsideAvailability).toEqual([row("s1", "2026-11-10T06:00:00", "2026-11-10T12:00:00", A)]);
+    expect(warnings).toEqual([
+      { kind: "outside", shift: row("s1", "2026-11-10T06:00:00", "2026-11-10T12:00:00", B), assignee: B },
+    ]);
+  });
+
+  it("warns a second shift on 10 Nov when A's second shift that day moves to B, who holds its 00–06", () => {
+    const { before, warnings } = warningsFor({
+      windows: [
+        window(A, "2026-11-10T06:00:00", "2026-11-10T12:00:00"),
+        window(A, "2026-11-10T18:00:00", "2026-11-11T00:00:00"),
+        window(B, "2026-11-10T06:00:00", "2026-11-10T12:00:00"),
+        window(B, "2026-11-11T00:00:00", "2026-11-11T06:00:00"),
+        window(C, "2026-11-10T12:00:00", "2026-11-10T18:00:00"),
+      ],
+      shifts: [
+        row("s1", "2026-11-10T06:00:00", "2026-11-10T12:00:00", A),
+        row("s2", "2026-11-10T12:00:00", "2026-11-10T18:00:00", C),
+        row("s3", "2026-11-10T18:00:00", "2026-11-11T00:00:00", A),
+        row("s4", "2026-11-11T00:00:00", "2026-11-11T06:00:00", B),
+      ],
+      shiftId: "s1",
+      employeeId: B,
+    });
+    expect(before.sameDay).toEqual([
+      {
+        assignee: A,
+        shifts: [
+          row("s1", "2026-11-10T06:00:00", "2026-11-10T12:00:00", A),
+          row("s3", "2026-11-10T18:00:00", "2026-11-11T00:00:00", A),
+        ],
+      },
+    ]);
+    expect(warnings).toEqual([
+      {
+        kind: "sameDay",
+        assignee: B,
+        shifts: [
+          row("s1", "2026-11-10T06:00:00", "2026-11-10T12:00:00", B),
+          row("s4", "2026-11-11T00:00:00", "2026-11-11T06:00:00", B),
+        ],
+      },
+    ]);
+  });
+
+  it("warns back to back when A's night before A's 11 Nov 06:00 moves to B, who holds the 18–24 before it", () => {
+    // B's 18–24 and the 00–06 are one station day (10 Nov), so the move also gives B a second shift that day.
+    const { before, warnings } = warningsFor({
+      windows: [
+        window(A, "2026-11-11T00:00:00", "2026-11-11T12:00:00"),
+        window(B, "2026-11-10T18:00:00", "2026-11-11T06:00:00"),
+      ],
+      shifts: [
+        row("s1", "2026-11-10T18:00:00", "2026-11-11T00:00:00", B),
+        row("s2", "2026-11-11T00:00:00", "2026-11-11T06:00:00", A),
+        row("s3", "2026-11-11T06:00:00", "2026-11-11T12:00:00", A),
+      ],
+      shiftId: "s2",
+      employeeId: B,
+    });
+    expect(before.backToBack).toEqual([
+      {
+        assignee: A,
+        first: row("s2", "2026-11-11T00:00:00", "2026-11-11T06:00:00", A),
+        second: row("s3", "2026-11-11T06:00:00", "2026-11-11T12:00:00", A),
+      },
+    ]);
+    expect(warnings).toEqual([
+      {
+        kind: "sameDay",
+        assignee: B,
+        shifts: [
+          row("s1", "2026-11-10T18:00:00", "2026-11-11T00:00:00", B),
+          row("s2", "2026-11-11T00:00:00", "2026-11-11T06:00:00", B),
+        ],
+      },
+      {
+        kind: "backToBack",
+        assignee: B,
+        first: row("s1", "2026-11-10T18:00:00", "2026-11-11T00:00:00", B),
+        second: row("s2", "2026-11-11T00:00:00", "2026-11-11T06:00:00", B),
+      },
+    ]);
   });
 });

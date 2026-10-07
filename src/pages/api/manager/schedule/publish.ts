@@ -1,13 +1,12 @@
 import type { APIRoute } from "astro";
 import { createClient } from "@/lib/supabase";
 import { monthStart, parseMonth } from "@/lib/availability";
-import { summarizeSchedule } from "@/lib/schedule-summary";
+import { daysWithNoOne } from "@/lib/schedule-summary";
 import { loadAllPages } from "@/lib/team-availability";
 import {
   describeScheduleWriteError,
   GENERIC_SCHEDULE_WRITE_ERROR,
   INVALID_MONTH_ERROR,
-  loadScheduleInputs,
   logScheduleError,
   managerScheduleUrl,
   NO_SCHEDULE_ERROR,
@@ -18,8 +17,8 @@ import {
 } from "@/lib/schedule";
 
 // Publishes a month's draft (FR-006). Refused while any station day has no one assigned, from this endpoint's own full
-// read; publish_schedule (SECURITY DEFINER, manager-only) re-checks the same coverage rule (SP003) and is the real
-// enforcement. A published month is frozen until it is unpublished.
+// read of the month's shifts (coverage needs nothing else); publish_schedule (SECURITY DEFINER, manager-only) re-checks
+// the same coverage rule (SP003) and is the real enforcement. A published month is frozen until it is unpublished.
 export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
   const month = parseMonth(form.get("month"));
@@ -32,8 +31,7 @@ export const POST: APIRoute = async (context) => {
     return context.redirect(managerScheduleUrl({ month, error: SUPABASE_NOT_CONFIGURED_ERROR }));
   }
 
-  const [inputs, draftResult, shiftsResult] = await Promise.all([
-    loadScheduleInputs(supabase, month),
+  const [draftResult, shiftsResult] = await Promise.all([
     supabase.from("schedules").select("month, published_at").eq("month", monthStart(month)).maybeSingle(),
     loadAllPages(
       (from, to) =>
@@ -54,7 +52,7 @@ export const POST: APIRoute = async (context) => {
     logScheduleError("could not read the draft shifts", shiftsResult.error);
   }
   // A partial read could miss a day with no one, so nothing is published unless every list is complete.
-  if (inputs.status === "unknown" || draftResult.error || shiftsResult.data === null) {
+  if (draftResult.error || shiftsResult.data === null) {
     return context.redirect(managerScheduleUrl({ month, error: GENERIC_SCHEDULE_WRITE_ERROR }));
   }
   if (!draftResult.data) {
@@ -65,15 +63,7 @@ export const POST: APIRoute = async (context) => {
     return context.redirect(managerScheduleUrl({ month, published: true }));
   }
 
-  const summary = summarizeSchedule({
-    month,
-    members: inputs.members,
-    windows: inputs.windows,
-    shifts: shiftsResult.data,
-    previousNight: inputs.previousNight,
-    nextMorning: inputs.nextMorning,
-  });
-  if (summary.daysWithNoOne.length > 0) {
+  if (daysWithNoOne(month, shiftsResult.data).length > 0) {
     return context.redirect(managerScheduleUrl({ month, error: PUBLISH_GAPS_ERROR }));
   }
 

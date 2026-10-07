@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { GeneratedShift, ScheduleWindow } from "./schedule-generator";
-import { summarizeSchedule } from "./schedule-summary";
+import { daysWithNoOne, summarizeSchedule } from "./schedule-summary";
 
 // summarizeSchedule recounts a draft from its shifts and the raw windows, so S-04 can trust it for overrides. The
 // drafts below are injected by hand (not generated), and every expected value is counted from them by the rule:
@@ -121,6 +121,19 @@ describe("counts, uncovered shifts and days with no one come from the draft itse
     expect(summary.daysWithNoOne).not.toContain("2026-11-10");
     expect(summary.daysWithNoOne).not.toContain("2026-11-11");
     expect(summary.daysWithNoOne).toContain("2026-11-12");
+  });
+
+  it("daysWithNoOne needs only the shifts: 30 Nov is covered by A's 00:00–06:00 on 1 Dec, 29 Nov is not", () => {
+    const shifts = [
+      shift("2026-11-29T06:00:00", "2026-11-29T18:00:00", null),
+      shift("2026-11-30T06:00:00", "2026-11-30T18:00:00", null),
+      shift("2026-12-01T00:00:00", "2026-12-01T06:00:00", A),
+    ];
+    const gaps = daysWithNoOne(MONTH, shifts);
+    expect(gaps).toHaveLength(29);
+    expect(gaps).toContain("2026-11-29");
+    expect(gaps).not.toContain("2026-11-30");
+    expect(gaps).toEqual(summarize([window(A, "2026-11-30T18:00:00", "2026-12-01T06:00:00")], shifts).daysWithNoOne);
   });
 
   it("does not count a carry-over that ends before 1 Nov 06:00 as availability", () => {

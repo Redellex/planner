@@ -45,6 +45,11 @@ export const SCHEDULE_PUBLISHED_ERROR = "Unpublish the schedule before changing 
 export const PUBLISH_GAPS_ERROR = "Assign someone on every day before publishing.";
 /** The overridden shift is not in the month's current draft (regenerated, discarded or published in between). */
 export const STALE_SHIFT_ERROR = "This shift is no longer in the draft. Reload and try again.";
+/**
+ * `?confirm=override` whose panel the page cannot rebuild (no warnings any more, or its shift or assignee is gone):
+ * nothing was saved. Computed by /manager/schedule, never read from `?error=`, so not in SCHEDULE_FEEDBACK_ERRORS.
+ */
+export const OVERRIDE_NOT_SAVED_ERROR = "Nothing was saved. Choose the assignee again.";
 export const INVALID_ASSIGNEE_ERROR = "Invalid assignee";
 /** Publish or unpublish found no schedule row for the month (SQLSTATE SP002). */
 export const NO_SCHEDULE_ERROR = "No schedule for this month";

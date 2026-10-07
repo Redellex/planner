@@ -33,11 +33,13 @@ import {
   logScheduleError,
   managerScheduleUrl,
   OVERRIDDEN_MESSAGE,
+  OVERRIDE_NOT_SAVED_ERROR,
   parseShiftParam,
   PUBLISHED_MESSAGE,
   resolveScheduleFeedbackError,
   SCHEDULE_LOAD_ERROR,
   SCHEDULE_PAGE_SIZE,
+  SCHEDULE_PUBLISHED_ERROR,
   scheduleMonths,
   shiftsByStationDay,
   SUPABASE_NOT_CONFIGURED_ERROR,
@@ -168,10 +170,10 @@ const confirming =
 // Overrides are open on an unpublished draft read in full (the summary is set only then).
 const editable = summary !== null && draft !== null && draft.publishedAt === null;
 
-// The override result goes to its shift's row; without that shift on the selected day it stays in the draft card.
+// The override result goes to its shift's row; without that shift on the selected day, or on a published month (its
+// read-only rows show no feedback), it stays in the draft card.
 const shiftOnSelectedDay = shiftParam && selectedShifts.some((shift) => shift.id === shiftParam) ? shiftParam : null;
-const shiftFeedback = feedback && shiftOnSelectedDay ? { shiftId: shiftOnSelectedDay, ...feedback } : null;
-const cardFeedback = shiftFeedback ? null : feedback;
+const shiftFeedback = feedback && shiftOnSelectedDay && editable ? { shiftId: shiftOnSelectedDay, ...feedback } : null;
 
 // `?confirm=override&shift=&employee=`: the warnings are rebuilt from this page's own reads, never taken from the URL.
 // A shift or an employee that is not loaded, or a change with no warnings, shows no panel.
@@ -205,6 +207,16 @@ if (
     overrideConfirm = { shiftId: shiftOnSelectedDay, employee: confirmEmployee, warnings, perMember: after.perMember };
   }
 }
+
+// A `?confirm=override` that builds no panel saved nothing; the card says so instead of showing nothing.
+const unsavedOverride =
+  Astro.url.searchParams.get("confirm") === "override" && !feedback && overrideConfirm === null
+    ? {
+        kind: "error" as const,
+        message: draft?.publishedAt ? SCHEDULE_PUBLISHED_ERROR : OVERRIDE_NOT_SAVED_ERROR,
+      }
+    : null;
+const cardFeedback = shiftFeedback ? null : (feedback ?? unsavedOverride);
 
 const lockedMonths = new Set(lockedAt.keys());
 const monthLockedAt = lockedAt.get(month);

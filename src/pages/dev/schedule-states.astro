@@ -26,6 +26,7 @@ import {
   NO_SCHEDULE_ERROR,
   NOT_PERMITTED_ERROR,
   OVERRIDDEN_MESSAGE,
+  OVERRIDE_NOT_SAVED_ERROR,
   PUBLISH_GAPS_ERROR,
   PUBLISHED_MESSAGE,
   SCHEDULE_LOAD_ERROR,
@@ -332,6 +333,14 @@ const draftStates = [
     feedback: null,
   },
   {
+    title: "Published, then an assignee's account was deleted (1 day has no one)",
+    canGenerate: true,
+    confirming: false,
+    draft: publishedCard,
+    daysWithNoOne: 1,
+    feedback: null,
+  },
+  {
     title: "Success: published",
     canGenerate: true,
     confirming: false,
@@ -364,6 +373,8 @@ const errorStates = [
   { message: PUBLISH_GAPS_ERROR, draft: draftCard, daysWithNoOne: 2 },
   { message: NO_SCHEDULE_ERROR, draft: null, daysWithNoOne: 0 },
   { message: INVALID_ASSIGNEE_ERROR, draft: draftCard, daysWithNoOne: 0 },
+  // Not a ?error= value: the page shows it when ?confirm=override can no longer build its panel.
+  { message: OVERRIDE_NOT_SAVED_ERROR, draft: draftCard, daysWithNoOne: 0 },
 ];
 ---
 

@@ -5,7 +5,7 @@
 -- draft exists), PRD FR-003. Refused writes are checked as postgres afterwards: as the denied actor, RLS would hide
 -- the rows anyway.
 begin;
-select plan(93);
+select plan(98);
 
 -- Station months, derived once; now() is fixed for the transaction.
 select
@@ -532,8 +532,8 @@ select is_empty(
 select throws_ok(
   format($$ insert into public.schedule_shifts (month, starts_at, ends_at) values (%L, %L, %L) $$,
     :'m1', :'m1'::date + interval '4 days 18:00', :'m1'::date + interval '5 days 06:00'),
-  '42501', null,
-  'Mg cannot insert a shift into published M+1'
+  'SP001', null,
+  'Mg cannot insert a shift into published M+1 (the guard trigger fires before the RLS check)'
 );
 select is_empty(
   format($$ delete from public.schedule_shifts where id = %L returning id $$, :'day5_pm'),
@@ -623,6 +623,40 @@ select isnt_empty(
   'Mg can discard unpublished M+1'
 );
 reset role;
+
+-- The published guard trigger applies to every direct shift write, even the table owner's, and skips foreign-key
+-- actions, so deleting an account and discarding through public.schedules still work on a published month. (The race
+-- it closes, a shift write concurrent with publish_schedule, needs two sessions and is not testable in this file.)
+insert into public.schedules (month, published_at) values (:'m1', now());
+alter table public.schedule_shifts disable trigger schedule_shifts_published_guard;
+insert into public.schedule_shifts (id, month, starts_at, ends_at, employee_id) values
+  ('10000000-0000-4000-8000-00000000f402', :'m1', :'m1'::date + interval '06:00', :'m1'::date + interval '18:00',
+    '10000000-0000-4000-8000-0000000000a4');
+alter table public.schedule_shifts enable trigger schedule_shifts_published_guard;
+select throws_ok(
+  format($$ insert into public.schedule_shifts (month, starts_at, ends_at) values (%L, %L, %L) $$,
+    :'m1', :'m1'::date + interval '18:00', :'m1'::date + interval '1 day 06:00'),
+  'SP001', null,
+  'the table owner cannot insert a shift into published M+1 either'
+);
+select lives_ok(
+  $$ delete from auth.users where id = '10000000-0000-4000-8000-0000000000a4' $$,
+  'A''s account can be deleted while A holds a shift in published M+1'
+);
+select results_eq(
+  $$ select employee_id from public.schedule_shifts where id = '10000000-0000-4000-8000-00000000f402' $$,
+  $$ values (null::uuid) $$,
+  'A''s published shift remains, uncovered, after A''s account is deleted'
+);
+select lives_ok(
+  format($$ delete from public.schedules where month = %L $$, :'m1'),
+  'the table owner can delete published M+1 through public.schedules'
+);
+select is(
+  (select count(*) from public.schedule_shifts where month = :'m1'),
+  0::bigint,
+  'deleting published M+1 cascades to its shifts'
+);
 
 select * from finish();
 rollback;

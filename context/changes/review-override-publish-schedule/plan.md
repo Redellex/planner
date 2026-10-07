@@ -611,6 +611,12 @@ Add the publish and unpublish endpoints and the published state of the draft car
 - **Hosted.** Apply with `npx supabase db push` after the PR merges, as for earlier slices.
 - **Rollback.** A follow-up migration that drops both RPCs, both columns and the update policy and grant, and restores the original policies and `replace_schedule_draft`. No data needs converting.
 
+## Addendum (impl review, 2026-10-07)
+
+- **Override warnings are per person.** `overrideWarnings` keys every warning on the problem, its shifts and the assignee, and filters out keys already in `before`, instead of `{kind, shift id}` for fairness and "the shift is in after.X" for the rest. A problem the old assignee already had on the shift is warned again for the new assignee (tests in `schedule-override.test.ts`). An unchanged assignee still gives none.
+- **The freeze is RLS plus a guard trigger.** `20261007130000_guard_published_schedule_shifts.sql` locks the month's `schedules` row FOR SHARE before every direct shift write and raises SP001 on a published month, closing the READ COMMITTED race with `publish_schedule`. FK actions are skipped, so cascade and set null still work (review F1).
+- **Publish reads only the draft row and its shifts.** Coverage uses `daysWithNoOne(month, shifts)` (review F5).
+
 ## References
 
 - Research: `context/changes/review-override-publish-schedule/research.md`
@@ -651,7 +657,8 @@ Add the publish and unpublish endpoints and the published state of the draft car
 
 #### Manual
 
-- [ ] 2.4 Stryker on `src/lib/schedule-override.ts`: survivors that would change a manager's warnings are killed or recorded
+- [x] 2.4 Stryker on `src/lib/schedule-override.ts`: survivors that would change a manager's warnings are killed or recorded
+  - Impl review, 2026-10-07: `--timeoutMS 60000 --concurrency 2` (the default timeout counted 82 of 91 mutants as timeouts and showed 97.8%). Result 21 survivors; 2 were real (an override of the *first* shift of a back-to-back pair was untested) and are killed by a new test. The other 19 are equivalent: the `shiftId` filters in `candidates` (L35-57) only drop entries that are identical in `before` and `after`, which the diff removes anyway, and the `previousNight`/`nextMorning` case labels in `warningKey` (L74-75) never collide, because `before` and `after` cannot both hold such a warning for one shift.
 
 ### Phase 3: Override — endpoint and day panel
 
