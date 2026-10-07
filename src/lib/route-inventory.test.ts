@@ -38,6 +38,9 @@ const EXPECTED_ACCESS: Record<string, AccessClass> = {
   "/api/manager/users/role": "manager",
   "/api/manager/schedule/generate": "manager",
   "/api/manager/schedule/discard": "manager",
+  "/api/manager/schedule/override": "manager",
+  "/api/manager/schedule/publish": "manager",
+  "/api/manager/schedule/unpublish": "manager",
 };
 
 const OUTCOMES: Record<AccessClass, [anonymous: string, employee: string, manager: string]> = {

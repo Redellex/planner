@@ -1,14 +1,37 @@
 ---
-import { formatDuration, formatWindow, windowMinutes } from "@/lib/availability";
+import { CircleAlert, CircleCheck } from "lucide-react";
+import { AssigneeSelect } from "@/components/schedule/AssigneeSelect";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { dateOf, formatDay, formatDuration, formatWindow, windowMinutes } from "@/lib/availability";
 import { accountLabel } from "@/lib/manager-users";
+import { managerScheduleUrl, stationDayOf } from "@/lib/schedule";
+import type { OverrideShift, OverrideWarning } from "@/lib/schedule-override";
 import type { SummaryShift } from "@/lib/schedule-summary";
 
 interface Props {
   selectedLabel: string;
+  /** `YYYY-MM` of the draft, posted with every override. */
+  month: string;
+  /** The selected station day (`YYYY-MM-DD`), kept in the override redirect and the Cancel link. */
+  day: string;
   /** The selected station day's shifts, in start order (06:00 to the next 06:00). */
-  shifts: SummaryShift[];
-  /** Profile id -> profile, for the assignee labels. */
+  shifts: OverrideShift[];
+  /** Profile id -> profile, for the assignee labels and (in this order) the "Who" options. */
   members: Map<string, { id: string; email: string }>;
+  /** An unpublished draft read in full: each row gets a "Who" select and Save. Otherwise rows are read-only. */
+  editable?: boolean;
+  /** Result of the last override, in the row of the shift it concerns. */
+  feedback?: { shiftId: string; kind: "error" | "success"; message: string } | null;
+  /**
+   * The override waiting for "Assign anyway" (`?confirm=override`): the shift, the new assignee (null: Uncovered)
+   * and the problems it would introduce (never empty).
+   */
+  confirm?: {
+    shiftId: string;
+    employee: string | null;
+    warnings: OverrideWarning[];
+  } | null;
   /**
    * Day 1 only: the previous month's last night (it ends at 06:00 on this day), shown read-only before the shifts,
    * with that month's label.
@@ -16,14 +39,72 @@ interface Props {
   previousNight?: { shift: SummaryShift; monthLabel: string } | null;
   /** Prepended to every element id; set it when a page renders more than one of these (the kitchen sink). */
   idPrefix?: string;
+  /** The `idPrefix` of the `ScheduleSummary` the confirm panel's "Fairness exceptions" link points to. */
+  summaryIdPrefix?: string;
 }
 
-const { selectedLabel, shifts, members, previousNight = null, idPrefix = "" } = Astro.props;
+const {
+  selectedLabel,
+  month,
+  day,
+  shifts,
+  members,
+  editable = false,
+  feedback = null,
+  confirm = null,
+  previousNight = null,
+  idPrefix = "",
+  summaryIdPrefix = "",
+} = Astro.props;
 const headingId = `${idPrefix}schedule-selected-day-heading`;
+/** The summary's fairness section (`ScheduleSummary`, rendered without an id prefix on /manager/schedule). */
+const fairnessId = `${summaryIdPrefix}schedule-fairness-heading`;
 
 function assigneeLabel(employeeId: string) {
   // A shift's assignee is always a loaded profile; the fallback keeps an unknown id readable, never empty.
   return accountLabel(members.get(employeeId) ?? { id: employeeId, email: "" });
+}
+
+const options = [...members.values()].map((member) => ({ value: member.id, label: accountLabel(member).text }));
+
+/** The station day and times of a shift, e.g. "Thu 12 Nov, 18:00 – 06:00 (+1)". */
+function shiftText(shift: SummaryShift): string {
+  return `${formatDay(stationDayOf(shift.starts_at))}, ${formatWindow(shift)}`;
+}
+
+/** One plain-English line per problem the override would introduce; fairness gets one line for all (`fairnessText`). */
+function warningText(warning: Exclude<OverrideWarning, { kind: "fairness" }>, shiftId: string): string {
+  switch (warning.kind) {
+    case "outside":
+      return `Outside ${assigneeLabel(warning.assignee).text}'s availability`;
+    case "sameDay": {
+      const other = warning.shifts[0].id === shiftId ? warning.shifts[1] : warning.shifts[0];
+      return `Second shift on ${formatDay(stationDayOf(other.starts_at))} for ${assigneeLabel(warning.assignee).text} (also ${formatWindow(other)})`;
+    }
+    case "backToBack": {
+      const other = warning.first.id === shiftId ? warning.second : warning.first;
+      return `Back to back with ${assigneeLabel(warning.assignee).text}'s ${shiftText(other)}`;
+    }
+    case "previousNight":
+      return `Back to back with ${assigneeLabel(warning.assignee).text}'s previous-month night ending ${formatDay(dateOf(warning.shift.starts_at))} 06:00`;
+    case "nextMorning":
+      return `Back to back with ${assigneeLabel(warning.assignee).text}'s next-month shift starting ${formatDay(dateOf(warning.shift.ends_at))} 06:00`;
+    case "noOne":
+      return `No one assigned on ${formatDay(warning.date)}`;
+  }
+}
+
+/**
+ * One change can break the fairness rule on every 12h shift or night a person holds, so the panel names only who and
+ * which kind ("12h shifts for X; nights for Y") and points to the summary's fairness exceptions for the details.
+ */
+function fairnessText(warnings: OverrideWarning[]): string | null {
+  const subjects = new Set<string>();
+  for (const warning of warnings) {
+    if (warning.kind !== "fairness") continue;
+    subjects.add(`${warning.rule === "long" ? "12h shifts" : "nights"} for ${assigneeLabel(warning.assignee).text}`);
+  }
+  return subjects.size === 0 ? null : `uneven ${[...subjects].join("; ")}.`;
 }
 ---
 
@@ -43,15 +124,101 @@ function assigneeLabel(employeeId: string) {
   {shifts.length === 0 ? (
     <p class="text-sm text-muted-foreground">No shifts on this day.</p>
   ) : (
-    <ul class="flex flex-col gap-2">
+    <ul class:list={editable ? "flex flex-col divide-y" : "flex flex-col gap-2"}>
       {shifts.map((shift) => {
         const label = shift.employee_id ? assigneeLabel(shift.employee_id) : null;
-        return (
-          <li class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">
-            <span>
-              {formatWindow(shift)}
-              <span class="text-muted-foreground"> · {formatDuration(windowMinutes(shift))}</span>
-            </span>
+        const window = formatWindow(shift);
+        const selectId = `${idPrefix}assignee-${shift.id}`;
+        const rowFeedback = feedback?.shiftId === shift.id ? feedback : null;
+        const rowConfirm = editable && confirm?.shiftId === shift.id && confirm.warnings.length > 0 ? confirm : null;
+        const rowFairness = rowConfirm ? fairnessText(rowConfirm.warnings) : null;
+        const times = (
+          <span>
+            {window}
+            <span class="text-muted-foreground"> · {formatDuration(windowMinutes(shift))}</span>
+          </span>
+        );
+        const uncoveredMarker = (
+          <span class="rounded-md border border-destructive/40 px-2 py-0.5 text-xs text-destructive">Uncovered</span>
+        );
+        return editable ? (
+          <li data-shift-id={shift.id} class="flex flex-col gap-3 py-3 text-sm first:pt-0 last:pb-0">
+            <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <span class="flex flex-wrap items-center gap-2">
+                {times}
+                {!label && uncoveredMarker}
+              </span>
+              <form method="POST" action="/api/manager/schedule/override" class="flex items-center gap-2">
+                <input type="hidden" name="month" value={month} />
+                <input type="hidden" name="day" value={day} />
+                <input type="hidden" name="shift" value={shift.id} />
+                <label for={selectId} class="sr-only">
+                  Who works {window}
+                </label>
+                <AssigneeSelect id={selectId} name="employee" value={shift.employee_id} options={options} />
+                <Button type="submit" variant="secondary" size="sm" aria-label={`Save who works ${window}`}>
+                  Save
+                </Button>
+              </form>
+            </div>
+            {rowFeedback?.kind === "error" && (
+              <Alert variant="destructive">
+                <CircleAlert />
+                <AlertDescription>{rowFeedback.message}</AlertDescription>
+              </Alert>
+            )}
+            {rowFeedback?.kind === "success" && (
+              <Alert role="status">
+                <CircleCheck />
+                <AlertTitle>{rowFeedback.message}</AlertTitle>
+              </Alert>
+            )}
+            {rowConfirm && (
+              <div class="flex flex-col gap-3 rounded-lg border border-destructive/40 p-3">
+                <p class="flex items-center gap-2 font-medium">
+                  <CircleAlert className="size-4 text-destructive" />
+                  {rowConfirm.employee
+                    ? `Assign ${assigneeLabel(rowConfirm.employee).text} to ${window}?`
+                    : `Leave ${window} uncovered?`}
+                </p>
+                <ul class="flex list-disc flex-col gap-1 pl-5">
+                  {rowConfirm.warnings.map((warning) =>
+                    warning.kind === "fairness" ? null : <li>{warningText(warning, shift.id)}</li>,
+                  )}
+                  {rowFairness && (
+                    <li>
+                      Check fairness: {rowFairness} After saving, see{" "}
+                      <a href={`#${fairnessId}`} class="underline underline-offset-2">
+                        Fairness exceptions
+                      </a>{" "}
+                      in the summary.
+                    </li>
+                  )}
+                </ul>
+                <div class="flex flex-wrap items-center gap-2">
+                  <form method="POST" action="/api/manager/schedule/override">
+                    <input type="hidden" name="month" value={month} />
+                    <input type="hidden" name="day" value={day} />
+                    <input type="hidden" name="shift" value={shift.id} />
+                    <input type="hidden" name="employee" value={rowConfirm.employee ?? ""} />
+                    <input type="hidden" name="confirm" value="override" />
+                    <Button type="submit" size="sm">
+                      Assign anyway
+                    </Button>
+                  </form>
+                  <a
+                    href={managerScheduleUrl({ month, day })}
+                    class:list={buttonVariants({ variant: "outline", size: "sm" })}
+                  >
+                    Cancel
+                  </a>
+                </div>
+              </div>
+            )}
+          </li>
+        ) : (
+          <li data-shift-id={shift.id} class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">
+            {times}
             {label ? (
               <span
                 class:list={
@@ -61,9 +228,7 @@ function assigneeLabel(employeeId: string) {
                 {label.text}
               </span>
             ) : (
-              <span class="rounded-md border border-destructive/40 px-2 py-0.5 text-xs text-destructive">
-                Uncovered
-              </span>
+              uncoveredMarker
             )}
           </li>
         );

@@ -5,7 +5,7 @@
 -- draft exists), PRD FR-003. Refused writes are checked as postgres afterwards: as the denied actor, RLS would hide
 -- the rows anyway.
 begin;
-select plan(50);
+select plan(98);
 
 -- Station months, derived once; now() is fixed for the transaction.
 select
@@ -319,7 +319,7 @@ select isnt_empty(
 );
 reset role;
 
--- Privileges: no table-level UPDATE (S-04 must grant update columns explicitly), no anon RPC.
+-- Privileges: no table-level UPDATE (only schedule_shifts.employee_id is granted, checked below), no anon RPC.
 select is(has_table_privilege('authenticated', 'public.schedules', 'UPDATE'), false,
   'authenticated has no table-level UPDATE on schedules');
 select is(has_table_privilege('authenticated', 'public.schedule_shifts', 'UPDATE'), false,
@@ -343,6 +343,320 @@ set local request.jwt.claims = '{"role":"anon"}';
 select is_empty($$ select month from public.schedules $$, 'anon cannot read drafts');
 select is_empty($$ select id from public.schedule_shifts $$, 'anon cannot read draft shifts');
 reset role;
+
+-- S-04: override, publish, freeze and unpublish. Oracles: plan review-override-publish-schedule (Phase 1 contract,
+-- "Critical Implementation Details"), PRD FR-005/FR-006 and prd.md:103 (no publish while a day has no one).
+select is(has_column_privilege('authenticated', 'public.schedule_shifts', 'employee_id', 'UPDATE'), true,
+  'authenticated can update schedule_shifts.employee_id');
+select is(has_column_privilege('authenticated', 'public.schedule_shifts', 'starts_at', 'UPDATE'), false,
+  'authenticated cannot update schedule_shifts.starts_at');
+select is(has_column_privilege('authenticated', 'public.schedule_shifts', 'ends_at', 'UPDATE'), false,
+  'authenticated cannot update schedule_shifts.ends_at');
+select is(has_column_privilege('authenticated', 'public.schedule_shifts', 'month', 'UPDATE'), false,
+  'authenticated cannot update schedule_shifts.month');
+select is(has_function_privilege('anon', 'public.publish_schedule(date)', 'execute'), false,
+  'anon cannot execute publish_schedule');
+select is(has_function_privilege('anon', 'public.unpublish_schedule(date)', 'execute'), false,
+  'anon cannot execute unpublish_schedule');
+
+-- A full M+1 draft: every station day but the last is 06-18 for A and 18-06 uncovered; the last station day is
+-- 12+6+6 with only its 00:00-06:00 shift (on day 1 of M+2) assigned, the boundary row of the coverage rule. The
+-- "missing" variant has no shift at all on station day 10.
+delete from public.schedules where month = :'m1';
+
+with days as (
+  select d::date as d, d::date = :'m2'::date - 1 as last_day
+  from generate_series(:'m1'::date, :'m2'::date - 1, interval '1 day') as d
+),
+shifts as (
+  select d + interval '06:00' as starts_at, d + interval '18:00' as ends_at,
+    '10000000-0000-4000-8000-0000000000a4'::uuid as employee_id
+  from days where not last_day
+  union all
+  select d + interval '18:00', d + interval '1 day 06:00', null from days where not last_day
+  union all
+  select d + interval '06:00', d + interval '18:00', null from days where last_day
+  union all
+  select d + interval '18:00', d + interval '1 day', null from days where last_day
+  union all
+  select d + interval '1 day', d + interval '1 day 06:00', '10000000-0000-4000-8000-0000000000a4'::uuid
+  from days where last_day
+)
+select
+  jsonb_agg(jsonb_build_object('starts_at', starts_at, 'ends_at', ends_at, 'employee_id', employee_id)
+    order by starts_at)::text as draft_full,
+  jsonb_agg(jsonb_build_object('starts_at', starts_at, 'ends_at', ends_at, 'employee_id', employee_id)
+    order by starts_at) filter (where (starts_at - interval '6 hours')::date <> :'m1'::date + 9)::text
+    as draft_missing
+from shifts
+\gset
+
+-- Publish is refused while a station day has no one assigned
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000c4","role":"authenticated"}';
+select lives_ok(
+  format($$ select public.replace_schedule_draft(%L::date, %L::jsonb) $$, :'m1', :'draft_missing'),
+  'Mg can create an M+1 draft with no shift on station day 10'
+);
+select throws_ok(
+  format($$ select public.publish_schedule(%L::date) $$, :'m1'),
+  'SP003', null,
+  'Mg cannot publish M+1 while station day 10 has no shift'
+);
+select lives_ok(
+  format($$ select public.replace_schedule_draft(%L::date, %L::jsonb) $$, :'m1', :'draft_full'),
+  'Mg can replace the M+1 draft with the fully covered one'
+);
+reset role;
+
+select
+  (select id from public.schedule_shifts where starts_at = :'m1'::date + interval '9 days 06:00') as day10_am,
+  (select id from public.schedule_shifts where starts_at = :'m1'::date + interval '4 days 18:00') as day5_pm
+\gset
+
+-- Override: Mg changes the assignee only; an uncovered day blocks publish
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000c4","role":"authenticated"}';
+select isnt_empty(
+  format($$ update public.schedule_shifts set employee_id = null where id = %L returning id $$, :'day10_am'),
+  'Mg can set the assignee of a draft shift to null (uncovered)'
+);
+select throws_ok(
+  format($$ select public.publish_schedule(%L::date) $$, :'m1'),
+  'SP003', null,
+  'Mg cannot publish M+1 while every shift of station day 10 is uncovered'
+);
+select isnt_empty(
+  format($$ update public.schedule_shifts set employee_id = %L where id = %L returning id $$,
+    '10000000-0000-4000-8000-0000000000c4', :'day10_am'),
+  'Mg can assign a draft shift to Mg'
+);
+reset role;
+select is(
+  (select employee_id from public.schedule_shifts where id = :'day10_am'),
+  '10000000-0000-4000-8000-0000000000c4'::uuid,
+  'the overridden shift is held by Mg'
+);
+
+select row(month, starts_at, ends_at, employee_id)::text as day10_row
+from public.schedule_shifts
+where id = :'day10_am'
+\gset
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000c4","role":"authenticated"}';
+select throws_ok(
+  format($$ update public.schedule_shifts set starts_at = starts_at + interval '1 day' where id = %L $$, :'day10_am'),
+  '42501', null,
+  'Mg cannot update a shift''s starts_at'
+);
+select throws_ok(
+  format($$ update public.schedule_shifts set ends_at = ends_at + interval '1 day' where id = %L $$, :'day10_am'),
+  '42501', null,
+  'Mg cannot update a shift''s ends_at'
+);
+select throws_ok(
+  format($$ update public.schedule_shifts set month = %L where id = %L $$, :'m2', :'day10_am'),
+  '42501', null,
+  'Mg cannot update a shift''s month'
+);
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000a4","role":"authenticated"}';
+select is_empty(
+  format($$ update public.schedule_shifts set employee_id = %L where id = %L returning id $$,
+    '10000000-0000-4000-8000-0000000000a4', :'day10_am'),
+  'A updating the assignee of a draft shift matches no rows'
+);
+select throws_ok(
+  format($$ select public.publish_schedule(%L::date) $$, :'m1'),
+  '42501', null,
+  'A cannot publish M+1'
+);
+reset role;
+select is(
+  (select row(month, starts_at, ends_at, employee_id)::text from public.schedule_shifts where id = :'day10_am'),
+  :'day10_row',
+  'the overridden shift is unchanged after the refused updates'
+);
+select is(
+  (select published_at from public.schedules where month = :'m1'),
+  null::timestamptz,
+  'M+1 is still a draft after A''s publish'
+);
+
+-- Publish
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000c4","role":"authenticated"}';
+select throws_ok(
+  format($$ select public.publish_schedule(%L::date) $$, :'m2'),
+  'SP002', null,
+  'Mg cannot publish M+2, which has no draft'
+);
+select lives_ok(
+  format($$ select public.publish_schedule(%L::date) $$, :'m1'),
+  'Mg can publish M+1, whose last station day is covered only by 00:00-06:00 on day 1 of M+2'
+);
+reset role;
+select is(
+  (select row(published_at, published_by)::text from public.schedules where month = :'m1'),
+  row(now(), '10000000-0000-4000-8000-0000000000c4'::uuid)::text,
+  'publishing M+1 records now() and Mg'
+);
+
+-- Publishing again keeps the original time: backdate it as the owner, then publish again
+update public.schedules set published_at = '2000-01-01 00:00:00+00' where month = :'m1';
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000c4","role":"authenticated"}';
+select lives_ok(
+  format($$ select public.publish_schedule(%L::date) $$, :'m1'),
+  'Mg publishing M+1 again succeeds'
+);
+reset role;
+select is(
+  (select row(published_at, published_by)::text from public.schedules where month = :'m1'),
+  row('2000-01-01 00:00:00+00'::timestamptz, '10000000-0000-4000-8000-0000000000c4'::uuid)::text,
+  'publishing M+1 again keeps the original published_at and published_by'
+);
+
+select string_agg(id::text || ':' || coalesce(employee_id::text, '-'), ',' order by starts_at) as published_shifts
+from public.schedule_shifts
+where month = :'m1'
+\gset
+
+-- A published month is frozen
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000c4","role":"authenticated"}';
+select is_empty(
+  format($$ update public.schedule_shifts set employee_id = null where id = %L returning id $$, :'day10_am'),
+  'Mg updating the assignee of a published shift matches no rows'
+);
+select throws_ok(
+  format($$ insert into public.schedule_shifts (month, starts_at, ends_at) values (%L, %L, %L) $$,
+    :'m1', :'m1'::date + interval '4 days 18:00', :'m1'::date + interval '5 days 06:00'),
+  'SP001', null,
+  'Mg cannot insert a shift into published M+1 (the guard trigger fires before the RLS check)'
+);
+select is_empty(
+  format($$ delete from public.schedule_shifts where id = %L returning id $$, :'day5_pm'),
+  'Mg deleting a published shift matches no rows'
+);
+select is_empty(
+  format($$ delete from public.schedules where month = %L returning month $$, :'m1'),
+  'Mg discarding published M+1 matches no rows'
+);
+select throws_ok(
+  format($$ select public.replace_schedule_draft(%L::date, %L::jsonb) $$, :'m1', :'draft_full'),
+  'SP001', null,
+  'Mg cannot replace published M+1'
+);
+select throws_ok(
+  format($$ delete from public.availability_locks where month = %L $$, :'m1'),
+  '23503', null,
+  'Mg cannot unlock published M+1'
+);
+reset role;
+select is(
+  (select string_agg(id::text || ':' || coalesce(employee_id::text, '-'), ',' order by starts_at)
+    from public.schedule_shifts where month = :'m1'),
+  :'published_shifts',
+  'the published M+1 shifts are unchanged after Mg''s writes'
+);
+select is(
+  (select count(*) from public.schedules where month = :'m1' and published_at is not null),
+  1::bigint,
+  'published M+1 remains published after Mg''s writes'
+);
+
+-- Unpublish
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000a4","role":"authenticated"}';
+select throws_ok(
+  format($$ select public.unpublish_schedule(%L::date) $$, :'m1'),
+  '42501', null,
+  'A cannot unpublish M+1'
+);
+reset role;
+select is(
+  (select count(*) from public.schedules where month = :'m1' and published_at is not null),
+  1::bigint,
+  'M+1 is still published after A''s unpublish'
+);
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000c4","role":"authenticated"}';
+select throws_ok(
+  format($$ select public.unpublish_schedule(%L::date) $$, :'m2'),
+  'SP002', null,
+  'Mg cannot unpublish M+2, which has no draft'
+);
+select lives_ok(
+  format($$ select public.unpublish_schedule(%L::date) $$, :'m1'),
+  'Mg can unpublish M+1'
+);
+reset role;
+select is(
+  (select row(published_at, published_by)::text from public.schedules where month = :'m1'),
+  row(null::timestamptz, null::uuid)::text,
+  'unpublishing M+1 clears published_at and published_by'
+);
+
+-- After unpublish, override, shift writes, replace and discard work again
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000c4","role":"authenticated"}';
+select isnt_empty(
+  format($$ update public.schedule_shifts set employee_id = null where id = %L returning id $$, :'day10_am'),
+  'Mg can update the assignee of an unpublished shift'
+);
+select isnt_empty(
+  format($$ delete from public.schedule_shifts where id = %L returning id $$, :'day5_pm'),
+  'Mg can delete a shift of unpublished M+1'
+);
+select lives_ok(
+  format($$ insert into public.schedule_shifts (month, starts_at, ends_at) values (%L, %L, %L) $$,
+    :'m1', :'m1'::date + interval '4 days 18:00', :'m1'::date + interval '5 days 06:00'),
+  'Mg can insert a shift into unpublished M+1'
+);
+select lives_ok(
+  format($$ select public.replace_schedule_draft(%L::date, %L::jsonb) $$, :'m1', :'draft_full'),
+  'Mg can replace unpublished M+1'
+);
+select isnt_empty(
+  format($$ delete from public.schedules where month = %L returning month $$, :'m1'),
+  'Mg can discard unpublished M+1'
+);
+reset role;
+
+-- The published guard trigger applies to every direct shift write, even the table owner's, and skips foreign-key
+-- actions, so deleting an account and discarding through public.schedules still work on a published month. (The race
+-- it closes, a shift write concurrent with publish_schedule, needs two sessions and is not testable in this file.)
+insert into public.schedules (month, published_at) values (:'m1', now());
+alter table public.schedule_shifts disable trigger schedule_shifts_published_guard;
+insert into public.schedule_shifts (id, month, starts_at, ends_at, employee_id) values
+  ('10000000-0000-4000-8000-00000000f402', :'m1', :'m1'::date + interval '06:00', :'m1'::date + interval '18:00',
+    '10000000-0000-4000-8000-0000000000a4');
+alter table public.schedule_shifts enable trigger schedule_shifts_published_guard;
+select throws_ok(
+  format($$ insert into public.schedule_shifts (month, starts_at, ends_at) values (%L, %L, %L) $$,
+    :'m1', :'m1'::date + interval '18:00', :'m1'::date + interval '1 day 06:00'),
+  'SP001', null,
+  'the table owner cannot insert a shift into published M+1 either'
+);
+select lives_ok(
+  $$ delete from auth.users where id = '10000000-0000-4000-8000-0000000000a4' $$,
+  'A''s account can be deleted while A holds a shift in published M+1'
+);
+select results_eq(
+  $$ select employee_id from public.schedule_shifts where id = '10000000-0000-4000-8000-00000000f402' $$,
+  $$ values (null::uuid) $$,
+  'A''s published shift remains, uncovered, after A''s account is deleted'
+);
+select lives_ok(
+  format($$ delete from public.schedules where month = %L $$, :'m1'),
+  'the table owner can delete published M+1 through public.schedules'
+);
+select is(
+  (select count(*) from public.schedule_shifts where month = :'m1'),
+  0::bigint,
+  'deleting published M+1 cascades to its shifts'
+);
 
 select * from finish();
 rollback;

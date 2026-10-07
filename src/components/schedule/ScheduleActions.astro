@@ -11,30 +11,39 @@ interface Props {
   day: string;
   /** Whether a draft can be generated for `month` (one of the next 3 months). */
   canGenerate: boolean;
-  /** The stored draft, or null when the month has none. */
-  draft: { generatedAt: string } | null;
+  /** The stored draft, or null when the month has none; `publishedAt` is null while it is a draft. */
+  draft: { generatedAt: string; publishedAt: string | null } | null;
+  /**
+   * How many station days have no one assigned; Publish is offered only at 0. On a published month it can only be
+   * non-zero after an assignee's account was deleted (on delete set null), and the card then says so.
+   */
+  daysWithNoOne: number;
   /** Whether the month's availability is already locked. */
   locked: boolean;
   /** Renders the regenerate confirmation instead of the Regenerate link (`?confirm=replace`). */
   confirming: boolean;
-  /** Result of the last generate or discard. */
+  /** Result of the last generate, discard, publish or unpublish. */
   feedback: { kind: "error" | "success"; message: string } | null;
   /** Prepended to every element id; set it when a page renders more than one of these (the kitchen sink). */
   idPrefix?: string;
 }
 
-const { month, day, canGenerate, draft, locked, confirming, feedback, idPrefix = "" } = Astro.props;
+const { month, day, canGenerate, draft, daysWithNoOne, locked, confirming, feedback, idPrefix = "" } = Astro.props;
 const monthLabel = formatMonth(month);
 const headingId = `${idPrefix}schedule-actions-heading`;
+// A published month is frozen: only Unpublish is offered (the app and Postgres refuse every other write).
+const publishedAt = draft?.publishedAt ?? null;
+const gapsText = daysWithNoOne === 1 ? "1 day has no one" : `${daysWithNoOne} days have no one`;
 ---
 
 <section
   aria-labelledby={headingId}
   data-schedule-draft={draft ? "" : undefined}
+  data-schedule-published={publishedAt ? "" : undefined}
   class="mb-6 rounded-xl border bg-card p-4 text-card-foreground"
 >
   <h2 id={headingId} class="mb-3 text-base font-semibold">
-    Draft — {monthLabel}
+    {publishedAt ? "Published" : "Draft"} — {monthLabel}
   </h2>
 
   {feedback?.kind === "error" && (
@@ -50,7 +59,28 @@ const headingId = `${idPrefix}schedule-actions-heading`;
     </Alert>
   )}
 
-  {draft ? (
+  {draft && publishedAt ? (
+    <>
+      <p class="mb-3 text-sm text-muted-foreground">Published {formatStationInstant(publishedAt)}</p>
+      {daysWithNoOne > 0 && (
+        <Alert variant="destructive" className="mb-3">
+          <CircleAlert />
+          <AlertDescription>
+            Since publishing, {gapsText} (a deleted account's shifts became Uncovered). Unpublish to assign someone.
+          </AlertDescription>
+        </Alert>
+      )}
+      <form method="POST" action="/api/manager/schedule/unpublish">
+        <input type="hidden" name="month" value={month} />
+        <Button type="submit" variant="secondary" size="sm" aria-label={`Unpublish the ${monthLabel} schedule`}>
+          Unpublish
+        </Button>
+      </form>
+      <p class="mt-3 text-xs text-muted-foreground">
+        Unpublish to change, regenerate or discard it; it becomes a draft again. A published month stays locked.
+      </p>
+    </>
+  ) : draft ? (
     <>
       <p class="mb-3 text-sm text-muted-foreground">Generated {formatStationInstant(draft.generatedAt)}</p>
       {canGenerate && confirming && (
@@ -77,9 +107,17 @@ const headingId = `${idPrefix}schedule-actions-heading`;
         </div>
       )}
       <div class="flex flex-wrap items-center gap-2">
+        {daysWithNoOne === 0 && (
+          <form method="POST" action="/api/manager/schedule/publish">
+            <input type="hidden" name="month" value={month} />
+            <Button type="submit" size="sm" aria-label={`Publish the ${monthLabel} schedule`}>
+              Publish
+            </Button>
+          </form>
+        )}
         {canGenerate && !confirming && (
           <a
-            href={managerScheduleUrl({ month, day, confirm: true })}
+            href={managerScheduleUrl({ month, day, confirm: "replace" })}
             class:list={buttonVariants({ variant: "secondary", size: "sm" })}
           >
             Regenerate
@@ -92,12 +130,15 @@ const headingId = `${idPrefix}schedule-actions-heading`;
           </Button>
         </form>
       </div>
+      {daysWithNoOne > 0 && (
+        <p class="mt-3 text-sm text-muted-foreground">Assign someone on every day to publish ({gapsText}).</p>
+      )}
       <p class="mt-3 text-xs text-muted-foreground">
         Discarding keeps the month locked. Unlock it on
         <a href="/manager/months" class="text-primary underline-offset-4 hover:underline">
           Manage month locks
         </a>
-        once the draft is gone.
+        once the draft is gone; a published month is unpublished first.
       </p>
     </>
   ) : (

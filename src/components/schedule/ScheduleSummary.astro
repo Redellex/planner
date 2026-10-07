@@ -1,9 +1,9 @@
 ---
 import { CircleAlert } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { formatDay, formatDuration, formatMonth, formatWindow } from "@/lib/availability";
+import { dayOfMonth, formatDay, formatDuration, formatMonth, formatWindow } from "@/lib/availability";
 import { accountLabel } from "@/lib/manager-users";
-import { stationDayOf } from "@/lib/schedule";
+import { groupRuleBreaks, managerScheduleUrl, stationDayOf } from "@/lib/schedule";
 import type { ScheduleSummary, SummaryShift } from "@/lib/schedule-summary";
 
 interface Props {
@@ -25,6 +25,7 @@ function shiftLabel(shift: SummaryShift): string {
   return `${formatDay(stationDayOf(shift.starts_at))}, ${formatWindow(shift)}`;
 }
 const countsById = new Map(summary.perMember.map((member) => [member.id, member]));
+const ruleBreakGroups = groupRuleBreaks(summary.ruleBreaks);
 ---
 
 <section aria-labelledby={headingId} class="mt-6 rounded-xl border bg-card p-4 text-card-foreground">
@@ -89,31 +90,78 @@ const countsById = new Map(summary.perMember.map((member) => [member.id, member]
   )}
 
   <div class="mt-4 border-t pt-3">
-    <h3 class="mb-2 text-sm font-semibold">Fairness exceptions</h3>
+    <h3 id={`${idPrefix}schedule-fairness-heading`} class="mb-2 text-sm font-semibold">
+      Fairness exceptions
+    </h3>
     {summary.ruleBreaks.length === 0 ? (
       <p class="text-sm text-muted-foreground">None: every 12h and night shift keeps the fairness rules.</p>
     ) : (
       <>
         <p class="mb-2 text-xs text-muted-foreground">
-          The assignee has more than one shift of that kind above the lowest count among the people available for it.
+          One line per person: they have more than one shift of that kind above the lowest count among the people
+          available for it, on the days listed (open a day to reassign).
         </p>
         <ul class="flex flex-col gap-1">
-          {summary.ruleBreaks.map((ruleBreak) => {
-            const counts = countsById.get(ruleBreak.assignee);
-            const count = ruleBreak.kind === "long" ? counts?.longCount : counts?.nightCount;
-            const kind = ruleBreak.kind === "long" ? "12h shifts" : "nights";
+          {ruleBreakGroups.map((group) => {
+            const counts = countsById.get(group.assignee);
+            const count = group.kind === "long" ? counts?.longCount : counts?.nightCount;
+            const kind = group.kind === "long" ? "12h shifts" : "nights";
+            const { low, high } = group.eligibleMin;
             return (
               <li class="text-sm">
-                <span class="font-medium">{shiftLabel(ruleBreak.shift)}</span>
+                <span class="font-medium">{labelOf(group.assignee).text}</span>
                 <span class="text-muted-foreground">
                   {" "}
-                  · {labelOf(ruleBreak.assignee).text}: {count ?? 0} {kind}, lowest available {ruleBreak.eligibleMin}
+                  · {count ?? 0} {kind}, lowest available {low === high ? low : `${low}–${high}`} ·{" "}
+                  {group.days.length === 1 ? "day" : "days"}{" "}
+                  {group.days.map((day, index) => (
+                    <>
+                      {index > 0 && ", "}
+                      <a
+                        href={managerScheduleUrl({ month, day })}
+                        aria-label={formatDay(day)}
+                        class="underline underline-offset-2 hover:text-foreground"
+                      >
+                        {dayOfMonth(day)}
+                      </a>
+                    </>
+                  ))}
                 </span>
               </li>
             );
           })}
         </ul>
       </>
+    )}
+  </div>
+
+  <div class="mt-4 border-t pt-3">
+    <h3 class="mb-2 text-sm font-semibold">Hard-rule exceptions</h3>
+    {summary.sameDay.length === 0 && summary.backToBack.length === 0 ? (
+      <p class="text-sm text-muted-foreground">
+        None: nobody has two shifts in one station day or two shifts back to back.
+      </p>
+    ) : (
+      <ul class="flex flex-col gap-1">
+        {summary.sameDay.map(({ assignee, shifts: [first, second] }) => (
+          <li class="text-sm">
+            <span class="font-medium">{formatDay(stationDayOf(first.starts_at))}</span>
+            <span class="text-muted-foreground">
+              {" "}
+              · {labelOf(assignee).text}: two shifts that station day ({formatWindow(first)} and {formatWindow(second)})
+            </span>
+          </li>
+        ))}
+        {summary.backToBack.map(({ assignee, first, second }) => (
+          <li class="text-sm">
+            <span class="font-medium">{shiftLabel(first)}</span>
+            <span class="text-muted-foreground">
+              {" "}
+              · {labelOf(assignee).text}: back to back with {shiftLabel(second)}
+            </span>
+          </li>
+        ))}
+      </ul>
     )}
   </div>
 
@@ -138,9 +186,32 @@ const countsById = new Map(summary.perMember.map((member) => [member.id, member]
       <CircleAlert />
       <AlertTitle>Back to back with the previous month's last night</AlertTitle>
       <AlertDescription>
-        <p>The previous month's draft changed after this one was generated. Regenerate this month to fix it.</p>
+        <p>
+          The same person works the previous month's last night and this 06:00 start. Override the shift or regenerate
+          this month to fix it.
+        </p>
         <ul class="flex flex-col gap-1">
           {summary.touchesPreviousNight.map((shift) => (
+            <li>
+              {shiftLabel(shift)} · {shift.employee_id ? labelOf(shift.employee_id).text : "Uncovered"}
+            </li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  )}
+
+  {summary.touchesNextMorning.length > 0 && (
+    <Alert variant="destructive" className="mt-4">
+      <CircleAlert />
+      <AlertTitle>Back to back with the next month's first morning</AlertTitle>
+      <AlertDescription>
+        <p>
+          The same person works this month's last night and the next month's 06:00 start on day 1. Override the shift or
+          regenerate this month to fix it.
+        </p>
+        <ul class="flex flex-col gap-1">
+          {summary.touchesNextMorning.map((shift) => (
             <li>
               {shiftLabel(shift)} · {shift.employee_id ? labelOf(shift.employee_id).text : "Uncovered"}
             </li>

@@ -146,16 +146,22 @@ export type Database = {
           generated_at: string
           generated_by: string | null
           month: string
+          published_at: string | null
+          published_by: string | null
         }
         Insert: {
           generated_at?: string
           generated_by?: string | null
           month: string
+          published_at?: string | null
+          published_by?: string | null
         }
         Update: {
           generated_at?: string
           generated_by?: string | null
           month?: string
+          published_at?: string | null
+          published_by?: string | null
         }
         Relationships: [
           {
@@ -172,6 +178,13 @@ export type Database = {
             referencedRelation: "availability_locks"
             referencedColumns: ["month"]
           },
+          {
+            foreignKeyName: "schedules_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -184,10 +197,12 @@ export type Database = {
         Returns: boolean
       }
       is_manager: { Args: never; Returns: boolean }
+      publish_schedule: { Args: { target_month: string }; Returns: undefined }
       replace_schedule_draft: {
         Args: { shifts: Json; target_month: string }
         Returns: undefined
       }
+      unpublish_schedule: { Args: { target_month: string }; Returns: undefined }
     }
     Enums: {
       app_role: "manager" | "employee"

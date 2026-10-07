@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { GeneratedShift, ScheduleWindow } from "./schedule-generator";
-import { summarizeSchedule } from "./schedule-summary";
+import { daysWithNoOne, summarizeSchedule } from "./schedule-summary";
 
 // summarizeSchedule recounts a draft from its shifts and the raw windows, so S-04 can trust it for overrides. The
 // drafts below are injected by hand (not generated), and every expected value is counted from them by the rule:
@@ -123,6 +123,19 @@ describe("counts, uncovered shifts and days with no one come from the draft itse
     expect(summary.daysWithNoOne).toContain("2026-11-12");
   });
 
+  it("daysWithNoOne needs only the shifts: 30 Nov is covered by A's 00:00–06:00 on 1 Dec, 29 Nov is not", () => {
+    const shifts = [
+      shift("2026-11-29T06:00:00", "2026-11-29T18:00:00", null),
+      shift("2026-11-30T06:00:00", "2026-11-30T18:00:00", null),
+      shift("2026-12-01T00:00:00", "2026-12-01T06:00:00", A),
+    ];
+    const gaps = daysWithNoOne(MONTH, shifts);
+    expect(gaps).toHaveLength(29);
+    expect(gaps).toContain("2026-11-29");
+    expect(gaps).not.toContain("2026-11-30");
+    expect(gaps).toEqual(summarize([window(A, "2026-11-30T18:00:00", "2026-12-01T06:00:00")], shifts).daysWithNoOne);
+  });
+
   it("does not count a carry-over that ends before 1 Nov 06:00 as availability", () => {
     const summary = summarize([window(A, "2026-10-31T22:00:00", "2026-11-01T06:00:00")], []);
     expect(summary.perMember.at(0)).toMatchObject({ hasAvailability: false, zeroShifts: false });
@@ -151,5 +164,117 @@ describe("a shift back to back with the previous month's last night is reported"
     expect(withPreviousNight(B).touchesPreviousNight).toEqual([]);
     expect(withPreviousNight(null).touchesPreviousNight).toEqual([]);
     expect(summarize(windows, draft).touchesPreviousNight).toEqual([]);
+  });
+});
+
+describe("two shifts of one person in one station day are reported as pairs", () => {
+  it("lists A's 06–12 and 18–24 on 10 Nov, and not B's 12–18 between them", () => {
+    const morning = shift("2026-11-10T06:00:00", "2026-11-10T12:00:00", A);
+    const evening = shift("2026-11-10T18:00:00", "2026-11-11T00:00:00", A);
+    const summary = summarize([], [morning, shift("2026-11-10T12:00:00", "2026-11-10T18:00:00", B), evening]);
+    expect(summary.sameDay).toEqual([{ assignee: A, shifts: [morning, evening] }]);
+  });
+
+  it("gives every pair of a three-shift station day in start order, counting 00:00–06:00 as the previous day", () => {
+    const morning = shift("2026-11-10T06:00:00", "2026-11-10T12:00:00", A);
+    const evening = shift("2026-11-10T18:00:00", "2026-11-11T00:00:00", A);
+    const night = shift("2026-11-11T00:00:00", "2026-11-11T06:00:00", A);
+    // Station day 11 starts at 06:00, so this one is not paired with the 10 Nov shifts. Input order is shuffled.
+    const nextDay = shift("2026-11-11T12:00:00", "2026-11-11T18:00:00", A);
+    const summary = summarize([], [nextDay, night, evening, morning]);
+    expect(summary.sameDay).toEqual([
+      { assignee: A, shifts: [morning, evening] },
+      { assignee: A, shifts: [morning, night] },
+      { assignee: A, shifts: [evening, night] },
+    ]);
+  });
+
+  it("never pairs uncovered shifts", () => {
+    const summary = summarize(
+      [],
+      [
+        shift("2026-11-10T06:00:00", "2026-11-10T12:00:00", null),
+        shift("2026-11-10T18:00:00", "2026-11-11T06:00:00", null),
+      ],
+    );
+    expect(summary.sameDay).toEqual([]);
+  });
+});
+
+describe("one person's shifts that touch are reported back to back", () => {
+  it("lists 06–12 then 12–18 on one day, which is also a same-day pair", () => {
+    const first = shift("2026-11-10T06:00:00", "2026-11-10T12:00:00", A);
+    const second = shift("2026-11-10T12:00:00", "2026-11-10T18:00:00", A);
+    const summary = summarize([], [first, second]);
+    expect(summary.backToBack).toEqual([{ assignee: A, first, second }]);
+    expect(summary.sameDay).toEqual([{ assignee: A, shifts: [first, second] }]);
+  });
+
+  it("lists an 18–06 night then the next day's 06:00 start, which is not a same-day pair", () => {
+    const night = shift("2026-11-10T18:00:00", "2026-11-11T06:00:00", A);
+    const morning = shift("2026-11-11T06:00:00", "2026-11-11T18:00:00", A);
+    const summary = summarize([], [morning, night]);
+    expect(summary.backToBack).toEqual([{ assignee: A, first: night, second: morning }]);
+    expect(summary.sameDay).toEqual([]);
+  });
+
+  it("lists nothing when two different people or uncovered shifts meet at a touching point", () => {
+    expect(
+      summarize(
+        [],
+        [
+          shift("2026-11-10T06:00:00", "2026-11-10T12:00:00", A),
+          shift("2026-11-10T12:00:00", "2026-11-10T18:00:00", B),
+        ],
+      ).backToBack,
+    ).toEqual([]);
+    expect(
+      summarize(
+        [],
+        [
+          shift("2026-11-10T06:00:00", "2026-11-10T12:00:00", null),
+          shift("2026-11-10T12:00:00", "2026-11-10T18:00:00", null),
+        ],
+      ).backToBack,
+    ).toEqual([]);
+  });
+});
+
+describe("the month's last night back to back with the next month's first morning is reported", () => {
+  const lastNight = shift("2026-11-30T18:00:00", "2026-12-01T06:00:00", A);
+  const draft = [shift("2026-11-30T06:00:00", "2026-11-30T18:00:00", B), lastNight];
+
+  function withNextMorning(nextMorning: GeneratedShift | null) {
+    return summarizeSchedule({
+      month: MONTH,
+      members: [{ id: A }, { id: B }],
+      windows: [],
+      shifts: draft,
+      nextMorning,
+    });
+  }
+
+  it("lists A's 30 Nov night when A also starts 1 Dec at 06:00", () => {
+    expect(withNextMorning(shift("2026-12-01T06:00:00", "2026-12-01T18:00:00", A)).touchesNextMorning).toEqual([
+      lastNight,
+    ]);
+  });
+
+  it("lists nothing when B or no one holds 1 Dec 06:00, or without a next-month draft", () => {
+    expect(withNextMorning(shift("2026-12-01T06:00:00", "2026-12-01T18:00:00", B)).touchesNextMorning).toEqual([]);
+    expect(withNextMorning(shift("2026-12-01T06:00:00", "2026-12-01T18:00:00", null)).touchesNextMorning).toEqual([]);
+    expect(withNextMorning(null).touchesNextMorning).toEqual([]);
+    expect(summarize([], draft).touchesNextMorning).toEqual([]);
+  });
+
+  it("never lists an uncovered last night", () => {
+    const summary = summarizeSchedule({
+      month: MONTH,
+      members: [{ id: A }, { id: B }],
+      windows: [],
+      shifts: [shift("2026-11-30T18:00:00", "2026-12-01T06:00:00", null)],
+      nextMorning: shift("2026-12-01T06:00:00", "2026-12-01T18:00:00", A),
+    });
+    expect(summary.touchesNextMorning).toEqual([]);
   });
 });

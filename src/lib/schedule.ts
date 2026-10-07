@@ -1,4 +1,4 @@
-// Messages, redirect URLs and reads for /manager/schedule and POST /api/manager/schedule/{generate,discard}.
+// Messages, redirect URLs and reads for /manager/schedule and POST /api/manager/schedule/*.
 
 import type { Tables } from "@/db/database.types";
 
@@ -11,6 +11,7 @@ import {
   upcomingMonths,
   wallClockMinutes,
 } from "./availability";
+import type { RuleBreak } from "./schedule-summary";
 import type { createClient } from "./supabase";
 import { loadAllPages, type PagedResult } from "./team-availability";
 
@@ -20,6 +21,8 @@ import { loadAllPages, type PagedResult } from "./team-availability";
  * schedule page share this text, so change it only together with its callers.
  */
 export const UNLOCK_WITH_DRAFT_ERROR = "Discard this month's draft schedule before unlocking it.";
+/** Shown on /manager/months only, when an unlock is refused because the month's schedule is published. */
+export const UNLOCK_WITH_PUBLISHED_ERROR = "Unpublish and discard this month's schedule before unlocking it.";
 
 // Every message /api/manager/schedule/* can put in `?error=`. smoke.mjs may match these texts, so change a message
 // only together with its callers.
@@ -37,8 +40,25 @@ export const NO_DRAFT_ERROR = "No draft to discard";
 export const GENERIC_SCHEDULE_WRITE_ERROR = "Could not save the schedule. Try again.";
 /** Shown when /manager/schedule cannot read its data; the raw error is logged, never shown. */
 export const SCHEDULE_LOAD_ERROR = "Could not load the schedule. Reload the page.";
+/** The month's schedule is published (SQLSTATE SP001): generate, regenerate, discard and override are refused. */
+export const SCHEDULE_PUBLISHED_ERROR = "Unpublish the schedule before changing it.";
+/** A station day has no one assigned, so the month cannot be published (SQLSTATE SP003). */
+export const PUBLISH_GAPS_ERROR = "Assign someone on every day before publishing.";
+/** The overridden shift is not in the month's current draft (regenerated, discarded or published in between). */
+export const STALE_SHIFT_ERROR = "This shift is no longer in the draft. Reload and try again.";
+/**
+ * `?confirm=override` whose panel the page cannot rebuild (no warnings any more, or its shift or assignee is gone):
+ * nothing was saved. Computed by /manager/schedule, never read from `?error=`, so not in SCHEDULE_FEEDBACK_ERRORS.
+ */
+export const OVERRIDE_NOT_SAVED_ERROR = "Nothing was saved. Choose the assignee again.";
+export const INVALID_ASSIGNEE_ERROR = "Invalid assignee";
+/** Publish or unpublish found no schedule row for the month (SQLSTATE SP002). */
+export const NO_SCHEDULE_ERROR = "No schedule for this month";
 export const GENERATED_MESSAGE = "Draft generated.";
 export const DISCARDED_MESSAGE = "Draft discarded.";
+export const OVERRIDDEN_MESSAGE = "Shift updated.";
+export const PUBLISHED_MESSAGE = "Schedule published.";
+export const UNPUBLISHED_MESSAGE = "Schedule unpublished. It is a draft again.";
 
 /** The `?error=` values /manager/schedule shows as-is; anything else is replaced by GENERIC_SCHEDULE_WRITE_ERROR. */
 export const SCHEDULE_FEEDBACK_ERRORS: ReadonlySet<string> = new Set([
@@ -50,6 +70,11 @@ export const SCHEDULE_FEEDBACK_ERRORS: ReadonlySet<string> = new Set([
   MONTH_UNLOCKED_ERROR,
   NO_DRAFT_ERROR,
   GENERIC_SCHEDULE_WRITE_ERROR,
+  SCHEDULE_PUBLISHED_ERROR,
+  PUBLISH_GAPS_ERROR,
+  STALE_SHIFT_ERROR,
+  INVALID_ASSIGNEE_ERROR,
+  NO_SCHEDULE_ERROR,
 ]);
 
 /**
@@ -80,6 +105,13 @@ export function describeScheduleWriteError(error: { code: string; message: strin
     // managers at once): ask for the explicit replace instead of reporting a failure.
     case "23505":
       return CONFIRM_REPLACE_ERROR;
+    // Raised by replace_schedule_draft, publish_schedule and unpublish_schedule.
+    case "SP001":
+      return SCHEDULE_PUBLISHED_ERROR;
+    case "SP002":
+      return NO_SCHEDULE_ERROR;
+    case "SP003":
+      return PUBLISH_GAPS_ERROR;
     default:
       logScheduleError("unmapped write error", { code: error.code, message: error.message });
       return GENERIC_SCHEDULE_WRITE_ERROR;
@@ -91,19 +123,34 @@ export interface ManagerScheduleUrlParams {
   month: string | null;
   /** `YYYY-MM-DD` station day of `month`; only included together with `month`. */
   day?: string | null;
-  /** Opens the regenerate confirmation panel; only included together with `month`. */
-  confirm?: boolean;
+  /**
+   * Opens a confirmation panel: `replace` for regenerate, `override` for an assignee change with warnings. Only
+   * included together with `month`.
+   */
+  confirm?: "replace" | "override";
+  /** The overridden shift's id (a uuid), so its feedback or confirm panel renders in its row; only with `month`. */
+  shift?: string | null;
+  /**
+   * The override's new assignee: a profile id, or null for Uncovered (`employee=none`); left out when undefined.
+   * Only included together with `month`.
+   */
+  employee?: string | null;
   error?: string;
   generated?: boolean;
   discarded?: boolean;
+  overridden?: boolean;
+  published?: boolean;
+  unpublished?: boolean;
 }
 
 /**
- * `/manager/schedule` link or redirect target. The status param (`error=`, `generated=1` or `discarded=1`) is
- * always first, so a caller can match the location with `startsWith("/manager/schedule?error=")`.
+ * `/manager/schedule` link or redirect target. The status param (`error=`, `generated=1`, `discarded=1`,
+ * `overridden=1`, `published=1` or `unpublished=1`) is always first, so a caller can match the location with
+ * `startsWith("/manager/schedule?error=")`. Then `month`, `day`, `confirm`, `shift` and `employee`, in that order.
  */
 export function managerScheduleUrl(params: ManagerScheduleUrlParams): string {
-  const { month, day, confirm, error, generated, discarded } = params;
+  const { month, day, confirm, shift, employee, error, generated, discarded, overridden, published, unpublished } =
+    params;
   const query: string[] = [];
   if (error) {
     query.push(`error=${encodeURIComponent(error)}`);
@@ -111,6 +158,12 @@ export function managerScheduleUrl(params: ManagerScheduleUrlParams): string {
     query.push("generated=1");
   } else if (discarded) {
     query.push("discarded=1");
+  } else if (overridden) {
+    query.push("overridden=1");
+  } else if (published) {
+    query.push("published=1");
+  } else if (unpublished) {
+    query.push("unpublished=1");
   }
   if (month) {
     query.push(`month=${month}`);
@@ -118,10 +171,23 @@ export function managerScheduleUrl(params: ManagerScheduleUrlParams): string {
       query.push(`day=${day}`);
     }
     if (confirm) {
-      query.push("confirm=replace");
+      query.push(`confirm=${confirm}`);
+    }
+    if (shift) {
+      query.push(`shift=${encodeURIComponent(shift)}`);
+    }
+    if (employee !== undefined) {
+      query.push(`employee=${employee === null ? "none" : encodeURIComponent(employee)}`);
     }
   }
   return query.length > 0 ? `/manager/schedule?${query.join("&")}` : "/manager/schedule";
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A shift id from a form field or `?shift=`: the value when it is a UUID, null otherwise. */
+export function parseShiftParam(value: unknown): string | null {
+  return typeof value === "string" && UUID_PATTERN.test(value) ? value : null;
 }
 
 /** The months /manager/schedule shows: the current station month plus the next 3, as `YYYY-MM`. */
@@ -156,6 +222,12 @@ export type ScheduleInputs =
        * draft. Its assignee must not start at 06:00 on day 1 (no back-to-back shifts across months).
        */
       previousNight: ScheduleShiftRow | null;
+      /**
+       * The next month's draft shift that starts at 06:00 on its day 1 (its first morning), or null when that month
+       * has no draft. The summary reports this month's last night when the same person holds both (back to back
+       * across months); the generator does not read it.
+       */
+      nextMorning: ScheduleShiftRow | null;
     };
 
 /**
@@ -169,14 +241,16 @@ export function buildScheduleInputs(results: {
   carryOvers: PagedResult<ScheduleWindowRow>;
   lastNightWindows: PagedResult<ScheduleWindowRow>;
   previousNight: PagedResult<ScheduleShiftRow>;
+  nextMorning: PagedResult<ScheduleShiftRow>;
 }): ScheduleInputs {
-  const { members, windows, carryOvers, lastNightWindows, previousNight } = results;
+  const { members, windows, carryOvers, lastNightWindows, previousNight, nextMorning } = results;
   if (
     members.data === null ||
     windows.data === null ||
     carryOvers.data === null ||
     lastNightWindows.data === null ||
-    previousNight.data === null
+    previousNight.data === null ||
+    nextMorning.data === null
   ) {
     return { status: "unknown" };
   }
@@ -185,6 +259,7 @@ export function buildScheduleInputs(results: {
     members: members.data,
     windows: [...carryOvers.data, ...windows.data, ...lastNightWindows.data],
     previousNight: previousNight.data[0] ?? null,
+    nextMorning: nextMorning.data[0] ?? null,
   };
 }
 
@@ -198,12 +273,13 @@ export const SCHEDULE_PAGE_SIZE = 1000;
  * Reads every profile, every window starting in `month`, every previous-month window that runs past day 1 06:00 (the
  * first station day's start) and every next-month window starting on day 1 before 06:00 (the month's last station
  * night; RLS freezes those while `month` is locked), each in full or not at all, plus the previous month's last night
- * shift. Later next-month windows are never read: that month is not locked, so they could still change.
+ * shift and the next month's first morning shift. Later next-month windows are never read: that month is not locked,
+ * so they could still change.
  */
 export async function loadScheduleInputs(supabase: ScheduleClient, month: string): Promise<ScheduleInputs> {
   const firstDay = monthStart(month);
   const nextFirstDay = monthStart(addMonths(month, 1));
-  const [members, windows, carryOvers, lastNightWindows, previousNight] = await Promise.all([
+  const [members, windows, carryOvers, lastNightWindows, previousNight, nextMorning] = await Promise.all([
     loadAllPages(
       (from, to) =>
         supabase
@@ -261,6 +337,18 @@ export async function loadScheduleInputs(supabase: ScheduleClient, month: string
           .range(from, to),
       SCHEDULE_PAGE_SIZE,
     ),
+    // At most one row, for the same reason.
+    loadAllPages(
+      (from, to) =>
+        supabase
+          .from("schedule_shifts")
+          .select("id, starts_at, ends_at, employee_id", { count: "exact" })
+          .eq("month", nextFirstDay)
+          .eq("starts_at", `${nextFirstDay}T06:00:00`)
+          .order("id", { ascending: true })
+          .range(from, to),
+      SCHEDULE_PAGE_SIZE,
+    ),
   ]);
 
   if (members.error) {
@@ -278,7 +366,10 @@ export async function loadScheduleInputs(supabase: ScheduleClient, month: string
   if (previousNight.error) {
     logScheduleError("could not load the previous month's last night shift", previousNight.error);
   }
-  return buildScheduleInputs({ members, windows, carryOvers, lastNightWindows, previousNight });
+  if (nextMorning.error) {
+    logScheduleError("could not load the next month's first morning shift", nextMorning.error);
+  }
+  return buildScheduleInputs({ members, windows, carryOvers, lastNightWindows, previousNight, nextMorning });
 }
 
 const STATION_DAY_START_MINUTES = 6 * 60;
@@ -301,4 +392,32 @@ export function shiftsByStationDay<S extends { starts_at: string }>(shifts: read
     }
   }
   return byDay;
+}
+
+/** One person's 12h or night rule breaks, shown as one summary line instead of one line per shift. */
+export interface RuleBreakGroup {
+  kind: "long" | "night";
+  assignee: string;
+  /** Station days of the breaking shifts, sorted, each once. */
+  days: string[];
+  /** The lowest and highest `eligibleMin` among the grouped breaks (equal when they all agree). */
+  eligibleMin: { low: number; high: number };
+}
+
+/** Rule breaks grouped by assignee and kind, in the order each group first appears in `ruleBreaks`. */
+export function groupRuleBreaks(ruleBreaks: readonly RuleBreak[]): RuleBreakGroup[] {
+  const groups = new Map<string, RuleBreakGroup>();
+  for (const { kind, shift, assignee, eligibleMin } of ruleBreaks) {
+    const key = `${assignee}|${kind}`;
+    const day = stationDayOf(shift.starts_at);
+    const group = groups.get(key);
+    if (group) {
+      if (!group.days.includes(day)) group.days.push(day);
+      group.eligibleMin.low = Math.min(group.eligibleMin.low, eligibleMin);
+      group.eligibleMin.high = Math.max(group.eligibleMin.high, eligibleMin);
+    } else {
+      groups.set(key, { kind, assignee, days: [day], eligibleMin: { low: eligibleMin, high: eligibleMin } });
+    }
+  }
+  return [...groups.values()].map((group) => ({ ...group, days: group.days.toSorted() }));
 }

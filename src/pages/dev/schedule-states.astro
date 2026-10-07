@@ -1,6 +1,7 @@
 ---
 // Kitchen sink for /manager/schedule: every state of the view, side by side, rendered by the real components from
-// fixture data. Dev only (the visual gate for context/changes/generate-monthly-schedule); 404 in production.
+// fixture data. Dev only (the visual gate for context/changes/generate-monthly-schedule and
+// review-override-publish-schedule); 404 in production.
 // No database access and no user data: the windows below are wall-clock fixtures, never passed through Date, and the
 // drafts are generated from them (or written by hand) on the fly.
 import { CircleAlert } from "lucide-react";
@@ -18,16 +19,26 @@ import {
   GENERATE_LOAD_ERROR,
   GENERATED_MESSAGE,
   GENERIC_SCHEDULE_WRITE_ERROR,
+  INVALID_ASSIGNEE_ERROR,
   INVALID_MONTH_ERROR,
   MONTH_UNLOCKED_ERROR,
   NO_DRAFT_ERROR,
+  NO_SCHEDULE_ERROR,
   NOT_PERMITTED_ERROR,
+  OVERRIDDEN_MESSAGE,
+  OVERRIDE_NOT_SAVED_ERROR,
+  PUBLISH_GAPS_ERROR,
+  PUBLISHED_MESSAGE,
   SCHEDULE_LOAD_ERROR,
+  SCHEDULE_PUBLISHED_ERROR,
   shiftsByStationDay,
+  STALE_SHIFT_ERROR,
   SUPABASE_NOT_CONFIGURED_ERROR,
+  UNPUBLISHED_MESSAGE,
   type ScheduleMember,
 } from "@/lib/schedule";
 import { generateSchedule, type GeneratedShift, type ScheduleWindow } from "@/lib/schedule-generator";
+import type { OverrideShift, OverrideWarning } from "@/lib/schedule-override";
 import { summarizeSchedule, type ScheduleSummary as DraftSummary } from "@/lib/schedule-summary";
 
 // Outside dev: 404 with an empty body (the template below renders only in dev). A frontmatter `return` would do,
@@ -43,6 +54,9 @@ const months = ["2026-03", "2026-04", "2026-05", "2026-06"];
 const lockedMonths = new Set(["2026-04"]);
 const weeks = calendarWeeks(month);
 const generatedAt = "2026-03-20T09:30:00+00:00";
+const publishedAt = "2026-03-27T14:05:00+00:00";
+const draftCard = { generatedAt, publishedAt: null };
+const publishedCard = { generatedAt, publishedAt };
 
 const ALICE: ScheduleMember = {
   id: "00000000-0000-4000-8000-00000000d001",
@@ -94,18 +108,27 @@ const gapRule = (date: string) => (date === EMPTY_DAY ? "skip" : date === NIGHT_
 const gapWindows = [...fullTeam.flatMap((member) => allMonth(member.id, gapRule)), carolWindow];
 const gaps = isDev ? generateSchedule({ month, windows: gapWindows }).shifts : [];
 
-function view(shifts: GeneratedShift[], windows: ScheduleWindow[]) {
-  const byDay = shiftsByStationDay(shifts);
-  const coverage = new Map(
-    [...byDay].map(([day, dayShifts]) => [
-      day,
-      { total: dayShifts.length, assigned: dayShifts.filter((shift) => shift.employee_id !== null).length },
-    ]),
-  );
-  return { byDay, coverage, summary: summarizeSchedule({ month, members, windows, shifts }) };
+/** A fixture shift id (a UUID, like a stored row's); `index` keeps the ids of one page unique. */
+function fixtureShiftId(index: number): string {
+  return `00000000-0000-4000-9000-${String(index).padStart(12, "0")}`;
 }
-const coveredView = view(covered, isDev ? coveredWindows : []);
-const gapsView = view(gaps, isDev ? gapWindows : []);
+/** Generated shifts as stored rows: the day panel's override forms post a shift id. */
+function withIds(shifts: GeneratedShift[], offset: number): OverrideShift[] {
+  return shifts.map((shift, index) => ({ id: fixtureShiftId(offset + index), ...shift }));
+}
+
+function view(generated: GeneratedShift[], windows: ScheduleWindow[], offset: number) {
+  const shifts = withIds(generated, offset);
+  const byDay = shiftsByStationDay(shifts);
+  return { byDay, summary: summarizeSchedule({ month, members, windows, shifts }) };
+}
+const coveredView = view(covered, isDev ? coveredWindows : [], 0);
+const gapsView = view(gaps, isDev ? gapWindows : [], 1000);
+const coveredDayShifts = coveredView.byDay.get("2026-04-15") ?? [];
+const gapNightShifts = gapsView.byDay.get(NIGHT_GAP_DAY) ?? [];
+// The override feedback rows: a saved change on the first covered shift, a refused one on the uncovered night.
+const savedShift = coveredDayShifts.at(0) ?? null;
+const uncoveredGapShift = gapNightShifts.find((shift) => shift.employee_id === null) ?? null;
 
 // An assignment outside availability never comes from the generator, and the rule breaks it reports depend on the
 // team (e.g. two people covering every night), so this summary is written by hand to show every warning at once
@@ -137,6 +160,34 @@ const marchLastNight: GeneratedShift = {
   ends_at: "2026-04-01T06:00:00",
   employee_id: BOB.id,
 };
+// Bob works 06–12 and 12–18 on the same station day (a same-day pair that is also back to back); Dave's 18–06 night
+// is followed by his 06:00 start the next morning; Alice's last night touches May's first morning (May's draft has
+// her at 06:00 on 1 May). Only overrides, or a later change to the next month's draft, produce these.
+const sameDayMorning: GeneratedShift = {
+  starts_at: "2026-04-22T06:00:00",
+  ends_at: "2026-04-22T12:00:00",
+  employee_id: BOB.id,
+};
+const sameDayAfternoon: GeneratedShift = {
+  starts_at: "2026-04-22T12:00:00",
+  ends_at: "2026-04-22T18:00:00",
+  employee_id: BOB.id,
+};
+const daveNight: GeneratedShift = {
+  starts_at: "2026-04-24T18:00:00",
+  ends_at: "2026-04-25T06:00:00",
+  employee_id: DAVE.id,
+};
+const daveNextMorning: GeneratedShift = {
+  starts_at: "2026-04-25T06:00:00",
+  ends_at: "2026-04-25T12:00:00",
+  employee_id: DAVE.id,
+};
+const aprilLastNight: GeneratedShift = {
+  starts_at: "2026-04-30T18:00:00",
+  ends_at: "2026-05-01T06:00:00",
+  employee_id: ALICE.id,
+};
 const ruleBreakSummary: DraftSummary = {
   perMember: [
     {
@@ -167,7 +218,45 @@ const ruleBreakSummary: DraftSummary = {
     { kind: "long", shift: longDay, assignee: ALICE.id, eligibleMin: 13 },
   ],
   outsideAvailability: [outside],
+  sameDay: [{ assignee: BOB.id, shifts: [sameDayMorning, sameDayAfternoon] }],
+  backToBack: [
+    { assignee: BOB.id, first: sameDayMorning, second: sameDayAfternoon },
+    { assignee: DAVE.id, first: daveNight, second: daveNextMorning },
+  ],
+  touchesNextMorning: [aprilLastNight],
 };
+
+// The override confirm panel (`?confirm=override`) with one warning of each kind, written by hand: no single real
+// change produces all of them. The night shift (Dave today) is being given to Carol.
+const confirmDayShift: OverrideShift = {
+  id: fixtureShiftId(2000),
+  starts_at: "2026-04-30T06:00:00",
+  ends_at: "2026-04-30T18:00:00",
+  employee_id: BOB.id,
+};
+const confirmNightShift: OverrideShift = {
+  id: fixtureShiftId(2001),
+  starts_at: "2026-04-30T18:00:00",
+  ends_at: "2026-05-01T06:00:00",
+  employee_id: DAVE.id,
+};
+const confirmNightAfter: OverrideShift = { ...confirmNightShift, employee_id: CAROL.id };
+const confirmFirstMorning: OverrideShift = { id: fixtureShiftId(2002), ...firstMorning };
+const confirmWarnings: OverrideWarning[] = [
+  { kind: "outside", shift: confirmNightAfter, assignee: CAROL.id },
+  { kind: "sameDay", assignee: CAROL.id, shifts: [{ ...confirmDayShift, employee_id: CAROL.id }, confirmNightAfter] },
+  {
+    kind: "backToBack",
+    assignee: CAROL.id,
+    first: { ...confirmDayShift, employee_id: CAROL.id },
+    second: confirmNightAfter,
+  },
+  { kind: "previousNight", shift: confirmFirstMorning, assignee: ALICE.id },
+  { kind: "nextMorning", shift: confirmNightAfter, assignee: CAROL.id },
+  { kind: "fairness", rule: "long", shift: confirmDayShift, assignee: BOB.id, eligibleMin: 2 },
+  { kind: "fairness", rule: "night", shift: confirmNightAfter, assignee: CAROL.id, eligibleMin: 1 },
+  { kind: "noOne", date: EMPTY_DAY },
+];
 
 const noDraftStates = [
   { title: "No draft, open month", canGenerate: true, locked: false },
@@ -176,27 +265,105 @@ const noDraftStates = [
 ];
 
 const draftStates = [
-  { title: "Draft (Regenerate + Discard)", canGenerate: true, confirming: false, feedback: null },
-  { title: "Confirm panel (?confirm=replace)", canGenerate: true, confirming: true, feedback: null },
-  { title: "Current month draft (Discard only)", canGenerate: false, confirming: false, feedback: null },
+  {
+    title: "Draft, every day covered (Publish + Regenerate + Discard)",
+    canGenerate: true,
+    confirming: false,
+    draft: draftCard,
+    daysWithNoOne: 0,
+    feedback: null,
+  },
+  {
+    title: "Draft with days that have no one (publish notice)",
+    canGenerate: true,
+    confirming: false,
+    draft: draftCard,
+    daysWithNoOne: 2,
+    feedback: null,
+  },
+  {
+    title: "Draft with 1 day that has no one",
+    canGenerate: true,
+    confirming: false,
+    draft: draftCard,
+    daysWithNoOne: 1,
+    feedback: null,
+  },
+  {
+    title: "Confirm panel (?confirm=replace)",
+    canGenerate: true,
+    confirming: true,
+    draft: draftCard,
+    daysWithNoOne: 2,
+    feedback: null,
+  },
+  {
+    title: "Current month draft (Publish + Discard)",
+    canGenerate: false,
+    confirming: false,
+    draft: draftCard,
+    daysWithNoOne: 0,
+    feedback: null,
+  },
   {
     title: "Success: generated",
     canGenerate: true,
     confirming: false,
+    draft: draftCard,
+    daysWithNoOne: 2,
     feedback: { kind: "success" as const, message: GENERATED_MESSAGE },
+  },
+  {
+    title: "Published (Unpublish only)",
+    canGenerate: true,
+    confirming: false,
+    draft: publishedCard,
+    daysWithNoOne: 0,
+    feedback: null,
+  },
+  {
+    title: "Published, then an assignee's account was deleted (1 day has no one)",
+    canGenerate: true,
+    confirming: false,
+    draft: publishedCard,
+    daysWithNoOne: 1,
+    feedback: null,
+  },
+  {
+    title: "Success: published",
+    canGenerate: true,
+    confirming: false,
+    draft: publishedCard,
+    daysWithNoOne: 0,
+    feedback: { kind: "success" as const, message: PUBLISHED_MESSAGE },
+  },
+  {
+    title: "Success: unpublished",
+    canGenerate: true,
+    confirming: false,
+    draft: draftCard,
+    daysWithNoOne: 0,
+    feedback: { kind: "success" as const, message: UNPUBLISHED_MESSAGE },
   },
 ];
 
-// Every allow-listed ?error= message, in the state it arrives in.
+// Every allow-listed ?error= message, in the state it arrives in (STALE_SHIFT_ERROR renders in its shift's row, below;
+// with no such row on the selected day it lands on a draft card like INVALID_ASSIGNEE_ERROR).
 const errorStates = [
-  { message: INVALID_MONTH_ERROR, hasDraft: false },
-  { message: SUPABASE_NOT_CONFIGURED_ERROR, hasDraft: false },
-  { message: CONFIRM_REPLACE_ERROR, hasDraft: true },
-  { message: GENERATE_LOAD_ERROR, hasDraft: false },
-  { message: NOT_PERMITTED_ERROR, hasDraft: false },
-  { message: MONTH_UNLOCKED_ERROR, hasDraft: false },
-  { message: NO_DRAFT_ERROR, hasDraft: false },
-  { message: GENERIC_SCHEDULE_WRITE_ERROR, hasDraft: true },
+  { message: INVALID_MONTH_ERROR, draft: null, daysWithNoOne: 0 },
+  { message: SUPABASE_NOT_CONFIGURED_ERROR, draft: null, daysWithNoOne: 0 },
+  { message: CONFIRM_REPLACE_ERROR, draft: draftCard, daysWithNoOne: 2 },
+  { message: GENERATE_LOAD_ERROR, draft: null, daysWithNoOne: 0 },
+  { message: NOT_PERMITTED_ERROR, draft: null, daysWithNoOne: 0 },
+  { message: MONTH_UNLOCKED_ERROR, draft: null, daysWithNoOne: 0 },
+  { message: NO_DRAFT_ERROR, draft: null, daysWithNoOne: 0 },
+  { message: GENERIC_SCHEDULE_WRITE_ERROR, draft: draftCard, daysWithNoOne: 2 },
+  { message: SCHEDULE_PUBLISHED_ERROR, draft: publishedCard, daysWithNoOne: 0 },
+  { message: PUBLISH_GAPS_ERROR, draft: draftCard, daysWithNoOne: 2 },
+  { message: NO_SCHEDULE_ERROR, draft: null, daysWithNoOne: 0 },
+  { message: INVALID_ASSIGNEE_ERROR, draft: draftCard, daysWithNoOne: 0 },
+  // Not a ?error= value: the page shows it when ?confirm=override can no longer build its panel.
+  { message: OVERRIDE_NOT_SAVED_ERROR, draft: draftCard, daysWithNoOne: 0 },
 ];
 ---
 
@@ -246,6 +413,7 @@ const errorStates = [
                   day={`${month}-01`}
                   canGenerate={state.canGenerate}
                   draft={null}
+                  daysWithNoOne={0}
                   locked={state.locked}
                   confirming={false}
                   feedback={null}
@@ -260,7 +428,8 @@ const errorStates = [
                   month={month}
                   day={`${month}-01`}
                   canGenerate={state.canGenerate}
-                  draft={{ generatedAt }}
+                  draft={state.draft}
+                  daysWithNoOne={state.daysWithNoOne}
                   locked={true}
                   confirming={state.confirming}
                   feedback={state.feedback}
@@ -275,6 +444,7 @@ const errorStates = [
                 day={`${month}-01`}
                 canGenerate={true}
                 draft={null}
+                daysWithNoOne={0}
                 locked={true}
                 confirming={false}
                 feedback={{ kind: "success", message: DISCARDED_MESSAGE }}
@@ -294,7 +464,8 @@ const errorStates = [
                 month={month}
                 day={`${month}-01`}
                 canGenerate={true}
-                draft={state.hasDraft ? { generatedAt } : null}
+                draft={state.draft}
+                daysWithNoOne={state.daysWithNoOne}
                 locked={true}
                 confirming={false}
                 feedback={{ kind: "error", message: state.message }}
@@ -308,25 +479,33 @@ const errorStates = [
           <h2 id="states-covered" class="text-sm font-medium text-muted-foreground">
             Fully covered draft (generated from fixtures; Carol's 2h window gets no shift)
           </h2>
+          <ScheduleCalendar
+            month={month}
+            weeks={weeks}
+            selectedDay="2026-04-15"
+            shiftsByDay={coveredView.byDay}
+            members={membersById}
+            uncoveredCount={coveredView.summary.uncovered.length}
+            daysWithNoOne={coveredView.summary.daysWithNoOne}
+            outsideAvailability={coveredView.summary.outsideAvailability}
+          />
           <div class="mx-auto w-full max-w-2xl">
-            <ScheduleCalendar
-              month={month}
-              weeks={weeks}
-              selectedDay="2026-04-15"
-              coverage={coveredView.coverage}
-              uncoveredCount={coveredView.summary.uncovered.length}
-              daysWithNoOne={coveredView.summary.daysWithNoOne}
-            />
             <ScheduleDayPanel
               selectedLabel={formatDay("2026-04-15")}
-              shifts={coveredView.byDay.get("2026-04-15") ?? []}
+              month={month}
+              day="2026-04-15"
+              shifts={coveredDayShifts}
               members={membersById}
+              editable={true}
               idPrefix="covered-"
             />
             <div class="mt-6">
               <ScheduleDayPanel
                 selectedLabel={formatDay("2026-04-01")}
+                month={month}
+                day="2026-04-01"
                 shifts={coveredView.byDay.get("2026-04-01") ?? []}
+                editable={true}
                 members={membersById}
                 previousNight={{ shift: marchLastNight, monthLabel: "March 2026" }}
                 idPrefix="covered-day1-"
@@ -341,26 +520,34 @@ const errorStates = [
             Draft with uncovered shifts: night after {formatDay(NIGHT_GAP_DAY)} uncovered, no one on
             {formatDay(EMPTY_DAY)}; zero-shift member (Carol)
           </h2>
+          <ScheduleCalendar
+            month={month}
+            weeks={weeks}
+            selectedDay={NIGHT_GAP_DAY}
+            shiftsByDay={gapsView.byDay}
+            members={membersById}
+            uncoveredCount={gapsView.summary.uncovered.length}
+            daysWithNoOne={gapsView.summary.daysWithNoOne}
+            outsideAvailability={gapsView.summary.outsideAvailability}
+          />
           <div class="mx-auto w-full max-w-2xl">
-            <ScheduleCalendar
-              month={month}
-              weeks={weeks}
-              selectedDay={NIGHT_GAP_DAY}
-              coverage={gapsView.coverage}
-              uncoveredCount={gapsView.summary.uncovered.length}
-              daysWithNoOne={gapsView.summary.daysWithNoOne}
-            />
             <div class="flex flex-col gap-6">
               <ScheduleDayPanel
                 selectedLabel={formatDay(NIGHT_GAP_DAY)}
-                shifts={gapsView.byDay.get(NIGHT_GAP_DAY) ?? []}
+                month={month}
+                day={NIGHT_GAP_DAY}
+                shifts={gapNightShifts}
                 members={membersById}
+                editable={true}
                 idPrefix="gap-night-"
               />
               <ScheduleDayPanel
                 selectedLabel={formatDay(EMPTY_DAY)}
+                month={month}
+                day={EMPTY_DAY}
                 shifts={gapsView.byDay.get(EMPTY_DAY) ?? []}
                 members={membersById}
+                editable={true}
                 idPrefix="gap-empty-"
               />
             </div>
@@ -368,11 +555,102 @@ const errorStates = [
           </div>
         </section>
 
+        <section aria-labelledby="states-override" class="flex flex-col gap-3">
+          <h2 id="states-override" class="text-sm font-medium text-muted-foreground">
+            Overrides: saved, refused, the confirm panel with one warning of each kind, and read-only rows (published
+            month)
+          </h2>
+          <div class="grid gap-6 lg:grid-cols-2">
+            <div class="flex flex-col gap-2">
+              <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Success in the row (?overridden=1&shift=)
+              </h3>
+              <ScheduleDayPanel
+                selectedLabel={formatDay("2026-04-15")}
+                month={month}
+                day="2026-04-15"
+                shifts={coveredDayShifts}
+                members={membersById}
+                editable={true}
+                feedback={savedShift ? { shiftId: savedShift.id, kind: "success", message: OVERRIDDEN_MESSAGE } : null}
+                idPrefix="override-saved-"
+              />
+            </div>
+            <div class="flex flex-col gap-2">
+              <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Error in the row (?error=&shift=)
+              </h3>
+              <ScheduleDayPanel
+                selectedLabel={formatDay(NIGHT_GAP_DAY)}
+                month={month}
+                day={NIGHT_GAP_DAY}
+                shifts={gapNightShifts}
+                members={membersById}
+                editable={true}
+                feedback={
+                  uncoveredGapShift
+                    ? { shiftId: uncoveredGapShift.id, kind: "error", message: STALE_SHIFT_ERROR }
+                    : null
+                }
+                idPrefix="override-error-"
+              />
+            </div>
+            <div class="flex flex-col gap-2">
+              <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Confirm panel (?confirm=override&shift=&employee=), every warning kind (hand-written)
+              </h3>
+              <ScheduleDayPanel
+                selectedLabel={formatDay("2026-04-30")}
+                month={month}
+                day="2026-04-30"
+                shifts={[confirmDayShift, confirmNightShift]}
+                members={membersById}
+                editable={true}
+                confirm={{
+                  shiftId: confirmNightShift.id,
+                  employee: CAROL.id,
+                  warnings: confirmWarnings,
+                }}
+                idPrefix="override-confirm-"
+                summaryIdPrefix="breaks-"
+              />
+            </div>
+            <div class="flex flex-col gap-2">
+              <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Read-only rows (not editable)
+              </h3>
+              <ScheduleDayPanel
+                selectedLabel={formatDay("2026-04-15")}
+                month={month}
+                day="2026-04-15"
+                shifts={coveredDayShifts}
+                members={membersById}
+                idPrefix="override-readonly-"
+              />
+            </div>
+          </div>
+        </section>
+
         <section aria-labelledby="states-rule-breaks" class="flex flex-col gap-3">
           <h2 id="states-rule-breaks" class="text-sm font-medium text-muted-foreground">
-            Rule breaks, an assignment outside availability and a shift back to back with the previous month
-            (hand-written summary)
+            Rule breaks, an assignment outside availability, hard-rule exceptions and shifts back to back with the
+            previous and the next month (hand-written summary)
           </h2>
+          <!-- Outside availability on the 20th alone (yellow) and on the 3rd next to its uncovered night (both); real shifts of
+               this calendar, so the cells mark their lines from lg. -->
+          <ScheduleCalendar
+            month={month}
+            weeks={weeks}
+            selectedDay="2026-04-15"
+            shiftsByDay={gapsView.byDay}
+            members={membersById}
+            uncoveredCount={gapsView.summary.uncovered.length}
+            daysWithNoOne={[]}
+            outsideAvailability={[
+              gapsView.byDay.get("2026-04-20")?.[1] ?? outside,
+              { starts_at: `${NIGHT_GAP_DAY}T06:00:00` },
+            ]}
+          />
           <div class="mx-auto w-full max-w-2xl">
             <ScheduleSummary month={month} summary={ruleBreakSummary} members={membersById} idPrefix="breaks-" />
           </div>

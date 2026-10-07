@@ -24,6 +24,7 @@ insert into auth.users (id, email) values
 update public.profiles set role = 'manager' where id = '10000000-0000-4000-8000-0000000000c2';
 
 -- M-1 and M are refused by the time rule alone, M+1 and M+3 are open, M+2 is locked.
+delete from public.schedules where month in (:'m_prev', :'m_cur', :'m1', :'m3');
 delete from public.availability_locks where month in (:'m_prev', :'m_cur', :'m1', :'m3');
 insert into public.availability_locks (month) values (:'m2') on conflict do nothing;
 
