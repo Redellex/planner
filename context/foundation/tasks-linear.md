@@ -43,8 +43,8 @@ The roadmap's Backlog Handoff table already asks for "stable human-readable iden
 | S-01       | #2    | [S-01] Employee availability CRUD with monthly lock                          | roadmap, slice — **closed** (done)             | M-1       | #1         |
 | S-02       | #3    | [S-02] Manager view of all employee availability                             | roadmap, slice — **closed** (done)             | M-1       | #1, #2     |
 | S-03       | #4    | [S-03] Auto-generate conflict-free, fairly-rotated monthly schedule          | roadmap, slice, north-star — **closed** (done) | M-1       | #2         |
-| S-04       | #5    | [S-04] Manager review/override/publish workflow for generated schedule       | roadmap, slice, status:ready                   | M-1       | #4         |
-| S-05       | #6    | [S-05] Published schedule grid view for employees and managers               | roadmap, slice, status:proposed                | M-1       | #5         |
+| S-04       | #5    | [S-04] Manager review/override/publish workflow for generated schedule       | roadmap, slice — **closed** (done)             | M-1       | #4         |
+| S-05       | #6    | [S-05] Published schedule grid view for employees and managers               | roadmap, slice, status:ready                   | M-1       | #5         |
 | T-01       | #24   | [T-01] Test runner and station-time logic (unit tests on UTC)                | roadmap, testing — **closed** (done)           | —         | —          |
 | T-02       | #27   | [T-02] Database rules: ownership, month lock and roles (pgTAP)               | roadmap, testing — **closed** (done)           | —         | —          |
 | QG-01      | #29   | [QG-01] Quality-gate hooks: agent hooks and pre-commit tests on staged files | roadmap, testing — **closed** (done)           | —         | —          |
@@ -210,13 +210,14 @@ The temporary body files were kept in the session scratchpad and are not in the 
 
 ## What to do next
 
-Status as of 2026-10-06: M-1 is 4/6 done.
+Status as of 2026-10-07: M-1 is 5/6 done.
 
 - #1 (F-01) was delivered in PR #10 and archived to `context/archive/2026-09-25-role-aware-access-control/`.
 - #2 (S-01) was delivered in PR #12 (review reports in PR #13) and archived to `context/archive/2026-09-26-employee-availability-management/`.
 - #3 (S-02) was delivered in PR #21 and archived to `context/archive/2026-09-29-manager-availability-visibility/`.
 - #4 (S-03, north star) was delivered in PR #35 and archived to `context/archive/2026-10-06-generate-monthly-schedule/`.
+- #5 (S-04) was delivered in PR #37 and archived to `context/archive/2026-10-06-review-override-publish-schedule/`.
 
-1. **#5 (S-04)** is in review in PR #37 (2026-10-07); it moved to `status:ready` when S-03 merged. Its handoff from S-03 (draft model, unlock refused while a draft exists, the missing update policy, `summarizeSchedule` as the warning source, the cross-month boundary) is in the issue body and in `roadmap.md`. A schedule with a day that has no one assigned cannot be accepted or published. #6 (S-05) waits on it.
+1. **#6 (S-05)** is the last open slice of M-1, so it moves to `status:ready`. Its handoff from S-04 (what "published" means, the manager-only RLS that needs a read policy for published months, assignee names without opening `profiles`, Uncovered shifts after an account deletion) is in the issue body and in `roadmap.md`.
 2. **After S-03's merge:** push its migrations to the hosted project (`npx supabase db push`), and check a generate request's `cpuTime` with `wrangler tail`.
-3. **After S-04's merge (PR #37):** push its two migrations (`20261007120000_publish_and_override_schedules.sql`, `20261007130000_guard_published_schedule_shifts.sql`), close #5, move #6 (S-05) to `status:ready` and archive `review-override-publish-schedule`.
+3. **After S-04's merge:** push its two migrations to the hosted project (`20261007120000_publish_and_override_schedules.sql`, `20261007130000_guard_published_schedule_shifts.sql`).

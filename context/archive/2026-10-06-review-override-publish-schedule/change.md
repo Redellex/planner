@@ -1,10 +1,10 @@
 ---
 change_id: review-override-publish-schedule
 title: Review override publish schedule
-status: impl_reviewed
+status: archived
 created: 2026-10-06
 updated: 2026-10-07
-archived_at: null
+archived_at: 2026-10-07T14:56:28Z
 ---
 
 ## Notes
