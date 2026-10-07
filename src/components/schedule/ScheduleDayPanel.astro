@@ -7,7 +7,7 @@ import { dateOf, formatDay, formatDuration, formatWindow, windowMinutes } from "
 import { accountLabel } from "@/lib/manager-users";
 import { managerScheduleUrl, stationDayOf } from "@/lib/schedule";
 import type { OverrideShift, OverrideWarning } from "@/lib/schedule-override";
-import type { MemberSummary, SummaryShift } from "@/lib/schedule-summary";
+import type { SummaryShift } from "@/lib/schedule-summary";
 
 interface Props {
   selectedLabel: string;
@@ -24,14 +24,13 @@ interface Props {
   /** Result of the last override, in the row of the shift it concerns. */
   feedback?: { shiftId: string; kind: "error" | "success"; message: string } | null;
   /**
-   * The override waiting for "Assign anyway" (`?confirm=override`): the shift, the new assignee (null: Uncovered),
-   * the problems it would introduce (never empty) and the members' counts with the change applied (for fairness).
+   * The override waiting for "Assign anyway" (`?confirm=override`): the shift, the new assignee (null: Uncovered)
+   * and the problems it would introduce (never empty).
    */
   confirm?: {
     shiftId: string;
     employee: string | null;
     warnings: OverrideWarning[];
-    perMember: MemberSummary[];
   } | null;
   /**
    * Day 1 only: the previous month's last night (it ends at 06:00 on this day), shown read-only before the shifts,
@@ -40,6 +39,8 @@ interface Props {
   previousNight?: { shift: SummaryShift; monthLabel: string } | null;
   /** Prepended to every element id; set it when a page renders more than one of these (the kitchen sink). */
   idPrefix?: string;
+  /** The `idPrefix` of the `ScheduleSummary` the confirm panel's "Fairness exceptions" link points to. */
+  summaryIdPrefix?: string;
 }
 
 const {
@@ -53,8 +54,11 @@ const {
   confirm = null,
   previousNight = null,
   idPrefix = "",
+  summaryIdPrefix = "",
 } = Astro.props;
 const headingId = `${idPrefix}schedule-selected-day-heading`;
+/** The summary's fairness section (`ScheduleSummary`, rendered without an id prefix on /manager/schedule). */
+const fairnessId = `${summaryIdPrefix}schedule-fairness-heading`;
 
 function assigneeLabel(employeeId: string) {
   // A shift's assignee is always a loaded profile; the fallback keeps an unknown id readable, never empty.
@@ -62,15 +66,14 @@ function assigneeLabel(employeeId: string) {
 }
 
 const options = [...members.values()].map((member) => ({ value: member.id, label: accountLabel(member).text }));
-const confirmCounts = new Map((confirm?.perMember ?? []).map((member) => [member.id, member]));
 
 /** The station day and times of a shift, e.g. "Thu 12 Nov, 18:00 – 06:00 (+1)". */
 function shiftText(shift: SummaryShift): string {
   return `${formatDay(stationDayOf(shift.starts_at))}, ${formatWindow(shift)}`;
 }
 
-/** One plain-English line per problem the override would introduce. */
-function warningText(warning: OverrideWarning, shiftId: string): string {
+/** One plain-English line per problem the override would introduce; fairness gets one line for all (`fairnessText`). */
+function warningText(warning: Exclude<OverrideWarning, { kind: "fairness" }>, shiftId: string): string {
   switch (warning.kind) {
     case "outside":
       return `Outside ${assigneeLabel(warning.assignee).text}'s availability`;
@@ -86,16 +89,22 @@ function warningText(warning: OverrideWarning, shiftId: string): string {
       return `Back to back with ${assigneeLabel(warning.assignee).text}'s previous-month night ending ${formatDay(dateOf(warning.shift.starts_at))} 06:00`;
     case "nextMorning":
       return `Back to back with ${assigneeLabel(warning.assignee).text}'s next-month shift starting ${formatDay(dateOf(warning.shift.ends_at))} 06:00`;
-    case "fairness": {
-      const counts = confirmCounts.get(warning.assignee);
-      const count = (warning.rule === "long" ? counts?.longCount : counts?.nightCount) ?? 0;
-      const kind =
-        warning.rule === "long" ? (count === 1 ? "12h shift" : "12h shifts") : count === 1 ? "night" : "nights";
-      return `Gives ${assigneeLabel(warning.assignee).text} ${count} ${kind}, lowest available ${warning.eligibleMin} (${shiftText(warning.shift)})`;
-    }
     case "noOne":
       return `No one assigned on ${formatDay(warning.date)}`;
   }
+}
+
+/**
+ * One change can break the fairness rule on every 12h shift or night a person holds, so the panel names only who and
+ * which kind ("12h shifts for X; nights for Y") and points to the summary's fairness exceptions for the details.
+ */
+function fairnessText(warnings: OverrideWarning[]): string | null {
+  const subjects = new Set<string>();
+  for (const warning of warnings) {
+    if (warning.kind !== "fairness") continue;
+    subjects.add(`${warning.rule === "long" ? "12h shifts" : "nights"} for ${assigneeLabel(warning.assignee).text}`);
+  }
+  return subjects.size === 0 ? null : `uneven ${[...subjects].join("; ")}.`;
 }
 ---
 
@@ -122,6 +131,7 @@ function warningText(warning: OverrideWarning, shiftId: string): string {
         const selectId = `${idPrefix}assignee-${shift.id}`;
         const rowFeedback = feedback?.shiftId === shift.id ? feedback : null;
         const rowConfirm = editable && confirm?.shiftId === shift.id && confirm.warnings.length > 0 ? confirm : null;
+        const rowFairness = rowConfirm ? fairnessText(rowConfirm.warnings) : null;
         const times = (
           <span>
             {window}
@@ -172,9 +182,18 @@ function warningText(warning: OverrideWarning, shiftId: string): string {
                     : `Leave ${window} uncovered?`}
                 </p>
                 <ul class="flex list-disc flex-col gap-1 pl-5">
-                  {rowConfirm.warnings.map((warning) => (
-                    <li>{warningText(warning, shift.id)}</li>
-                  ))}
+                  {rowConfirm.warnings.map((warning) =>
+                    warning.kind === "fairness" ? null : <li>{warningText(warning, shift.id)}</li>,
+                  )}
+                  {rowFairness && (
+                    <li>
+                      Check fairness: {rowFairness} After saving, see{" "}
+                      <a href={`#${fairnessId}`} class="underline underline-offset-2">
+                        Fairness exceptions
+                      </a>{" "}
+                      in the summary.
+                    </li>
+                  )}
                 </ul>
                 <div class="flex flex-wrap items-center gap-2">
                   <form method="POST" action="/api/manager/schedule/override">

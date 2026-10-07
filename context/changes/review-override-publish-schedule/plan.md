@@ -617,6 +617,22 @@ Add the publish and unpublish endpoints and the published state of the draft car
 - **The freeze is RLS plus a guard trigger.** `20261007130000_guard_published_schedule_shifts.sql` locks the month's `schedules` row FOR SHARE before every direct shift write and raises SP001 on a published month, closing the READ COMMITTED race with `publish_schedule`. FK actions are skipped, so cascade and set null still work (review F1).
 - **Publish reads only the draft row and its shifts.** Coverage uses `daysWithNoOne(month, shifts)` (review F5).
 
+## Addendum (manual-testing additions, 2026-10-07)
+
+These changes came out of the manual walkthrough and are not in the phases above. Review: `reviews/impl-review-uncommitted.md`.
+
+- **Dev server.** `astro.config.mjs` pre-bundles `astro/assets/services/noop` in `vite.environments.ssr.optimizeDeps`. Without it, Vite re-optimized mid-request and workerd crashed on a deleted `deps_ssr` chunk. The setting applies to dev only.
+- **Navigation.** The Topbar shows a "Schedule" link to managers only.
+- **`--warning` token.** Added to `:root`, `.dark` and `@theme inline`; no existing token value changed. It colours outside-availability days on the schedule calendar.
+- **Schedule calendar.**
+  - `ScheduleCalendar` takes `shiftsByDay`, `members` and `outsideAvailability` and computes coverage itself.
+  - A day with a shift outside availability gets `border-warning/60` and an "N outside" marker.
+  - From `lg`, each cell lists its shifts as hours plus `calendarName` (`src/lib/manager-users.ts`), with Uncovered in red and outside lines in yellow.
+- **Desktop width.** From `lg`, only the calendar is wider than `max-w-2xl`, up to `max-w-6xl`. This applies on `/manager/schedule` and `/manager/availability`, and the calendar's own notices keep the column width. `TeamCalendar` lists windows plus `calendarName`, at most 5 lines, then "+N more".
+- **Fairness exceptions.** The summary shows one line per person and kind (`groupRuleBreaks`), with links to the days. The override confirm panel folds every fairness warning into one "Check fairness: …" line that links to the summary's Fairness exceptions. `confirm.perMember` was removed.
+- **Accepted limit.** On every calendar, the day link's `aria-label` carries only the counts. The names listed from `lg` are visual only, and the day panel is the accessible source, the same as on a phone.
+- **Follow-up.** `/manager/availability` has no kitchen sink and is outside the `check:ui` scope. Its `TeamCalendar` still has a `text-[10px]`. These predate this change; leave them to a `/10x-ui` pass on that view.
+
 ## References
 
 - Research: `context/changes/review-override-publish-schedule/research.md`
@@ -645,7 +661,7 @@ Add the publish and unpublish endpoints and the published state of the draft car
 
 #### Manual
 
-- [ ] 1.5 In Studio, with a local draft in station month + 1, `npm run test:db` still passes (the availability tests now delete drafts first)
+- [x] 1.5 In Studio, with a local draft in station month + 1, `npm run test:db` still passes (the availability tests now delete drafts first)
 
 ### Phase 2: Validation library
 
@@ -658,7 +674,7 @@ Add the publish and unpublish endpoints and the published state of the draft car
 #### Manual
 
 - [x] 2.4 Stryker on `src/lib/schedule-override.ts`: survivors that would change a manager's warnings are killed or recorded
-  - Impl review, 2026-10-07: `--timeoutMS 60000 --concurrency 2` (the default timeout counted 82 of 91 mutants as timeouts and showed 97.8%). Result 21 survivors; 2 were real (an override of the *first* shift of a back-to-back pair was untested) and are killed by a new test. The other 19 are equivalent: the `shiftId` filters in `candidates` (L35-57) only drop entries that are identical in `before` and `after`, which the diff removes anyway, and the `previousNight`/`nextMorning` case labels in `warningKey` (L74-75) never collide, because `before` and `after` cannot both hold such a warning for one shift.
+  - Impl review, 2026-10-07: `--timeoutMS 60000 --concurrency 2` (the default timeout counted 82 of 91 mutants as timeouts and showed 97.8%). Result 21 survivors; 2 were real (an override of the _first_ shift of a back-to-back pair was untested) and are killed by a new test. The other 19 are equivalent: the `shiftId` filters in `candidates` (L35-57) only drop entries that are identical in `before` and `after`, which the diff removes anyway, and the `previousNight`/`nextMorning` case labels in `warningKey` (L74-75) never collide, because `before` and `after` cannot both hold such a warning for one shift.
 
 ### Phase 3: Override — endpoint and day panel
 
@@ -671,11 +687,11 @@ Add the publish and unpublish endpoints and the published state of the draft car
 
 #### Manual
 
-- [ ] 3.5 A clean override saves at once and shows "Shift updated." in that row
-- [ ] 3.6 Outside-availability and same-day overrides open the confirm panel; Cancel keeps, "Assign anyway" saves
-- [ ] 3.7 Assigning someone on days 10 and 20 clears them from the "days with no one" notice
-- [ ] 3.8 Keyboard: selects labelled with visible focus, confirm buttons reachable
-- [ ] 3.9 `/dev/schedule-states` shows every new override state in the dark theme
+- [x] 3.5 A clean override saves at once and shows "Shift updated." in that row
+- [x] 3.6 Outside-availability and same-day overrides open the confirm panel; Cancel keeps, "Assign anyway" saves
+- [x] 3.7 Assigning someone on days 10 and 20 clears them from the "days with no one" notice
+- [x] 3.8 Keyboard: selects labelled with visible focus, confirm buttons reachable
+- [x] 3.9 `/dev/schedule-states` shows every new override state in the dark theme
 
 ### Phase 4: Publish and unpublish
 
@@ -689,7 +705,7 @@ Add the publish and unpublish endpoints and the published state of the draft car
 
 #### Manual
 
-- [ ] 4.6 Publish is blocked by the "days have no one" notice until days 10 and 20 are covered, then publishing shows Published with only Unpublish
-- [ ] 4.7 A published month has no selects, no Regenerate or Discard, and refuses crafted discard/override and unlock with the published messages
-- [ ] 4.8 Unpublish restores the draft; discard then unlock works
-- [ ] 4.9 `/dev/schedule-states` shows the published and blocked cards in the dark theme
+- [x] 4.6 Publish is blocked by the "days have no one" notice until days 10 and 20 are covered, then publishing shows Published with only Unpublish
+- [x] 4.7 A published month has no selects, no Regenerate or Discard, and refuses crafted discard/override and unlock with the published messages
+- [x] 4.8 Unpublish restores the draft; discard then unlock works
+- [x] 4.9 `/dev/schedule-states` shows the published and blocked cards in the dark theme

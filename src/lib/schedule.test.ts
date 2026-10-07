@@ -6,6 +6,7 @@ import {
   describeScheduleWriteError,
   GENERATE_LOAD_ERROR,
   GENERIC_SCHEDULE_WRITE_ERROR,
+  groupRuleBreaks,
   INVALID_ASSIGNEE_ERROR,
   INVALID_MONTH_ERROR,
   managerScheduleUrl,
@@ -191,6 +192,58 @@ describe("a shift param is accepted only as a UUID", () => {
     ["a non-string form value", 42],
   ])("rejects %s", (_name, value) => {
     expect(parseShiftParam(value)).toBeNull();
+  });
+});
+
+describe("rule breaks are grouped into one line per person and kind", () => {
+  const A = "00000000-0000-4000-8000-00000000000a";
+  const B = "00000000-0000-4000-8000-00000000000b";
+  // Only the start matters for grouping; the end and assignee are filler.
+  const at = (starts_at: string) => ({ starts_at, ends_at: starts_at, employee_id: A });
+
+  it("folds one person's nights into one group with their station days sorted, the 00:00 start on the day before", () => {
+    expect(
+      groupRuleBreaks([
+        { kind: "night", shift: at("2026-11-12T00:00:00"), assignee: A, eligibleMin: 1 },
+        { kind: "night", shift: at("2026-11-03T18:00:00"), assignee: A, eligibleMin: 0 },
+        { kind: "night", shift: at("2026-11-07T22:00:00"), assignee: A, eligibleMin: 0 },
+      ]),
+    ).toEqual([
+      {
+        kind: "night",
+        assignee: A,
+        days: ["2026-11-03", "2026-11-07", "2026-11-11"],
+        eligibleMin: { low: 0, high: 1 },
+      },
+    ]);
+  });
+
+  it("keeps 12h and night breaks of one person apart, and other people apart, in first-seen order", () => {
+    expect(
+      groupRuleBreaks([
+        { kind: "long", shift: at("2026-11-02T06:00:00"), assignee: B, eligibleMin: 2 },
+        { kind: "night", shift: at("2026-11-02T18:00:00"), assignee: B, eligibleMin: 0 },
+        { kind: "long", shift: at("2026-11-04T06:00:00"), assignee: A, eligibleMin: 1 },
+        { kind: "long", shift: at("2026-11-09T06:00:00"), assignee: B, eligibleMin: 2 },
+      ]),
+    ).toEqual([
+      { kind: "long", assignee: B, days: ["2026-11-02", "2026-11-09"], eligibleMin: { low: 2, high: 2 } },
+      { kind: "night", assignee: B, days: ["2026-11-02"], eligibleMin: { low: 0, high: 0 } },
+      { kind: "long", assignee: A, days: ["2026-11-04"], eligibleMin: { low: 1, high: 1 } },
+    ]);
+  });
+
+  it("lists a station day once when an override gave the person two breaking shifts on it", () => {
+    expect(
+      groupRuleBreaks([
+        { kind: "long", shift: at("2026-11-05T06:00:00"), assignee: A, eligibleMin: 0 },
+        { kind: "long", shift: at("2026-11-05T18:00:00"), assignee: A, eligibleMin: 0 },
+      ]),
+    ).toEqual([{ kind: "long", assignee: A, days: ["2026-11-05"], eligibleMin: { low: 0, high: 0 } }]);
+  });
+
+  it("returns no groups for no breaks", () => {
+    expect(groupRuleBreaks([])).toEqual([]);
   });
 });
 

@@ -80,3 +80,10 @@ export function accountLabel(profile: { id: string; email: string }): {
   const shortId = profile.id.slice(0, 8);
   return { text: `No email · ${shortId}`, missingEmail: true, accessibleName: `user ${shortId}` };
 }
+
+/** Short name for a calendar day cell: the email before `@`, or the id's first 8 characters when the email is empty. */
+export function calendarName(profile: { id: string; email: string }): string {
+  const at = profile.email.indexOf("@");
+  if (at > 0) return profile.email.slice(0, at);
+  return profile.email || profile.id.slice(0, 8);
+}

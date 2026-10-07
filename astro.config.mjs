@@ -12,6 +12,14 @@ export default defineConfig({
   integrations: [react(), sitemap()],
   vite: {
     plugins: [tailwindcss()],
+    environments: {
+      ssr: {
+        // The passthrough image service loads this at the first request; the
+        // adapter does not pre-bundle it, so Vite re-optimizes mid-request and
+        // workerd crashes on a deleted deps_ssr chunk ("The file does not exist").
+        optimizeDeps: { include: ["astro/assets/services/noop"] },
+      },
+    },
   },
   adapter: cloudflare({ imageService: "passthrough" }),
   session: false,

@@ -11,6 +11,7 @@ import {
   upcomingMonths,
   wallClockMinutes,
 } from "./availability";
+import type { RuleBreak } from "./schedule-summary";
 import type { createClient } from "./supabase";
 import { loadAllPages, type PagedResult } from "./team-availability";
 
@@ -391,4 +392,32 @@ export function shiftsByStationDay<S extends { starts_at: string }>(shifts: read
     }
   }
   return byDay;
+}
+
+/** One person's 12h or night rule breaks, shown as one summary line instead of one line per shift. */
+export interface RuleBreakGroup {
+  kind: "long" | "night";
+  assignee: string;
+  /** Station days of the breaking shifts, sorted, each once. */
+  days: string[];
+  /** The lowest and highest `eligibleMin` among the grouped breaks (equal when they all agree). */
+  eligibleMin: { low: number; high: number };
+}
+
+/** Rule breaks grouped by assignee and kind, in the order each group first appears in `ruleBreaks`. */
+export function groupRuleBreaks(ruleBreaks: readonly RuleBreak[]): RuleBreakGroup[] {
+  const groups = new Map<string, RuleBreakGroup>();
+  for (const { kind, shift, assignee, eligibleMin } of ruleBreaks) {
+    const key = `${assignee}|${kind}`;
+    const day = stationDayOf(shift.starts_at);
+    const group = groups.get(key);
+    if (group) {
+      if (!group.days.includes(day)) group.days.push(day);
+      group.eligibleMin.low = Math.min(group.eligibleMin.low, eligibleMin);
+      group.eligibleMin.high = Math.max(group.eligibleMin.high, eligibleMin);
+    } else {
+      groups.set(key, { kind, assignee, days: [day], eligibleMin: { low: eligibleMin, high: eligibleMin } });
+    }
+  }
+  return [...groups.values()].map((group) => ({ ...group, days: group.days.toSorted() }));
 }

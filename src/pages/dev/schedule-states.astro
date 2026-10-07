@@ -39,7 +39,7 @@ import {
 } from "@/lib/schedule";
 import { generateSchedule, type GeneratedShift, type ScheduleWindow } from "@/lib/schedule-generator";
 import type { OverrideShift, OverrideWarning } from "@/lib/schedule-override";
-import { summarizeSchedule, type MemberSummary, type ScheduleSummary as DraftSummary } from "@/lib/schedule-summary";
+import { summarizeSchedule, type ScheduleSummary as DraftSummary } from "@/lib/schedule-summary";
 
 // Outside dev: 404 with an empty body (the template below renders only in dev). A frontmatter `return` would do,
 // but it crashes @typescript-eslint/no-misused-promises in .astro files.
@@ -120,13 +120,7 @@ function withIds(shifts: GeneratedShift[], offset: number): OverrideShift[] {
 function view(generated: GeneratedShift[], windows: ScheduleWindow[], offset: number) {
   const shifts = withIds(generated, offset);
   const byDay = shiftsByStationDay(shifts);
-  const coverage = new Map(
-    [...byDay].map(([day, dayShifts]) => [
-      day,
-      { total: dayShifts.length, assigned: dayShifts.filter((shift) => shift.employee_id !== null).length },
-    ]),
-  );
-  return { byDay, coverage, summary: summarizeSchedule({ month, members, windows, shifts }) };
+  return { byDay, summary: summarizeSchedule({ month, members, windows, shifts }) };
 }
 const coveredView = view(covered, isDev ? coveredWindows : [], 0);
 const gapsView = view(gaps, isDev ? gapWindows : [], 1000);
@@ -262,11 +256,6 @@ const confirmWarnings: OverrideWarning[] = [
   { kind: "fairness", rule: "long", shift: confirmDayShift, assignee: BOB.id, eligibleMin: 2 },
   { kind: "fairness", rule: "night", shift: confirmNightAfter, assignee: CAROL.id, eligibleMin: 1 },
   { kind: "noOne", date: EMPTY_DAY },
-];
-// The members' counts with the change applied: the fairness lines read the assignee's own count from here.
-const confirmCounts: MemberSummary[] = [
-  { id: BOB.id, shifts: 9, minutes: 108 * 60, longCount: 4, nightCount: 1, hasAvailability: true, zeroShifts: false },
-  { id: CAROL.id, shifts: 5, minutes: 60 * 60, longCount: 3, nightCount: 3, hasAvailability: true, zeroShifts: false },
 ];
 
 const noDraftStates = [
@@ -490,15 +479,17 @@ const errorStates = [
           <h2 id="states-covered" class="text-sm font-medium text-muted-foreground">
             Fully covered draft (generated from fixtures; Carol's 2h window gets no shift)
           </h2>
+          <ScheduleCalendar
+            month={month}
+            weeks={weeks}
+            selectedDay="2026-04-15"
+            shiftsByDay={coveredView.byDay}
+            members={membersById}
+            uncoveredCount={coveredView.summary.uncovered.length}
+            daysWithNoOne={coveredView.summary.daysWithNoOne}
+            outsideAvailability={coveredView.summary.outsideAvailability}
+          />
           <div class="mx-auto w-full max-w-2xl">
-            <ScheduleCalendar
-              month={month}
-              weeks={weeks}
-              selectedDay="2026-04-15"
-              coverage={coveredView.coverage}
-              uncoveredCount={coveredView.summary.uncovered.length}
-              daysWithNoOne={coveredView.summary.daysWithNoOne}
-            />
             <ScheduleDayPanel
               selectedLabel={formatDay("2026-04-15")}
               month={month}
@@ -529,15 +520,17 @@ const errorStates = [
             Draft with uncovered shifts: night after {formatDay(NIGHT_GAP_DAY)} uncovered, no one on
             {formatDay(EMPTY_DAY)}; zero-shift member (Carol)
           </h2>
+          <ScheduleCalendar
+            month={month}
+            weeks={weeks}
+            selectedDay={NIGHT_GAP_DAY}
+            shiftsByDay={gapsView.byDay}
+            members={membersById}
+            uncoveredCount={gapsView.summary.uncovered.length}
+            daysWithNoOne={gapsView.summary.daysWithNoOne}
+            outsideAvailability={gapsView.summary.outsideAvailability}
+          />
           <div class="mx-auto w-full max-w-2xl">
-            <ScheduleCalendar
-              month={month}
-              weeks={weeks}
-              selectedDay={NIGHT_GAP_DAY}
-              coverage={gapsView.coverage}
-              uncoveredCount={gapsView.summary.uncovered.length}
-              daysWithNoOne={gapsView.summary.daysWithNoOne}
-            />
             <div class="flex flex-col gap-6">
               <ScheduleDayPanel
                 selectedLabel={formatDay(NIGHT_GAP_DAY)}
@@ -617,9 +610,9 @@ const errorStates = [
                   shiftId: confirmNightShift.id,
                   employee: CAROL.id,
                   warnings: confirmWarnings,
-                  perMember: confirmCounts,
                 }}
                 idPrefix="override-confirm-"
+                summaryIdPrefix="breaks-"
               />
             </div>
             <div class="flex flex-col gap-2">
@@ -643,6 +636,21 @@ const errorStates = [
             Rule breaks, an assignment outside availability, hard-rule exceptions and shifts back to back with the
             previous and the next month (hand-written summary)
           </h2>
+          <!-- Outside availability on the 20th alone (yellow) and on the 3rd next to its uncovered night (both); real shifts of
+               this calendar, so the cells mark their lines from lg. -->
+          <ScheduleCalendar
+            month={month}
+            weeks={weeks}
+            selectedDay="2026-04-15"
+            shiftsByDay={gapsView.byDay}
+            members={membersById}
+            uncoveredCount={gapsView.summary.uncovered.length}
+            daysWithNoOne={[]}
+            outsideAvailability={[
+              gapsView.byDay.get("2026-04-20")?.[1] ?? outside,
+              { starts_at: `${NIGHT_GAP_DAY}T06:00:00` },
+            ]}
+          />
           <div class="mx-auto w-full max-w-2xl">
             <ScheduleSummary month={month} summary={ruleBreakSummary} members={membersById} idPrefix="breaks-" />
           </div>

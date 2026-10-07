@@ -157,12 +157,6 @@ if (!supabase) {
 
 const membersById = new Map(members.map((member) => [member.id, member]));
 const byStationDay = shiftsByStationDay(shifts);
-const coverage = new Map(
-  [...byStationDay].map(([day, dayShifts]) => [
-    day,
-    { total: dayShifts.length, assigned: dayShifts.filter((shift) => shift.employee_id !== null).length },
-  ]),
-);
 const selectedShifts = byStationDay.get(selectedDay) ?? [];
 // The confirm panel only makes sense for an unpublished draft that can be regenerated.
 const confirming =
@@ -181,7 +175,6 @@ let overrideConfirm: {
   shiftId: string;
   employee: string | null;
   warnings: OverrideWarning[];
-  perMember: DraftSummary["perMember"];
 } | null = null;
 const employeeParam = Astro.url.searchParams.get("employee");
 const confirmEmployee =
@@ -204,7 +197,7 @@ if (
   });
   const warnings = overrideWarnings({ before: summary, after, shiftId: shiftOnSelectedDay });
   if (warnings.length > 0) {
-    overrideConfirm = { shiftId: shiftOnSelectedDay, employee: confirmEmployee, warnings, perMember: after.perMember };
+    overrideConfirm = { shiftId: shiftOnSelectedDay, employee: confirmEmployee, warnings };
   }
 }
 
@@ -233,41 +226,46 @@ const monthHref = (option: string): string => managerScheduleUrl({ month: option
 
 <Layout title="Schedule">
   <div class="min-h-screen bg-background p-4">
-    <div class="mx-auto w-full max-w-2xl">
-      <h1 class="mb-6 text-center text-2xl font-semibold">Schedule</h1>
-      {loadError && (
-        <Alert variant="destructive" className="mb-4">
-          <CircleAlert />
-          <AlertDescription>{loadError}</AlertDescription>
-        </Alert>
-      )}
-
-      <MonthTabs months={months} current={month} lockedMonths={lockedMonths} hrefFor={monthHref} />
-
-      <p class="mb-6 text-center text-sm text-muted-foreground">
-        {lockStatus}
-        {!isCurrentMonth && (
-          <>
-            {" · "}
-            <a href="/manager/months" class="text-primary underline-offset-4 hover:underline">
-              Manage month locks
-            </a>
-          </>
+    <!-- Only the calendar uses the desktop width (its cells list who works each shift); the rest stays narrow. -->
+    <div class="mx-auto w-full max-w-2xl lg:max-w-6xl">
+      <div class="mx-auto w-full max-w-2xl">
+        <h1 class="mb-6 text-center text-2xl font-semibold">Schedule</h1>
+        {loadError && (
+          <Alert variant="destructive" className="mb-4">
+            <CircleAlert />
+            <AlertDescription>{loadError}</AlertDescription>
+          </Alert>
         )}
-      </p>
+
+        <MonthTabs months={months} current={month} lockedMonths={lockedMonths} hrefFor={monthHref} />
+
+        <p class="mb-6 text-center text-sm text-muted-foreground">
+          {lockStatus}
+          {!isCurrentMonth && (
+            <>
+              {" · "}
+              <a href="/manager/months" class="text-primary underline-offset-4 hover:underline">
+                Manage month locks
+              </a>
+            </>
+          )}
+        </p>
+      </div>
 
       {!scheduleUnknown && (
         <>
-          <ScheduleActions
-            month={month}
-            day={selectedDay}
-            canGenerate={canGenerate}
-            draft={draft}
-            daysWithNoOne={summary?.daysWithNoOne.length ?? 0}
-            locked={isCurrentMonth || monthLockedAt !== undefined}
-            confirming={confirming}
-            feedback={cardFeedback}
-          />
+          <div class="mx-auto w-full max-w-2xl">
+            <ScheduleActions
+              month={month}
+              day={selectedDay}
+              canGenerate={canGenerate}
+              draft={draft}
+              daysWithNoOne={summary?.daysWithNoOne.length ?? 0}
+              locked={isCurrentMonth || monthLockedAt !== undefined}
+              confirming={confirming}
+              feedback={cardFeedback}
+            />
+          </div>
 
           {summary && (
             <>
@@ -275,28 +273,32 @@ const monthHref = (option: string): string => managerScheduleUrl({ month: option
                 month={month}
                 weeks={calendarWeeks(month)}
                 selectedDay={selectedDay}
-                coverage={coverage}
+                shiftsByDay={byStationDay}
+                members={membersById}
                 uncoveredCount={summary.uncovered.length}
                 daysWithNoOne={summary.daysWithNoOne}
+                outsideAvailability={summary.outsideAvailability}
               />
 
-              <ScheduleDayPanel
-                selectedLabel={formatDay(selectedDay)}
-                month={month}
-                day={selectedDay}
-                shifts={selectedShifts}
-                members={membersById}
-                editable={editable}
-                feedback={shiftFeedback}
-                confirm={overrideConfirm}
-                previousNight={
-                  previousNight && selectedDay === monthStart(month)
-                    ? { shift: previousNight, monthLabel: formatMonth(addMonths(month, -1)) }
-                    : null
-                }
-              />
+              <div class="mx-auto w-full max-w-2xl">
+                <ScheduleDayPanel
+                  selectedLabel={formatDay(selectedDay)}
+                  month={month}
+                  day={selectedDay}
+                  shifts={selectedShifts}
+                  members={membersById}
+                  editable={editable}
+                  feedback={shiftFeedback}
+                  confirm={overrideConfirm}
+                  previousNight={
+                    previousNight && selectedDay === monthStart(month)
+                      ? { shift: previousNight, monthLabel: formatMonth(addMonths(month, -1)) }
+                      : null
+                  }
+                />
 
-              <ScheduleSummary month={month} summary={summary} members={membersById} />
+                <ScheduleSummary month={month} summary={summary} members={membersById} />
+              </div>
             </>
           )}
         </>
