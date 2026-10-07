@@ -216,7 +216,7 @@ Status as of 2026-10-07: M-1 is 5/6 done.
 - #2 (S-01) was delivered in PR #12 (review reports in PR #13) and archived to `context/archive/2026-09-26-employee-availability-management/`.
 - #3 (S-02) was delivered in PR #21 and archived to `context/archive/2026-09-29-manager-availability-visibility/`.
 - #4 (S-03, north star) was delivered in PR #35 and archived to `context/archive/2026-10-06-generate-monthly-schedule/`.
-- #5 (S-04) was delivered in PR #37 (merged 2026-10-07). Its change folder `context/changes/review-override-publish-schedule/` is not archived yet.
+- #5 (S-04) was delivered in PR #37 and archived to `context/archive/2026-10-06-review-override-publish-schedule/`.
 
 1. **#6 (S-05)** is the last open slice of M-1, so it moves to `status:ready`. Its handoff from S-04 (what "published" means, the manager-only RLS that needs a read policy for published months, assignee names without opening `profiles`, Uncovered shifts after an account deletion) is in the issue body and in `roadmap.md`.
 2. **After S-03's merge:** push its migrations to the hosted project (`npx supabase db push`), and check a generate request's `cpuTime` with `wrangler tail`.
