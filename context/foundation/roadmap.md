@@ -3,7 +3,7 @@ project: Planner
 version: 1
 status: draft
 created: 2026-09-24
-updated: 2026-10-06
+updated: 2026-10-07
 prd_version: 1
 main_goal: speed
 top_blocker: capacity
@@ -46,7 +46,7 @@ A gas-station manager currently builds the monthly shift schedule by hand in a s
 | S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | done        |
 | S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | done        |
 | S-04 | review-override-publish-schedule | Manager reviews, overrides (with conflict warnings), and publishes the schedule       | S-03          | FR-004, FR-005, FR-006         | in-progress |
-| S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | proposed    |
+| S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | ready       |
 
 ## Baseline
 
@@ -144,7 +144,10 @@ Foundations below assume these are present and do NOT re-scaffold them.
   - **Conflict warnings come from `summarizeSchedule`** (`src/lib/schedule-summary.ts`). It recounts from the stored shifts and raw windows: `outsideAvailability` is the FR-004 override warning (always empty for a generated draft), `ruleBreaks` the 12h/night fairness warnings, `perMember.zeroShifts` the "No shifts" flag, and `daysWithNoOne` must block accept and publish. It does not check one-shift-per-station-day or touching shifts per person: overrides can break those hard rules, so S-04 must add a check for them.
   - **Cross-month boundary (impl review F1, 2026-10-06).** Windows starting on day 1 of M+1 before 06:00 count for M's last station night: RLS freezes them while M is locked, and generating M reads them. Generating M+1 blocks M's last-night assignee from 06:00 on day 1, and `summarizeSchedule(...).touchesPreviousNight` reports the conflict when M's draft changed afterwards. S-04 overrides of day 1 06:00 or of M's last night must re-check it.
 - **Risk:** Depends entirely on S-03 producing a real draft to act on; sequenced immediately after so the full manager workflow (generate → adjust → publish) is validated end-to-end before employee-facing viewing lands.
-- **In review (2026-10-07):** implemented in `context/changes/review-override-publish-schedule/`, PR #37. After merge, push `20261007120000_publish_and_override_schedules.sql` and `20261007130000_guard_published_schedule_shifts.sql` to the hosted project.
+- **Delivery (2026-10-07):** implemented in `context/changes/review-override-publish-schedule/`, merged in PR #37. S-03 handoff outcome: overrides go through a manager-only `update (employee_id)` grant and policy; `overrideWarnings` (`src/lib/schedule-override.ts`) diffs two `summarizeSchedule` runs and adds the per-person same-day and back-to-back checks plus the M−1 last night / M+1 first morning boundary; publish and unpublish are RPCs, and a published month keeps its lock and is frozen (RLS plus the `schedule_shifts_published_guard` trigger). Push `20261007120000_publish_and_override_schedules.sql` and `20261007130000_guard_published_schedule_shifts.sql` to the hosted project.
+- **Follow-ups (not in this slice):**
+  - Two concurrent overrides that each pass clean can together create a same-day or back-to-back pair nobody was warned about; the summary card shows it on the next load (accepted limit; a version token in the form would close it).
+  - `/manager/availability` has no kitchen sink, is outside the `check:ui` scope and its `TeamCalendar` still has a `text-[10px]`: leave to a `/10x-ui` pass on that view.
 - **Status:** in-progress
 
 ### S-05: View published schedule
@@ -157,7 +160,12 @@ Foundations below assume these are present and do NOT re-scaffold them.
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Simple read-only grid, mostly UI — last in the must-have chain since nothing can be published before S-04 lands.
-- **Status:** proposed
+- **Handoff from S-04:**
+  - A month is published when `schedules.published_at` is set (written only by `publish_schedule`/`unpublish_schedule`). A published month is frozen and keeps its availability lock; unpublishing makes it a draft again, which employees must stop seeing.
+  - RLS on `schedules` and `schedule_shifts` is still manager-only, so employees cannot read anything yet. S-05 needs a select policy for authenticated users limited to rows of published months (and must not expose drafts), plus a way to show assignee names that does not open `profiles` to everyone.
+  - A published month can still gain Uncovered shifts when an assignee's account is deleted (`on delete set null`); the grid should show them.
+  - The station-day model (06:00 → 06:00, the 00:00–06:00 night on day 1 of M+1 belongs to M) and `shiftsByStationDay`/`calendarName` from S-03/S-04 can be reused for the grid.
+- **Status:** ready
 
 ## Backlog Handoff
 
@@ -174,8 +182,8 @@ Foundations below assume these are present and do NOT re-scaffold them.
 | QG-01 (test plan §5) | #29      | quality-gate-hooks                | Quality-gate hooks: agent hooks and pre-commit tests on staged files              | —                     | Done in PR #30 — merged 2026-10-03                              |
 | T-03 (test plan)     | #31      | testing-route-gating-honest-reads | Route gating and honest availability reads                                        | —                     | Done in PR #32 — archived 2026-10-03                            |
 | S-03                 | #4       | generate-monthly-schedule         | Auto-generate conflict-free, fairly-rotated monthly schedule                      | —                     | Done in PR #35 — archived 2026-10-06                            |
-| S-04                 | #5       | review-override-publish-schedule  | Manager review/override/publish workflow for generated schedule                   | yes                   | In review in PR #37                                             |
-| S-05                 | #6       | view-published-schedule           | Published schedule grid view for employees and managers                           | no                    | Waiting on S-04                                                 |
+| S-04                 | #5       | review-override-publish-schedule  | Manager review/override/publish workflow for generated schedule                   | —                     | Done in PR #37 — archived 2026-10-07                            |
+| S-05                 | #6       | view-published-schedule           | Published schedule grid view for employees and managers                           | yes                   | Ready — S-04 merged 2026-10-07; handoff recorded under S-05     |
 
 ## Open Roadmap Questions
 
