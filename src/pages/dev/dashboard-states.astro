@@ -1,0 +1,63 @@
+---
+// Kitchen sink for / (the dashboard): every state of the view, side by side, rendered by the real component from
+// fixture actors. Dev only (the visual gate for context/changes/legacy-views-ui-tokens); 404 in production.
+// No database access and no user data: the emails below are fixtures, the links come from navLinksFor.
+import Layout from "@/layouts/Layout.astro";
+import DashboardPanel from "@/components/dashboard/DashboardPanel.astro";
+import { navLinksFor } from "@/lib/navigation";
+import type { AppRole } from "@/lib/roles";
+
+// Outside dev: 404 with an empty body (the template below renders only in dev). A frontmatter `return` would do,
+// but it crashes @typescript-eslint/no-misused-promises in .astro files.
+const isDev = import.meta.env.DEV;
+if (!isDev) {
+  Astro.response.status = 404;
+}
+
+const states: { title: string; email: string | undefined; role: AppRole | null }[] = [
+  { title: "Manager", email: "manager@example.com", role: "manager" },
+  { title: "Employee", email: "employee@example.com", role: "employee" },
+  { title: "Signed in with no role (no pill)", email: "no-role@example.com", role: null },
+];
+
+// The same links as /: the top bar's links for that actor, minus Home.
+const linksFor = (role: AppRole | null) => navLinksFor({ signedIn: true, role }).filter((link) => link.href !== "/");
+---
+
+{isDev && (
+  <Layout title="Dashboard states">
+    <div class="flex-1 bg-background p-4">
+      <div class="mx-auto flex w-full max-w-2xl flex-col gap-10">
+        <header class="flex flex-col gap-1">
+          <h1 class="text-2xl font-semibold">Dashboard states</h1>
+          <p class="text-sm text-muted-foreground">
+            Dev-only kitchen sink. Fixture actors; the links are each actor's real navigation links. Loading, error,
+            success and disabled — N/A: SSR with no read and no form (the role comes from the middleware). Empty — the
+            no-role actor (no pill).
+          </p>
+        </header>
+
+        {states.map((state, index) => (
+          <section aria-labelledby={`state-${index}`} class="flex flex-col gap-3">
+            <h2 id={`state-${index}`} class="text-sm font-medium text-muted-foreground">
+              {state.title}
+            </h2>
+            <DashboardPanel
+              email={state.email}
+              role={state.role}
+              links={linksFor(state.role)}
+              idPrefix={`state-${index}-`}
+            />
+          </section>
+        ))}
+      </div>
+    </div>
+  </Layout>
+)}
+
+<script>
+  // Every form on this page (the real bar's Sign out): keep them inert so a click never reaches /api/auth/signout.
+  document.addEventListener("submit", (event) => {
+    event.preventDefault();
+  });
+</script>

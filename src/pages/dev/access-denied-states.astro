@@ -1,0 +1,45 @@
+---
+// Kitchen sink for /403: the access-denied panel, rendered by the real component. Dev only (the visual gate for
+// context/changes/legacy-views-ui-tokens); 404 in production. No database access and no user data.
+import Layout from "@/layouts/Layout.astro";
+import AccessDeniedPanel from "@/components/system/AccessDeniedPanel.astro";
+
+// Outside dev: 404 with an empty body (the template below renders only in dev). A frontmatter `return` would do,
+// but it crashes @typescript-eslint/no-misused-promises in .astro files.
+const isDev = import.meta.env.DEV;
+if (!isDev) {
+  Astro.response.status = 404;
+}
+---
+
+{isDev && (
+  <Layout title="Access denied states">
+    <div class="flex-1 bg-background p-4">
+      <div class="mx-auto flex w-full max-w-2xl flex-col gap-10">
+        <header class="flex flex-col gap-1">
+          <h1 class="text-2xl font-semibold">Access denied states</h1>
+          <p class="text-sm text-muted-foreground">
+            Dev-only kitchen sink. The panel has one state: the same copy for every refused page and method. Empty,
+            loading, error, success and disabled — N/A: static SSR, no read and no form.
+          </p>
+        </header>
+
+        <section aria-labelledby="state-default" class="flex flex-col gap-3">
+          <h2 id="state-default" class="text-sm font-medium text-muted-foreground">
+            Default (as on /403)
+          </h2>
+          <div class="mx-auto w-full max-w-sm">
+            <AccessDeniedPanel />
+          </div>
+        </section>
+      </div>
+    </div>
+  </Layout>
+)}
+
+<script>
+  // Every form on this page (the real bar's Sign out): keep them inert so a click never reaches /api/auth/signout.
+  document.addEventListener("submit", (event) => {
+    event.preventDefault();
+  });
+</script>

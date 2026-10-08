@@ -1,0 +1,52 @@
+---
+// The signed-in home page: who is signed in, their role and the pages they can open (the top bar's links minus
+// Home). Rendered by / and by the /dev/dashboard-states kitchen sink.
+import { buttonVariants } from "@/components/ui/button";
+import { roleLabel, type AppRole } from "@/lib/roles";
+
+interface Props {
+  email: string | undefined;
+  role: AppRole | null;
+  links: { href: string; label: string }[];
+  /** Prefix for the heading id, so several panels can share one page (the /dev/dashboard-states kitchen sink). */
+  idPrefix?: string;
+}
+
+const { email, role, links, idPrefix = "" } = Astro.props;
+const titleId = `${idPrefix}dashboard-title`;
+---
+
+<section
+  data-dashboard
+  aria-labelledby={titleId}
+  class="flex flex-col gap-4 rounded-xl border bg-card p-4 text-card-foreground"
+>
+  <div class="flex flex-col gap-1">
+    <h1 id={titleId} class="text-2xl font-semibold">
+      Dashboard
+    </h1>
+    <p class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+      <span>
+        Signed in as <span class="font-medium break-all text-foreground">{email ?? "No email"}</span>
+      </span>
+      {role && (
+        <span class="rounded-md bg-secondary px-1.5 py-0.5 text-xs font-medium text-secondary-foreground">
+          {roleLabel(role)}
+        </span>
+      )}
+    </p>
+  </div>
+  {links.length > 0 && (
+    <nav aria-label="Pages">
+      <ul class="flex flex-wrap gap-2">
+        {links.map((link) => (
+          <li>
+            <a href={link.href} class:list={buttonVariants({ variant: "outline" })}>
+              {link.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )}
+</section>

@@ -1,0 +1,32 @@
+---
+// The shell of the auth pages (/auth/signin, /auth/signup, /auth/confirm-email): the token page wrapper with one
+// centred panel. Slots: `icon` (above the heading), default (the form or the copy) and `footer` (the switch link).
+interface Props {
+  title: string;
+  /** Prefix for the heading id, so several panels can share one page (the /dev/auth-states kitchen sink). */
+  idPrefix?: string;
+}
+
+const { title, idPrefix = "" } = Astro.props;
+const titleId = `${idPrefix}auth-panel-title`;
+---
+
+<div class="flex flex-1 items-start justify-center bg-background p-4 sm:items-center">
+  <section
+    aria-labelledby={titleId}
+    class="mx-auto flex w-full max-w-sm flex-col gap-6 rounded-xl border bg-card p-6 text-card-foreground"
+  >
+    <div class="flex flex-col items-center gap-3 text-center">
+      <slot name="icon" />
+      <h1 id={titleId} class="text-2xl font-semibold">
+        {title}
+      </h1>
+    </div>
+    <slot />
+    {Astro.slots.has("footer") && (
+      <p class="text-center text-sm text-muted-foreground">
+        <slot name="footer" />
+      </p>
+    )}
+  </section>
+</div>

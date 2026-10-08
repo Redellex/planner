@@ -1,0 +1,28 @@
+---
+// The body of /auth/confirm-email: one fixed "Check your email" copy (the page renders only for a visitor without a
+// session, so confirmation is always still required there). Rendered by the page and by /dev/auth-states.
+import { MailCheck } from "lucide-react";
+import AuthPanel from "@/components/auth/AuthPanel.astro";
+
+interface Props {
+  /** Prefix for the heading id, so several panels can share one page (the kitchen sink). */
+  idPrefix?: string;
+}
+
+const { idPrefix = "" } = Astro.props;
+---
+
+<AuthPanel title="Check your email" idPrefix={idPrefix}>
+  <MailCheck slot="icon" aria-hidden="true" className="size-10 text-muted-foreground" />
+  <p class="text-center text-sm text-muted-foreground">
+    We've sent a confirmation link to your email address. Click it to activate your account.
+  </p>
+  <p class="text-center text-sm">
+    <a
+      href="/auth/signin"
+      class="rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+    >
+      Back to sign in
+    </a>
+  </p>
+</AuthPanel>

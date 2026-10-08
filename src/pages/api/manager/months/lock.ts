@@ -1,16 +1,19 @@
 import type { APIRoute } from "astro";
 import { createClient } from "@/lib/supabase";
 import { monthStart, parseMonth } from "@/lib/availability";
-import { UNLOCK_WITH_DRAFT_ERROR, UNLOCK_WITH_PUBLISHED_ERROR } from "@/lib/schedule";
-
-type LockAction = "lock" | "unlock";
+import {
+  describeLockWriteError,
+  INVALID_ACTION_ERROR,
+  INVALID_MONTH_ERROR,
+  isUnlockBlockedBySchedule,
+  type LockAction,
+  logMonthsError,
+  monthsUrl,
+  SUPABASE_NOT_CONFIGURED_ERROR,
+} from "@/lib/manager-months";
 
 function isLockAction(value: unknown): value is LockAction {
   return value === "lock" || value === "unlock";
-}
-
-function redirectWithError(context: Parameters<APIRoute>[0], message: string) {
-  return context.redirect(`/manager/months?error=${encodeURIComponent(message)}`);
 }
 
 export const POST: APIRoute = async (context) => {
@@ -19,15 +22,15 @@ export const POST: APIRoute = async (context) => {
   const action = form.get("action");
 
   if (!month) {
-    return redirectWithError(context, "Invalid month");
+    return context.redirect(monthsUrl({ error: INVALID_MONTH_ERROR }));
   }
   if (!isLockAction(action)) {
-    return redirectWithError(context, "Invalid action");
+    return context.redirect(monthsUrl({ error: INVALID_ACTION_ERROR }));
   }
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
-    return redirectWithError(context, "Supabase is not configured");
+    return context.redirect(monthsUrl({ error: SUPABASE_NOT_CONFIGURED_ERROR }, month));
   }
 
   // RLS (manager-only insert/delete on availability_locks) is the real enforcement.
@@ -40,13 +43,9 @@ export const POST: APIRoute = async (context) => {
       : await supabase.from("availability_locks").delete().eq("month", monthStart(month));
 
   if (error) {
-    // A month with a draft or published schedule cannot be unlocked: schedules.month restricts deleting its lock row.
-    if (action === "unlock" && error.code === "23503") {
-      // eslint-disable-next-line no-console -- the only record of a raw database error is the Worker log
-      console.error("Months: unlock refused while a schedule exists", {
-        code: error.code,
-        message: error.message,
-      });
+    let published = false;
+    if (isUnlockBlockedBySchedule(action, error)) {
+      logMonthsError("unlock refused while a schedule exists", { code: error.code, message: error.message });
       // A published month must be unpublished before its draft can be discarded; any read failure falls back to the
       // draft message (smoke.mjs matches it).
       const schedule = await supabase
@@ -55,17 +54,17 @@ export const POST: APIRoute = async (context) => {
         .eq("month", monthStart(month))
         .maybeSingle();
       if (schedule.error) {
-        // eslint-disable-next-line no-console -- the only record of a raw database error is the Worker log
-        console.error("Months: could not read the schedule after a refused unlock", {
+        logMonthsError("could not read the schedule after a refused unlock", {
           code: schedule.error.code,
           message: schedule.error.message,
         });
       }
-      const published = schedule.data !== null && schedule.data.published_at !== null;
-      return redirectWithError(context, published ? UNLOCK_WITH_PUBLISHED_ERROR : UNLOCK_WITH_DRAFT_ERROR);
+      published = schedule.data !== null && schedule.data.published_at !== null;
+    } else {
+      logMonthsError(`${action} failed`, { code: error.code, message: error.message });
     }
-    return redirectWithError(context, error.message);
+    return context.redirect(monthsUrl({ error: describeLockWriteError(action, error, published) }, month));
   }
 
-  return context.redirect("/manager/months?updated=1");
+  return context.redirect(monthsUrl({ updated: true }, month));
 };
