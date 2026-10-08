@@ -325,11 +325,11 @@ None: no schema or data change.
 
 #### Manual
 
-- [ ] 2.5 `/dev/navigation-states` at 1280px and 390px: each persona shows exactly its link set, the current link is marked, the long email truncates, no horizontal scroll
-- [ ] 2.6 Signed in as the seeded manager, the bar at 390 / 768 / 1024 / 1280px on `/manager/schedule` never overflows the viewport; the `<details>` menu opens and closes with keyboard (Tab, Enter) and mouse
-- [ ] 2.7 `/auth/signin` anonymous shows Sign in / Sign up; `/account` as the seeded employee shows four links and Sign out; the employee's direct visit to `/manager/users` (403) shows the employee bar
-- [ ] 2.8 Sign out from the bar lands on `/auth/signin`
-- [ ] 2.9 No page scrolls only because of the bar: `/account` with little content and the legacy `/manager/months` fit the viewport, and the legacy cards stay centred
+- [x] 2.5 `/dev/navigation-states` at 1280px and 390px: each persona shows exactly its link set, the current link is marked, the long email truncates, no horizontal scroll — 853924b
+- [x] 2.6 Signed in as the seeded manager, the bar at 390 / 768 / 1024 / 1280px on `/manager/schedule` never overflows the viewport; the `<details>` menu opens and closes with keyboard (Tab, Enter) and mouse — 853924b
+- [x] 2.7 `/auth/signin` anonymous shows Sign in / Sign up; `/account` as the seeded employee shows four links and Sign out; the employee's direct visit to `/manager/users` (403) shows the employee bar — 853924b
+- [x] 2.8 Sign out from the bar lands on `/auth/signin` — 853924b
+- [x] 2.9 No page scrolls only because of the bar: `/account` with little content and the legacy `/manager/months` fit the viewport, and the legacy cards stay centred — 853924b
 
 ### Phase 3: Remove duplicate navigation, smoke and docs
 
@@ -342,6 +342,6 @@ None: no schema or data change.
 
 #### Manual
 
-- [ ] 3.5 The dashboard shows Availability, Schedule, Account for the seeded employee and those plus the four manager links for the seeded manager, with no Sign out in the card
-- [ ] 3.6 The 403 page (employee visiting `/manager/users`) has no in-card button, and the bar's Home link leads back to `/`
-- [ ] 3.7 An anonymous visit to `/403` shows Sign in / Sign up in the bar
+- [x] 3.5 The dashboard shows Availability, Schedule, Account for the seeded employee and those plus the four manager links for the seeded manager, with no Sign out in the card — 9bb2da2
+- [x] 3.6 The 403 page (employee visiting `/manager/users`) has no in-card button, and the bar's Home link leads back to `/` — 9bb2da2
+- [x] 3.7 An anonymous visit to `/403` shows Sign in / Sign up in the bar — 9bb2da2
