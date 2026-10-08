@@ -40,7 +40,7 @@ export const POST: APIRoute = async (context) => {
 
   // A manager who just demoted themselves can no longer open /manager/users (it would render 403).
   if (userId === context.locals.user?.id && role !== "manager") {
-    return context.redirect("/dashboard");
+    return context.redirect("/");
   }
 
   return context.redirect(managerUsersUrl({ updated: true }, userId));

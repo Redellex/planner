@@ -19,6 +19,7 @@ type Outcomes = [anonymous: string, employee: string, manager: string, noRole: s
 const PUBLIC: Outcomes = ["allow", "allow", "allow", "allow"];
 const SIGNED_IN: Outcomes = ["signin", "allow", "allow", "allow"];
 const MANAGER: Outcomes = ["signin", "forbidden", "allow", "forbidden"];
+const GUEST: Outcomes = ["allow", "home", "home", "home"];
 
 function outcomesFor(pathname: string): Outcomes {
   return [
@@ -44,6 +45,7 @@ describe("manager pages and the endpoints behind them are gated alike", () => {
 
 describe("signed-in pages and their endpoints send anonymous users to sign-in", () => {
   it.each([
+    ["/", SIGNED_IN],
     ["/dashboard", SIGNED_IN],
     ["/availability", SIGNED_IN],
     ["/api/availability/create", SIGNED_IN],
@@ -57,12 +59,22 @@ describe("signed-in pages and their endpoints send anonymous users to sign-in", 
   });
 });
 
+describe("auth pages send signed-in users home", () => {
+  it.each([
+    ["/auth/signin", GUEST],
+    ["/auth/signup", GUEST],
+    ["/auth/confirm-email", GUEST],
+  ])("%s", (pathname, expected) => {
+    expect(outcomesFor(pathname)).toEqual(expected);
+  });
+});
+
 describe("public pages stay open to everyone", () => {
   it.each([
-    ["/", PUBLIC],
     ["/403", PUBLIC],
-    ["/auth/signin", PUBLIC],
     ["/api/auth/signin", PUBLIC],
+    ["/api/auth/signup", PUBLIC],
+    ["/api/auth/signout", PUBLIC],
   ])("%s", (pathname, expected) => {
     expect(outcomesFor(pathname)).toEqual(expected);
   });
@@ -84,6 +96,11 @@ describe("gates match on segment boundaries, not on string prefixes", () => {
     ["/api/accounts/display-name", PUBLIC],
     ["/schedules", PUBLIC],
     ["/schedule/", SIGNED_IN],
+    ["/auth/signin/", GUEST],
+    ["/auth/signinX", PUBLIC],
+    ["/auth", PUBLIC],
+    // "/" is protected but must match only itself, not prefix every path.
+    ["/foo", PUBLIC],
   ])("%s", (pathname, expected) => {
     expect(outcomesFor(pathname)).toEqual(expected);
   });
