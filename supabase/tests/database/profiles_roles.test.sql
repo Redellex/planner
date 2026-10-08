@@ -4,7 +4,7 @@
 -- test-plan §2 row #4. The seed's manager shares the database, so the last-manager section first makes M1 the only
 -- manager inside this transaction.
 begin;
-select plan(36);
+select plan(47);
 
 -- Fixtures: employees E1, E2, E3 and manager M1. The signup trigger creates their employee profiles.
 insert into auth.users (id, email) values
@@ -192,6 +192,78 @@ select is(has_function_privilege('anon', 'public.set_display_name(text)', 'EXECU
   'anon cannot execute set_display_name');
 select is(has_function_privilege('authenticated', 'public.set_display_name(text)', 'EXECUTE'), true,
   'authenticated can execute set_display_name');
+
+-- A direct RPC call skips the app's trim and checks, so the database must refuse a name that renders blank, padded or
+-- reordered. Codes: 12288 ideographic space, 160 no-break space, 9 tab, 8238 right-to-left override, 8203 zero-width
+-- space. Oracle: impl-review F1 of view-published-schedule; migration 20261007150000.
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000d1","role":"authenticated"}';
+select lives_ok(
+  $$ select public.set_display_name(chr(12288) || 'Ann' || chr(160) || chr(9)) $$,
+  'E1 can set a name padded with Unicode whitespace'
+);
+reset role;
+select is(
+  (select display_name from public.profiles where id = '10000000-0000-4000-8000-0000000000d1'),
+  'Ann',
+  'Unicode whitespace around the name is trimmed'
+);
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000d1","role":"authenticated"}';
+select lives_ok(
+  $$ select public.set_display_name(chr(12288) || chr(12288)) $$,
+  'E1 can send a name of only ideographic spaces'
+);
+reset role;
+select is(
+  (select display_name from public.profiles where id = '10000000-0000-4000-8000-0000000000d1'),
+  null::text,
+  'a name of only ideographic spaces clears it instead of storing a blank name'
+);
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000d1","role":"authenticated"}';
+select throws_ok(
+  $$ select public.set_display_name('A' || chr(8238) || 'B') $$,
+  '22023', null,
+  'a right-to-left override inside the name is refused'
+);
+select throws_ok(
+  $$ select public.set_display_name('A' || chr(9) || 'B') $$,
+  '22023', null,
+  'a tab inside the name is refused'
+);
+select throws_ok(
+  $$ select public.set_display_name(chr(8203)) $$,
+  '22023', null,
+  'a name of only a zero-width space is refused'
+);
+reset role;
+select throws_ok(
+  $$ update public.profiles set display_name = chr(12288) || 'Ann'
+     where id = '10000000-0000-4000-8000-0000000000d1' $$,
+  '23514', null,
+  'the shape check refuses a name with leading Unicode whitespace, even for the table owner'
+);
+select throws_ok(
+  $$ update public.profiles set display_name = 'A' || chr(8238) || 'B'
+     where id = '10000000-0000-4000-8000-0000000000d1' $$,
+  '23514', null,
+  'the shape check refuses a right-to-left override, even for the table owner'
+);
+select lives_ok(
+  $$ update public.profiles set display_name = 'Zażółć Gęślą O''Neil'
+     where id = '10000000-0000-4000-8000-0000000000d1' $$,
+  'control: the shape check accepts letters with diacritics and punctuation'
+);
+-- A caller without a profile row gets an error, not a silent success (impl-review F7).
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000ff","role":"authenticated"}';
+select throws_ok(
+  $$ select public.set_display_name('Ghost') $$,
+  'P0002', null,
+  'a caller with no profile row cannot report a saved name'
+);
+reset role;
 
 -- Last manager: make M1 the only manager (seed included), then no path may demote them.
 update public.profiles set role = 'employee'

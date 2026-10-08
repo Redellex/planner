@@ -199,9 +199,9 @@ export type Database = {
         Args: { target_month: string }
         Returns: {
           assignee_name: string
-          employee_id: string
           ends_at: string
           id: string
+          is_own: boolean
           published_at: string
           starts_at: string
         }[]

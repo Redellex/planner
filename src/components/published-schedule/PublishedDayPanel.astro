@@ -7,15 +7,14 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   selectedLabel: string;
-  /** The selected station day's shifts, in start order (06:00 to the next 06:00). */
+  /** The selected station day's shifts, in start order (06:00 to the next 06:00); own ones (`is_own`) get the "You"
+   * pill and the highlight accent. */
   shifts: PublishedShift[];
-  /** The viewer's id: their rows get the "You" pill and the highlight accent. */
-  ownEmployeeId: string | null;
   /** Prepended to every element id; set it when a page renders more than one of these (the kitchen sink). */
   idPrefix?: string;
 }
 
-const { selectedLabel, shifts, ownEmployeeId, idPrefix = "" } = Astro.props;
+const { selectedLabel, shifts, idPrefix = "" } = Astro.props;
 const headingId = `${idPrefix}published-selected-day-heading`;
 ---
 
@@ -29,7 +28,7 @@ const headingId = `${idPrefix}published-selected-day-heading`;
   ) : (
     <ul class="flex flex-col gap-2">
       {shifts.map((shift) => {
-        const isOwn = ownEmployeeId !== null && shift.employee_id === ownEmployeeId;
+        const isOwn = shift.is_own;
         return (
           <li
             data-shift-id={shift.id}
@@ -42,7 +41,7 @@ const headingId = `${idPrefix}published-selected-day-heading`;
               {formatWindow(shift)}
               <span class="text-muted-foreground"> · {formatDuration(windowMinutes(shift))}</span>
             </span>
-            {shift.employee_id === null ? (
+            {shift.assignee_name === null ? (
               <span class="rounded-md border border-destructive/40 px-2 py-0.5 text-xs text-destructive">
                 Uncovered
               </span>

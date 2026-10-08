@@ -6,11 +6,12 @@ import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase";
 import { currentStationMonth, monthOfDate, monthStart, parseDate, parseMonth } from "@/lib/availability";
 import { loadPublishedSchedule, publishedScheduleUrl, type PublishedSchedule } from "@/lib/published-schedule";
-import { scheduleMonths } from "@/lib/schedule";
+import { scheduleMonths, SUPABASE_NOT_CONFIGURED_ERROR } from "@/lib/schedule";
 
 // Any signed-in user through PROTECTED_ROUTES in src/lib/route-access.ts. The only read is get_published_schedule,
-// which returns a month's shifts only while it is published, with names and no emails; drafts never reach this page.
-const { user, role } = Astro.locals;
+// which returns a month's shifts only while it is published, with names, no emails or profile ids, and `is_own` for the
+// viewer's shifts; drafts never reach this page.
+const { role } = Astro.locals;
 const months = scheduleMonths();
 const requestedMonth = parseMonth(Astro.url.searchParams.get("month"));
 const month = requestedMonth && months.includes(requestedMonth) ? requestedMonth : currentStationMonth();
@@ -20,6 +21,8 @@ const selectedDay = requestedDay && monthOfDate(requestedDay) === month ? reques
 
 const supabase = createClient(Astro.request.headers, Astro.cookies);
 const schedule: PublishedSchedule = supabase ? await loadPublishedSchedule(supabase, month) : { kind: "unknown" };
+// Without a client the page says why, as /account and /manager/schedule do, instead of "Could not load".
+const loadError = supabase ? undefined : SUPABASE_NOT_CONFIGURED_ERROR;
 const monthHref = (option: string): string => publishedScheduleUrl({ month: option });
 ---
 
@@ -36,8 +39,8 @@ const monthHref = (option: string): string => publishedScheduleUrl({ month: opti
         month={month}
         selectedDay={selectedDay}
         schedule={schedule}
-        ownEmployeeId={user?.id ?? null}
         isManager={role === "manager"}
+        loadError={loadError}
       />
 
       <div class="mt-6 text-center">

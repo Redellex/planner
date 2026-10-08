@@ -5,7 +5,7 @@
 -- draft exists), PRD FR-003. Refused writes are checked as postgres afterwards: as the denied actor, RLS would hide
 -- the rows anyway.
 begin;
-select plan(118);
+select plan(120);
 
 -- Station months, derived once; now() is fixed for the transaction.
 select
@@ -665,9 +665,15 @@ select lives_ok(
 );
 reset role;
 
+-- The function returns no profile id: compare shift ids, which are covered, and which are the caller's own.
 select
   count(*) as named_count,
-  string_agg(id::text || ':' || coalesce(employee_id::text, '-'), ',' order by starts_at, id) as named_rows
+  string_agg(id::text, ',' order by starts_at, id) as named_ids,
+  string_agg(id::text || ':' || (employee_id is not null)::text, ',' order by starts_at, id) as named_rows,
+  string_agg(id::text, ',' order by starts_at, id)
+    filter (where employee_id = '10000000-0000-4000-8000-0000000000a4') as own_a,
+  string_agg(id::text, ',' order by starts_at, id)
+    filter (where employee_id = '10000000-0000-4000-8000-0000000000c4') as own_mg
 from public.schedule_shifts
 where month = :'m1'
 \gset
@@ -691,15 +697,20 @@ select lives_ok(
 
 set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000a4","role":"authenticated"}';
 select is(
-  (select string_agg(id::text || ':' || coalesce(employee_id::text, '-'), ',' order by starts_at, id)
-    from public.get_published_schedule(:'m1')),
-  :'named_rows',
+  (select string_agg(id::text, ',' order by starts_at, id) from public.get_published_schedule(:'m1')),
+  :'named_ids',
   'A gets every shift of published M+1, other people''s and uncovered ones included'
 );
 select is(
-  (select count(*) from public.get_published_schedule(:'m1') where (employee_id is null) <> (assignee_name is null)),
-  0::bigint,
+  (select string_agg(id::text || ':' || (assignee_name is not null)::text, ',' order by starts_at, id)
+    from public.get_published_schedule(:'m1')),
+  :'named_rows',
   'A gets a name on exactly the assigned shifts'
+);
+select is(
+  (select string_agg(id::text, ',' order by starts_at, id) from public.get_published_schedule(:'m1') where is_own),
+  :'own_a',
+  'is_own marks exactly A''s own shifts for A'
 );
 select is(
   (select count(*) from public.get_published_schedule(:'m1') where published_at is null),
@@ -742,10 +753,15 @@ select is_empty(
 
 set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000c4","role":"authenticated"}';
 select is(
-  (select string_agg(id::text || ':' || coalesce(employee_id::text, '-'), ',' order by starts_at, id)
+  (select string_agg(id::text || ':' || (assignee_name is not null)::text, ',' order by starts_at, id)
     from public.get_published_schedule(:'m1')),
   :'named_rows',
   'Mg gets the same rows of published M+1'
+);
+select is(
+  (select string_agg(id::text, ',' order by starts_at, id) from public.get_published_schedule(:'m1') where is_own),
+  :'own_mg',
+  'is_own marks exactly Mg''s own shifts for Mg'
 );
 select lives_ok(
   format($$ select public.unpublish_schedule(%L::date) $$, :'m1'),
@@ -760,9 +776,9 @@ reset role;
 
 select is(
   pg_get_function_result('public.get_published_schedule(date)'::regprocedure),
-  'TABLE(id uuid, starts_at timestamp without time zone, ends_at timestamp without time zone, employee_id uuid, '
-    'assignee_name text, published_at timestamp with time zone)',
-  'get_published_schedule returns exactly id, times, employee_id, assignee_name and published_at'
+  'TABLE(id uuid, starts_at timestamp without time zone, ends_at timestamp without time zone, assignee_name text, '
+    'is_own boolean, published_at timestamp with time zone)',
+  'get_published_schedule returns exactly id, times, assignee_name, is_own and published_at (no profile id)'
 );
 select is(has_function_privilege('anon', 'public.get_published_schedule(date)', 'execute'), false,
   'anon cannot execute get_published_schedule');

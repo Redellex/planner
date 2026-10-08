@@ -46,7 +46,7 @@ A gas-station manager currently builds the monthly shift schedule by hand in a s
 | S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | done   |
 | S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | done   |
 | S-04 | review-override-publish-schedule | Manager reviews, overrides (with conflict warnings), and publishes the schedule       | S-03          | FR-004, FR-005, FR-006         | done   |
-| S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | ready  |
+| S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | in-progress |
 
 ## Baseline
 
@@ -165,7 +165,10 @@ Foundations below assume these are present and do NOT re-scaffold them.
   - RLS on `schedules` and `schedule_shifts` is still manager-only, so employees cannot read anything yet. S-05 needs a select policy for authenticated users limited to rows of published months (and must not expose drafts), plus a way to show assignee names that does not open `profiles` to everyone.
   - A published month can still gain Uncovered shifts when an assignee's account is deleted (`on delete set null`); the grid should show them.
   - The station-day model (06:00 → 06:00, the 00:00–06:00 night on day 1 of M+1 belongs to M) and `shiftsByStationDay`/`calendarName` from S-03/S-04 can be reused for the grid.
-- **Status:** ready
+- **Known limitations:**
+  - Display names are self-chosen and not unique. Two people can share a name, or one can take a colleague's name, and `/schedule` cannot tell them apart. Only Uncovered keeps its own marker.
+  - Accepted for one station's small team (impl-review F5). If it matters later, add a unique index on `lower(display_name)` with a mapped error, or show the email prefix next to a name that two people share.
+- **Status:** in-progress
 
 ## Backlog Handoff
 

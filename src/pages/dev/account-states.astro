@@ -8,6 +8,7 @@ import AccountPanel from "@/components/account/AccountPanel.astro";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ACCOUNT_LOAD_ERROR,
+  DISPLAY_NAME_CHARACTERS_ERROR,
   DISPLAY_NAME_TOO_LONG_ERROR,
   DISPLAY_NAME_UPDATED_MESSAGE,
   GENERIC_DISPLAY_NAME_WRITE_ERROR,
@@ -31,6 +32,11 @@ const states = [
     title: "Too long",
     profile: named,
     feedback: { kind: "error" as const, message: DISPLAY_NAME_TOO_LONG_ERROR },
+  },
+  {
+    title: "Invisible characters",
+    profile: named,
+    feedback: { kind: "error" as const, message: DISPLAY_NAME_CHARACTERS_ERROR },
   },
   {
     title: "Generic write error",

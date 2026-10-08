@@ -10,14 +10,15 @@ export const NOT_PUBLISHED_MESSAGE = "Not published yet";
 
 /**
  * One `get_published_schedule` row. Declared here rather than taken from the generated types, which mark every column
- * of a `returns table` function as non-null; `employee_id` and `assignee_name` are null on an uncovered shift.
+ * of a `returns table` function as non-null; `assignee_name` is null on an uncovered shift. The function returns no
+ * profile id: `is_own` marks the caller's shifts.
  */
 export interface PublishedScheduleRow {
   id: string;
   starts_at: string;
   ends_at: string;
-  employee_id: string | null;
   assignee_name: string | null;
+  is_own: boolean;
   published_at: string;
 }
 
@@ -25,10 +26,13 @@ export interface PublishedShift {
   id: string;
   starts_at: string;
   ends_at: string;
-  /** Null when the shift is uncovered (never assigned, or the assignee's account was deleted). */
-  employee_id: string | null;
-  /** Display name, else email prefix, else id prefix; null exactly when `employee_id` is null. */
+  /**
+   * Display name, else email prefix, else id prefix; null when the shift is uncovered (never assigned, or the
+   * assignee's account was deleted).
+   */
   assignee_name: string | null;
+  /** The viewer's own shift. */
+  is_own: boolean;
 }
 
 export type PublishedSchedule =
@@ -37,7 +41,7 @@ export type PublishedSchedule =
 /**
  * The page state for one `get_published_schedule` result. A published month always has shifts (publish needs someone
  * on every station day, and its shifts cannot be deleted while it is published), so `[]` means not published. An
- * error, no data, or an assigned shift without a name (an inconsistent read) is unknown.
+ * error, no data, or an own shift without a name (an inconsistent read) is unknown.
  */
 export function buildPublishedSchedule(result: {
   data: PublishedScheduleRow[] | null;
@@ -50,20 +54,34 @@ export function buildPublishedSchedule(result: {
   if (data.length === 0) {
     return { kind: "notPublished" };
   }
-  if (data.some((row) => row.employee_id !== null && row.assignee_name === null)) {
+  if (data.some((row) => row.is_own && row.assignee_name === null)) {
     return { kind: "unknown" };
   }
   return {
     kind: "published",
     publishedAt: data[0].published_at,
-    shifts: data.map(({ id, starts_at, ends_at, employee_id, assignee_name }) => ({
+    shifts: data.map(({ id, starts_at, ends_at, assignee_name, is_own }) => ({
       id,
       starts_at,
       ends_at,
-      employee_id,
       assignee_name,
+      is_own,
     })),
   };
+}
+
+/** The `ScheduleCalendar` key of the viewer's own shifts (its `ownEmployeeId`). */
+export const OWN_ASSIGNEE_KEY = "own";
+
+/**
+ * The key `ScheduleCalendar` reads as `employee_id` (labels and "You"). No profile id reaches the page, so own shifts
+ * share OWN_ASSIGNEE_KEY, everyone else's shift is keyed by its own id, and an uncovered shift is null.
+ */
+export function calendarAssigneeKey(shift: PublishedShift): string | null {
+  if (shift.assignee_name === null) {
+    return null;
+  }
+  return shift.is_own ? OWN_ASSIGNEE_KEY : `shift:${shift.id}`;
 }
 
 /** Logs a raw /schedule error server-side; its text is never shown to the user. */

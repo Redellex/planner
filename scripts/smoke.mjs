@@ -61,9 +61,11 @@ const publishGapsError = "Assign someone on every day before publishing.";
 // manager, who has no windows there, so the change is outside availability and needs the confirm step.
 const scheduleDayPage = `/manager/schedule?month=${crudMonth}&day=${crudDay}`;
 let overrideShiftId;
-// Mirrors DISPLAY_NAME_TOO_LONG_ERROR and NOT_PUBLISHED_MESSAGE in src/lib/account.ts and src/lib/published-schedule.ts.
+// Mirrors DISPLAY_NAME_TOO_LONG_ERROR (src/lib/account.ts), NOT_PUBLISHED_MESSAGE and PUBLISHED_SCHEDULE_LOAD_ERROR
+// (src/lib/published-schedule.ts).
 const displayNameTooLongError = "Use at most 40 characters for your name.";
 const notPublishedMessage = "Not published yet";
+const publishedScheduleLoadError = "Could not load the schedule. Reload the page.";
 
 function cookieHeader() {
   return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
@@ -194,7 +196,12 @@ const steps = [
   ],
   ["dashboard renders for signed-in user", () => request("/dashboard"), { status: 200 }],
   ["availability renders for signed-in user", () => request("/availability"), { status: 200 }],
-  ["published schedule page renders for signed-in user", () => request("/schedule"), { status: 200 }],
+  // A failed get_published_schedule call (e.g. the migration missing on the target) also renders 200, so check the text.
+  [
+    "published schedule page renders for signed-in user",
+    () => request("/schedule"),
+    { status: 200, check: (actual) => !pageText(actual.body).includes(publishedScheduleLoadError) },
+  ],
   ["account page renders for signed-in user", () => request("/account"), { status: 200 }],
   [
     "display name is saved",

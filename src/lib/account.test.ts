@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   accountUrl,
   describeDisplayNameWriteError,
+  DISPLAY_NAME_CHARACTERS_ERROR,
   DISPLAY_NAME_TOO_LONG_ERROR,
   GENERIC_DISPLAY_NAME_WRITE_ERROR,
   parseDisplayName,
@@ -22,8 +23,30 @@ describe("parseDisplayName stores what colleagues will see", () => {
     expect(parseDisplayName("x".repeat(40))).toEqual({ ok: true, name: "x".repeat(40) });
     expect(parseDisplayName("x".repeat(41))).toEqual({ ok: false, error: DISPLAY_NAME_TOO_LONG_ERROR });
   });
+  it("counts code points like the database, so 40 emoji fit and 41 do not", () => {
+    const emoji = String.fromCodePoint(0x1f600);
+    expect(parseDisplayName(emoji.repeat(40))).toEqual({ ok: true, name: emoji.repeat(40) });
+    expect(parseDisplayName(emoji.repeat(41))).toEqual({ ok: false, error: DISPLAY_NAME_TOO_LONG_ERROR });
+  });
   it("counts the length after trimming", () => {
     expect(parseDisplayName(` ${"x".repeat(40)} `)).toEqual({ ok: true, name: "x".repeat(40) });
+  });
+  it("trims Unicode whitespace the database trims too, so a blank-looking name clears", () => {
+    const ideographicSpace = String.fromCharCode(0x3000);
+    const noBreakSpace = String.fromCharCode(0x00a0);
+    expect(parseDisplayName(`${ideographicSpace}Ann${noBreakSpace}`)).toEqual({ ok: true, name: "Ann" });
+    expect(parseDisplayName(ideographicSpace)).toEqual({ ok: true, name: null });
+  });
+  it("refuses control, zero-width and bidi-control characters inside the name", () => {
+    for (const code of [0x09, 0x0a, 0x7f, 0x200b, 0x200f, 0x202e, 0x2066, 0xfeff]) {
+      expect(parseDisplayName(`A${String.fromCharCode(code)}B`)).toEqual({
+        ok: false,
+        error: DISPLAY_NAME_CHARACTERS_ERROR,
+      });
+    }
+  });
+  it("keeps letters with diacritics and ordinary punctuation", () => {
+    expect(parseDisplayName("Zażółć Gęślą-Jaźń O'Neil")).toEqual({ ok: true, name: "Zażółć Gęślą-Jaźń O'Neil" });
   });
   it("refuses a missing field or a file", () => {
     expect(parseDisplayName(null)).toEqual({ ok: false, error: GENERIC_DISPLAY_NAME_WRITE_ERROR });
@@ -39,6 +62,7 @@ describe("only allow-listed ?error= text is shown", () => {
   it("keeps a known message", () => {
     expect(resolveAccountFeedbackError(DISPLAY_NAME_TOO_LONG_ERROR)).toBe(DISPLAY_NAME_TOO_LONG_ERROR);
     expect(resolveAccountFeedbackError(SUPABASE_NOT_CONFIGURED_ERROR)).toBe(SUPABASE_NOT_CONFIGURED_ERROR);
+    expect(resolveAccountFeedbackError(DISPLAY_NAME_CHARACTERS_ERROR)).toBe(DISPLAY_NAME_CHARACTERS_ERROR);
   });
   it("replaces unknown text with the generic message", () => {
     expect(resolveAccountFeedbackError("<script>alert(1)</script>")).toBe(GENERIC_DISPLAY_NAME_WRITE_ERROR);
@@ -59,6 +83,11 @@ describe("accountUrl puts the status param first", () => {
 describe("describeDisplayNameWriteError", () => {
   it("maps 22001 to the too-long message", () => {
     expect(describeDisplayNameWriteError({ code: "22001", message: "too long" })).toBe(DISPLAY_NAME_TOO_LONG_ERROR);
+  });
+  it("maps 22023 to the characters message", () => {
+    expect(describeDisplayNameWriteError({ code: "22023", message: "control character" })).toBe(
+      DISPLAY_NAME_CHARACTERS_ERROR,
+    );
   });
   it("logs anything else and returns the generic message", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);

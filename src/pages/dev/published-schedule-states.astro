@@ -41,20 +41,20 @@ const coveredShifts: PublishedShift[] = daysInMonth(month).flatMap((day, index) 
     {
       id: `00000000-0000-4000-8000-${String(index * 2).padStart(12, "0")}`,
       ...day12,
-      employee_id: morning.id,
       assignee_name: morning.name,
+      is_own: morning.id === viewer.id,
     },
     {
       id: `00000000-0000-4000-8000-${String(index * 2 + 1).padStart(12, "0")}`,
       ...night12,
-      employee_id: night.id,
       assignee_name: night.name,
+      is_own: night.id === viewer.id,
     },
   ];
 });
 // Tomasz's account was deleted after publishing: his shifts are Uncovered (on delete set null).
 const afterDeletionShifts = coveredShifts.map((shift) =>
-  shift.employee_id === deleted.id ? { ...shift, employee_id: null, assignee_name: null } : shift,
+  shift.assignee_name === deleted.name ? { ...shift, assignee_name: null, is_own: false } : shift,
 );
 
 const covered: PublishedSchedule = { kind: "published", publishedAt: PUBLISHED_AT, shifts: coveredShifts };
@@ -123,7 +123,6 @@ const states: {
               month={month}
               selectedDay={state.selectedDay}
               schedule={state.schedule}
-              ownEmployeeId={viewer.id}
               isManager={state.isManager}
               idPrefix={`state-${index}-`}
             />
