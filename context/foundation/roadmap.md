@@ -9,7 +9,7 @@ main_goal: speed
 top_blocker: capacity
 milestone_id: first-valid-monthly-schedule
 milestone_seq: 1
-milestone_status: open
+milestone_status: done
 ---
 
 # Roadmap: Planner
@@ -20,7 +20,7 @@ milestone_status: open
 
 ## Milestone
 
-**M-1: First valid monthly schedule** — Status: open
+**M-1: First valid monthly schedule** — Status: done
 
 - **Intent:** Ship the full must-have path — a manager can generate a conflict-free, fairly-rotated monthly shift schedule from employee availability, override it, publish it, and everyone can see the result.
 - **Source materials:** `context/foundation/prd.md` (v1)
@@ -204,7 +204,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 
 ## Milestone History
 
-(Empty — this is the first milestone.)
+- **M-1: First valid monthly schedule** (`first-valid-monthly-schedule`) — closed 2026-10-08. The full must-have path (FR-001–FR-007, US-01) shipped: availability, team view, fair generation, override and publish, and the published grid (F-01, S-01–S-05; PRs #10–#39).
 
 ## Done
 
