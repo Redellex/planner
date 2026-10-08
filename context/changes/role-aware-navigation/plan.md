@@ -335,10 +335,10 @@ None: no schema or data change.
 
 #### Automated
 
-- [x] 3.1 `grep -rn "Back to dashboard" src/` finds nothing
-- [x] 3.2 `npm test`, `npm run lint`, `npx astro check`, `npm run check:ui` pass
-- [x] 3.3 `npm run build` succeeds
-- [x] 3.4 `npm run smoke` passes against a local stack with the seed applied (check `.dev.vars` points at local first)
+- [x] 3.1 `grep -rn "Back to dashboard" src/` finds nothing — 9bb2da2
+- [x] 3.2 `npm test`, `npm run lint`, `npx astro check`, `npm run check:ui` pass — 9bb2da2
+- [x] 3.3 `npm run build` succeeds — 9bb2da2
+- [x] 3.4 `npm run smoke` passes against a local stack with the seed applied (check `.dev.vars` points at local first) — 9bb2da2
 
 #### Manual
 
