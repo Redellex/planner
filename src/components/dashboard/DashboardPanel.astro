@@ -8,18 +8,21 @@ interface Props {
   email: string | undefined;
   role: AppRole | null;
   links: { href: string; label: string }[];
+  /** Prefix for the heading id, so several panels can share one page (the /dev/dashboard-states kitchen sink). */
+  idPrefix?: string;
 }
 
-const { email, role, links } = Astro.props;
+const { email, role, links, idPrefix = "" } = Astro.props;
+const titleId = `${idPrefix}dashboard-title`;
 ---
 
 <section
   data-dashboard
-  aria-labelledby="dashboard-title"
+  aria-labelledby={titleId}
   class="flex flex-col gap-4 rounded-xl border bg-card p-4 text-card-foreground"
 >
   <div class="flex flex-col gap-1">
-    <h1 id="dashboard-title" class="text-2xl font-semibold">
+    <h1 id={titleId} class="text-2xl font-semibold">
       Dashboard
     </h1>
     <p class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

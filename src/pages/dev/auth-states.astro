@@ -1,0 +1,202 @@
+---
+// Kitchen sink for /auth/signin, /auth/signup and /auth/confirm-email: every state of the views, side by side,
+// rendered by the real components from fixture data. Dev only (the visual gate for
+// context/changes/legacy-views-ui-tokens); 404 in production. No database access and no user data.
+import Layout from "@/layouts/Layout.astro";
+import AuthPanel from "@/components/auth/AuthPanel.astro";
+import ConfirmEmailPanel from "@/components/auth/ConfirmEmailPanel.astro";
+import SignInForm from "@/components/auth/SignInForm";
+import SignUpForm from "@/components/auth/SignUpForm";
+import { ServerError } from "@/components/auth/ServerError";
+import { FieldState, SubmitState } from "@/components/auth/AuthFieldStates";
+import {
+  GENERIC_SIGNIN_ERROR,
+  GENERIC_SIGNUP_ERROR,
+  SIGNIN_FEEDBACK_ERRORS,
+  SIGNUP_FEEDBACK_ERRORS,
+} from "@/lib/auth-feedback";
+
+// Outside dev: 404 with an empty body (the template below renders only in dev). A frontmatter `return` would do,
+// but it crashes @typescript-eslint/no-misused-promises in .astro files.
+const isDev = import.meta.env.DEV;
+if (!isDev) {
+  Astro.response.status = 404;
+}
+
+// Every allow-listed `?error=` text per form, the generic message last.
+const serverErrors = [
+  { title: "Sign-in server errors", generic: GENERIC_SIGNIN_ERROR, messages: [...SIGNIN_FEEDBACK_ERRORS] },
+  { title: "Sign-up server errors", generic: GENERIC_SIGNUP_ERROR, messages: [...SIGNUP_FEEDBACK_ERRORS] },
+].map((group) => ({
+  ...group,
+  messages: [...group.messages.filter((message) => message !== group.generic), group.generic],
+}));
+
+// The client-side validation messages of SignInForm / SignUpForm (fixtures: keep them in step with the forms).
+const fieldStates: {
+  title: string;
+  label: string;
+  kind: "email" | "password";
+  value?: string;
+  error?: string;
+  hint?: string;
+}[] = [
+  { title: "Email required (both forms)", label: "Email", kind: "email", error: "Email is required" },
+  {
+    title: "Email invalid (both forms)",
+    label: "Email",
+    kind: "email",
+    value: "not-an-email",
+    error: "Enter a valid email address",
+  },
+  { title: "Password required (both forms)", label: "Password", kind: "password", error: "Password is required" },
+  {
+    title: "Password too short (sign-up)",
+    label: "Password",
+    kind: "password",
+    value: "abc",
+    error: "Password must be at least 6 characters",
+  },
+  {
+    title: "Password hint while typing (sign-up)",
+    label: "Password",
+    kind: "password",
+    value: "abc",
+    hint: "3 more characters needed",
+  },
+  {
+    title: "Confirm password required (sign-up)",
+    label: "Confirm password",
+    kind: "password",
+    error: "Please confirm your password",
+  },
+  {
+    title: "Passwords do not match (sign-up)",
+    label: "Confirm password",
+    kind: "password",
+    value: "abcdefg",
+    error: "Passwords do not match",
+  },
+];
+
+const submitStates = [
+  { title: "Sign in, idle", form: "signin" as const, pending: false },
+  { title: "Sign in, pending", form: "signin" as const, pending: true },
+  { title: "Sign up, idle", form: "signup" as const, pending: false },
+  { title: "Sign up, pending", form: "signup" as const, pending: true },
+];
+
+const linkClass =
+  "rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50";
+---
+
+{isDev && (
+  <Layout title="Auth states">
+    <div class="flex-1 bg-background p-4">
+      <div class="mx-auto flex w-full max-w-2xl flex-col gap-10">
+        <header class="flex flex-col gap-1">
+          <h1 class="text-2xl font-semibold">Auth states</h1>
+          <p class="text-sm text-muted-foreground">
+            Dev-only kitchen sink. Fixture values; forms on this page do not submit and are not hydrated (the password
+            toggles do nothing). Empty — the two empty forms. Loading — N/A: SSR + full-page form POST; the in-flight
+            POST is the pending submit button. Success — N/A: a successful sign-in or sign-up leaves the page (home or
+            confirm-email).
+          </p>
+        </header>
+
+        <section aria-labelledby="state-signin" class="flex flex-col gap-3">
+          <h2 id="state-signin" class="text-sm font-medium text-muted-foreground">
+            Sign in (empty)
+          </h2>
+          <AuthPanel title="Sign in" idPrefix="signin-">
+            <SignInForm idPrefix="signin-" />
+            <Fragment slot="footer">
+              Don't have an account?{" "}
+              <a href="/auth/signup" class:list={linkClass}>
+                Sign up
+              </a>
+            </Fragment>
+          </AuthPanel>
+        </section>
+
+        <section aria-labelledby="state-signup" class="flex flex-col gap-3">
+          <h2 id="state-signup" class="text-sm font-medium text-muted-foreground">
+            Sign up (empty)
+          </h2>
+          <AuthPanel title="Sign up" idPrefix="signup-">
+            <SignUpForm idPrefix="signup-" />
+            <Fragment slot="footer">
+              Already have an account?{" "}
+              <a href="/auth/signin" class:list={linkClass}>
+                Sign in
+              </a>
+            </Fragment>
+          </AuthPanel>
+        </section>
+
+        <section aria-labelledby="state-fields" class="flex flex-col gap-3">
+          <h2 id="state-fields" class="text-sm font-medium text-muted-foreground">
+            Field errors and hint
+          </h2>
+          <div class="flex flex-col gap-6 rounded-xl border bg-card p-6 text-card-foreground">
+            {/* Each field in a form of its own, as on the real pages (inert like the others). */}
+            {fieldStates.map((field, index) => (
+              <form novalidate class="flex flex-col gap-2">
+                <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">{field.title}</h3>
+                <FieldState
+                  id={`field-${index}`}
+                  label={field.label}
+                  kind={field.kind}
+                  value={field.value}
+                  error={field.error}
+                  hint={field.hint}
+                />
+              </form>
+            ))}
+          </div>
+        </section>
+
+        {serverErrors.map((group, groupIndex) => (
+          <section aria-labelledby={`state-server-${groupIndex}`} class="flex flex-col gap-3">
+            <h2 id={`state-server-${groupIndex}`} class="text-sm font-medium text-muted-foreground">
+              {group.title} (generic last)
+            </h2>
+            <div class="flex flex-col gap-3 rounded-xl border bg-card p-6 text-card-foreground">
+              {group.messages.map((message) => (
+                <ServerError message={message} />
+              ))}
+            </div>
+          </section>
+        ))}
+
+        <section aria-labelledby="state-submit" class="flex flex-col gap-3">
+          <h2 id="state-submit" class="text-sm font-medium text-muted-foreground">
+            Submit button
+          </h2>
+          <div class="grid gap-6 rounded-xl border bg-card p-6 text-card-foreground sm:grid-cols-2">
+            {submitStates.map((state) => (
+              <div class="flex flex-col gap-2">
+                <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">{state.title}</h3>
+                <SubmitState form={state.form} pending={state.pending} />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section aria-labelledby="state-confirm" class="flex flex-col gap-3">
+          <h2 id="state-confirm" class="text-sm font-medium text-muted-foreground">
+            Confirm email
+          </h2>
+          <ConfirmEmailPanel idPrefix="confirm-" />
+        </section>
+      </div>
+    </div>
+  </Layout>
+)}
+
+<script>
+  // Fixture forms: keep them inert so a click here never reaches /api/auth/*.
+  document.addEventListener("submit", (event) => {
+    event.preventDefault();
+  });
+</script>

@@ -1,0 +1,143 @@
+---
+// Kitchen sink for /manager/months: every state of the view, side by side, rendered by the real components from
+// fixture data. Dev only (the visual gate for context/changes/legacy-views-ui-tokens); 404 in production.
+// No database access: the months and lock times below are fixtures.
+import { CircleAlert } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import MonthLockRow from "@/components/manager-months/MonthLockRow.astro";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { formatMonth } from "@/lib/availability";
+import {
+  GENERIC_LOCK_WRITE_ERROR,
+  INVALID_MONTH_ERROR,
+  MONTH_UPDATED_MESSAGE,
+  MONTHS_LOAD_ERROR,
+  SUPABASE_NOT_CONFIGURED_ERROR,
+  UNLOCK_WITH_DRAFT_ERROR,
+  UNLOCK_WITH_PUBLISHED_ERROR,
+} from "@/lib/manager-months";
+
+// Outside dev: 404 with an empty body (the template below renders only in dev). A frontmatter `return` would do,
+// but it crashes @typescript-eslint/no-misused-promises in .astro files.
+const isDev = import.meta.env.DEV;
+if (!isDev) {
+  Astro.response.status = 404;
+}
+
+const LOCKED_AT = "2026-10-08T09:30:00+00:00";
+
+const rows: {
+  title: string;
+  month: string;
+  lockedAt: string | null;
+  feedback: { kind: "error" | "success"; message: string } | null;
+  pending?: boolean;
+}[] = [
+  { title: "Open", month: "2026-11", lockedAt: null, feedback: null },
+  { title: "Locked", month: "2026-12", lockedAt: LOCKED_AT, feedback: null },
+  {
+    title: "Row success (after lock)",
+    month: "2026-12",
+    lockedAt: LOCKED_AT,
+    feedback: { kind: "success", message: MONTH_UPDATED_MESSAGE },
+  },
+  {
+    title: "Row error (unlock refused: draft)",
+    month: "2027-01",
+    lockedAt: LOCKED_AT,
+    feedback: { kind: "error", message: UNLOCK_WITH_DRAFT_ERROR },
+  },
+  {
+    title: "Row error (unlock refused: published)",
+    month: "2027-01",
+    lockedAt: LOCKED_AT,
+    feedback: { kind: "error", message: UNLOCK_WITH_PUBLISHED_ERROR },
+  },
+  {
+    title: "Row error (generic, also any unknown ?error=)",
+    month: "2026-11",
+    lockedAt: null,
+    feedback: { kind: "error", message: GENERIC_LOCK_WRITE_ERROR },
+  },
+  { title: "Pending (Lock in flight)", month: "2026-11", lockedAt: null, feedback: null, pending: true },
+];
+---
+
+{isDev && (
+  <Layout title="Manager months states">
+    <div class="flex-1 bg-background p-4">
+      <div class="mx-auto flex w-full max-w-2xl flex-col gap-10">
+        <header class="flex flex-col gap-1">
+          <h1 class="text-2xl font-semibold">Manager months states</h1>
+          <p class="text-sm text-muted-foreground">
+            Dev-only kitchen sink. Fixture months; forms on this page do not submit. Empty — N/A: the page always lists
+            the next 3 months. Loading — N/A: SSR + full-page form POST; the in-flight POST is the pending row.
+          </p>
+        </header>
+
+        <section aria-labelledby="states-rows" class="flex flex-col gap-3">
+          <h2 id="states-rows" class="text-sm font-medium text-muted-foreground">
+            Rows
+          </h2>
+          {rows.map((row) => (
+            <div class="flex flex-col gap-2">
+              <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">{row.title}</h3>
+              <div class="rounded-xl border bg-card px-4 text-card-foreground">
+                <ul>
+                  <MonthLockRow
+                    month={row.month}
+                    label={formatMonth(row.month)}
+                    lockedAt={row.lockedAt}
+                    feedback={row.feedback}
+                    pending={row.pending}
+                  />
+                </ul>
+              </div>
+            </div>
+          ))}
+        </section>
+
+        <section aria-labelledby="states-top" class="flex flex-col gap-3">
+          <h2 id="states-top" class="text-sm font-medium text-muted-foreground">
+            Top-level fallback feedback (no valid month in the URL)
+          </h2>
+          <Alert variant="destructive">
+            <CircleAlert />
+            <AlertDescription>{INVALID_MONTH_ERROR}</AlertDescription>
+          </Alert>
+        </section>
+
+        <section aria-labelledby="states-load-error" class="flex flex-col gap-3">
+          <h2 id="states-load-error" class="text-sm font-medium text-muted-foreground">
+            Load failure (no list, no buttons)
+          </h2>
+          <section aria-label="Upcoming months" class="rounded-xl border bg-card p-4 text-card-foreground">
+            <Alert variant="destructive">
+              <CircleAlert />
+              <AlertDescription>{MONTHS_LOAD_ERROR}</AlertDescription>
+            </Alert>
+          </section>
+        </section>
+
+        <section aria-labelledby="states-not-configured" class="flex flex-col gap-3">
+          <h2 id="states-not-configured" class="text-sm font-medium text-muted-foreground">
+            Supabase not configured (no list, no buttons)
+          </h2>
+          <section aria-label="Upcoming months" class="rounded-xl border bg-card p-4 text-card-foreground">
+            <Alert variant="destructive">
+              <CircleAlert />
+              <AlertDescription>{SUPABASE_NOT_CONFIGURED_ERROR}</AlertDescription>
+            </Alert>
+          </section>
+        </section>
+      </div>
+    </div>
+  </Layout>
+)}
+
+<script>
+  // Fixture forms: keep them inert so a click here never reaches /api/manager/months/*.
+  document.addEventListener("submit", (event) => {
+    event.preventDefault();
+  });
+</script>

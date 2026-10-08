@@ -5,6 +5,8 @@
 // No database access and no user data.
 import Layout from "@/layouts/Layout.astro";
 import AppNav from "@/components/navigation/AppNav.astro";
+import Banner from "@/components/Banner.astro";
+import { configStatuses } from "@/lib/config-status";
 import type { AppRole } from "@/lib/roles";
 
 // Outside dev: 404 with an empty body (the template below renders only in dev). A frontmatter `return` would do,
@@ -46,6 +48,14 @@ const states: {
     pathname: "/manager/users",
   },
 ];
+
+// The Layout's not-configured strip, with its real copy (Supabase's entry in config-status), in every variant.
+const supabaseConfig = configStatuses[0];
+const bannerVariants: { title: string; variant: "error" | "warning" | "info" }[] = [
+  { title: "Error (as Layout renders it: role alert)", variant: "error" },
+  { title: "Warning (role status)", variant: "warning" },
+  { title: "Info (role status)", variant: "info" },
+];
 ---
 
 {isDev && (
@@ -70,6 +80,31 @@ const states: {
             </div>
           </section>
         ))}
+
+        <section aria-labelledby="state-banner" class="flex flex-col gap-3">
+          <h2 id="state-banner" class="text-sm font-medium text-muted-foreground">
+            Not-configured banner
+          </h2>
+          {bannerVariants.map((banner) => (
+            <div class="flex flex-col gap-2">
+              <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">{banner.title}</h3>
+              <div class="rounded-xl border pb-4">
+                <Banner variant={banner.variant}>
+                  <strong>Warning:</strong> {supabaseConfig.message}{" "}
+                  <a
+                    href={supabaseConfig.docsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="rounded-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    {supabaseConfig.docsLabel ?? "Documentation"}
+                  </a>
+                  .
+                </Banner>
+              </div>
+            </div>
+          ))}
+        </section>
       </div>
     </div>
   </Layout>

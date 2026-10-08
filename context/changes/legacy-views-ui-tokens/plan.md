@@ -721,29 +721,29 @@ No database change. The redirect URLs from the lock endpoint gain `&month=YYYY-M
 
 #### Automated
 
-- [x] 4.1 `npm test`, `npm run lint`, `npx astro check` pass
-- [x] 4.2 No literal hits: `rg "bg-cosmic|white/|blue-|purple-|red-|green-" src/pages/manager/months.astro src/components/manager-months` returns nothing
-- [x] 4.3 `npm run smoke` passes (`?updated=1` prefixes, `?error=` prefix, exact `UNLOCK_WITH_DRAFT_ERROR`, lock refused for an employee)
+- [x] 4.1 `npm test`, `npm run lint`, `npx astro check` pass — 867c53b
+- [x] 4.2 No literal hits: `rg "bg-cosmic|white/|blue-|purple-|red-|green-" src/pages/manager/months.astro src/components/manager-months` returns nothing — 867c53b
+- [x] 4.3 `npm run smoke` passes (`?updated=1` prefixes, `?error=` prefix, exact `UNLOCK_WITH_DRAFT_ERROR`, lock refused for an employee) — 867c53b
 
 #### Manual
 
-- [x] 4.4 Locking and unlocking a month shows "Month updated." inside that month's row
-- [x] 4.5 Unlocking a month with a draft shows the discard-first message in that row
-- [x] 4.6 `/manager/months?error=crafted%20text&month=<an upcoming month>` shows "Could not update the month. Try again." in that row; with no or an invalid `month` it shows at the top
-- [x] 4.7 With the lock read forced to fail (e.g. temporarily misspell the table name locally), the page shows only "Could not load the month locks. Reload the page." with no list or buttons; restore afterwards
-- [x] 4.8 A double click on Lock sends one POST (network tab), and Back re-enables the button
+- [x] 4.4 Locking and unlocking a month shows "Month updated." inside that month's row — 867c53b
+- [x] 4.5 Unlocking a month with a draft shows the discard-first message in that row — 867c53b
+- [x] 4.6 `/manager/months?error=crafted%20text&month=<an upcoming month>` shows "Could not update the month. Try again." in that row; with no or an invalid `month` it shows at the top — 867c53b
+- [x] 4.7 With the lock read forced to fail (e.g. temporarily misspell the table name locally), the page shows only "Could not load the month locks. Reload the page." with no list or buttons; restore afterwards — 867c53b
+- [x] 4.8 A double click on Lock sends one POST (network tab), and Back re-enables the button — 867c53b
 
 ### Phase 5: States and visual gate
 
 #### Automated
 
-- [ ] 5.1 Route inventory and navigation tests pass: `npx vitest run src/lib/route-inventory.test.ts src/lib/navigation.test.ts`
-- [ ] 5.2 `npm test`, `npm run lint`, `npx astro check` pass
-- [ ] 5.3 Production build returns 404 for each kitchen sink: `npm run build && npm run preview`, then `curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/dev/auth-states` (and the other three) prints `404`
+- [x] 5.1 Route inventory and navigation tests pass: `npx vitest run src/lib/route-inventory.test.ts src/lib/navigation.test.ts`
+- [x] 5.2 `npm test`, `npm run lint`, `npx astro check` pass
+- [x] 5.3 Production build returns 404 for each kitchen sink: `npm run build && npm run preview`, then `curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/dev/auth-states` (and the other three) prints `404`
 
 #### Manual
 
-- [ ] 5.4 Each kitchen sink renders every listed state in `astro dev` with no console errors, and its forms do not submit
+- [x] 5.4 Each kitchen sink renders every listed state in `astro dev` with no console errors, and its forms do not submit
 - [ ] 5.5 After screenshots and the README exist; reviewer compares before/after and accepts the look at 1280 and 390 (no horizontal scroll at 390)
 
 ### Phase 6: Make it stick

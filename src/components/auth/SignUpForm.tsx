@@ -10,9 +10,11 @@ const FIELD_ORDER = ["email", "password", "confirmPassword"] as const;
 
 interface Props {
   serverError?: string | null;
+  /** Prefix for the field ids (names stay as posted), so several forms can share one page (/dev/auth-states). */
+  idPrefix?: string;
 }
 
-export default function SignUpForm({ serverError }: Props) {
+export default function SignUpForm({ serverError, idPrefix = "" }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -66,7 +68,7 @@ export default function SignUpForm({ serverError }: Props) {
     const firstInvalid = validate();
     if (firstInvalid) {
       e.preventDefault();
-      document.getElementById(firstInvalid)?.focus();
+      document.getElementById(`${idPrefix}${firstInvalid}`)?.focus();
       return;
     }
     // Valid: let the native POST go ahead and show the pending button until the page is left.
@@ -75,7 +77,7 @@ export default function SignUpForm({ serverError }: Props) {
 
   const passwordHint =
     !errors.password && password.length > 0 && password.length < MIN_PASSWORD_LENGTH ? (
-      <p id="password-hint" className="text-muted-foreground text-xs">
+      <p id={`${idPrefix}password-hint`} className="text-muted-foreground text-xs">
         {MIN_PASSWORD_LENGTH - password.length} more character
         {MIN_PASSWORD_LENGTH - password.length !== 1 ? "s" : ""} needed
       </p>
@@ -84,7 +86,8 @@ export default function SignUpForm({ serverError }: Props) {
   return (
     <form method="POST" action="/api/auth/signup" className="space-y-4" onSubmit={handleSubmit} noValidate>
       <FormField
-        id="email"
+        id={`${idPrefix}email`}
+        name="email"
         type="email"
         label="Email"
         value={email}
@@ -98,7 +101,8 @@ export default function SignUpForm({ serverError }: Props) {
       />
 
       <FormField
-        id="password"
+        id={`${idPrefix}password`}
+        name="password"
         label="Password"
         type={showPassword ? "text" : "password"}
         value={password}
@@ -121,7 +125,7 @@ export default function SignUpForm({ serverError }: Props) {
       />
 
       <FormField
-        id="confirmPassword"
+        id={`${idPrefix}confirmPassword`}
         name="confirmPassword"
         label="Confirm password"
         type={showConfirmPassword ? "text" : "password"}

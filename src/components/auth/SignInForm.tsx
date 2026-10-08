@@ -9,9 +9,11 @@ const FIELD_ORDER = ["email", "password"] as const;
 
 interface Props {
   serverError?: string | null;
+  /** Prefix for the field ids (names stay as posted), so several forms can share one page (/dev/auth-states). */
+  idPrefix?: string;
 }
 
-export default function SignInForm({ serverError }: Props) {
+export default function SignInForm({ serverError, idPrefix = "" }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -52,7 +54,7 @@ export default function SignInForm({ serverError }: Props) {
     const firstInvalid = validate();
     if (firstInvalid) {
       e.preventDefault();
-      document.getElementById(firstInvalid)?.focus();
+      document.getElementById(`${idPrefix}${firstInvalid}`)?.focus();
       return;
     }
     // Valid: let the native POST go ahead and show the pending button until the page is left.
@@ -62,7 +64,8 @@ export default function SignInForm({ serverError }: Props) {
   return (
     <form method="POST" action="/api/auth/signin" className="space-y-4" onSubmit={handleSubmit} noValidate>
       <FormField
-        id="email"
+        id={`${idPrefix}email`}
+        name="email"
         type="email"
         label="Email"
         value={email}
@@ -76,7 +79,8 @@ export default function SignInForm({ serverError }: Props) {
       />
 
       <FormField
-        id="password"
+        id={`${idPrefix}password`}
+        name="password"
         label="Password"
         type={showPassword ? "text" : "password"}
         value={password}

@@ -1,24 +1,10 @@
 ---
-import { MailCheck } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
-import AuthPanel from "@/components/auth/AuthPanel.astro";
+import ConfirmEmailPanel from "@/components/auth/ConfirmEmailPanel.astro";
 
 // A guest route: it only renders for a visitor without a session, so confirmation is always still required here.
 ---
 
 <Layout title="Check your email">
-  <AuthPanel title="Check your email">
-    <MailCheck slot="icon" aria-hidden="true" className="size-10 text-muted-foreground" />
-    <p class="text-center text-sm text-muted-foreground">
-      We've sent a confirmation link to your email address. Click it to activate your account.
-    </p>
-    <p class="text-center text-sm">
-      <a
-        href="/auth/signin"
-        class="rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        Back to sign in
-      </a>
-    </p>
-  </AuthPanel>
+  <ConfirmEmailPanel />
 </Layout>
