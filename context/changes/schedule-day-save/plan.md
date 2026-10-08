@@ -336,10 +336,10 @@ The migration only adds a function; no data changes. A deployed page with the ol
 
 #### Automated
 
-- [x] 1.1 Migration applies on a fresh reset: `npx supabase db reset`
-- [x] 1.2 Database rules tests pass, the new file included: `npm run test:db`
-- [x] 1.3 `src/db/database.types.ts` contains `save_schedule_day` after regeneration
-- [x] 1.4 Type check passes: `npx astro check`
+- [x] 1.1 Migration applies on a fresh reset: `npx supabase db reset` — 9ef5a13
+- [x] 1.2 Database rules tests pass, the new file included: `npm run test:db` — 9ef5a13
+- [x] 1.3 `src/db/database.types.ts` contains `save_schedule_day` after regeneration — 9ef5a13
+- [x] 1.4 Type check passes: `npx astro check` — 9ef5a13
 
 #### Manual
 
