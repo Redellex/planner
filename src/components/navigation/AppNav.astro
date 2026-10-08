@@ -51,7 +51,12 @@ const links = navLinksFor(actor).map((link) => ({ ...link, current: isCurrentNav
         )}
       </div>
       <details class="relative lg:hidden">
-        <summary class:list={cn(buttonVariants({ variant: "outline", size: "sm" }), "list-none")}>
+        <summary
+          class:list={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "list-none [&::-webkit-details-marker]:hidden",
+          )}
+        >
           <Menu aria-hidden="true" />
           Menu
         </summary>

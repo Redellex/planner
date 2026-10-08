@@ -129,6 +129,11 @@ function hasNavLink(actual, href) {
   return actual.body.includes(`data-nav-link="${href}"`);
 }
 
+// The bar's Sign out is the only one in the UI (the dashboard has none).
+function hasSignOut(actual) {
+  return actual.body.includes('action="/api/auth/signout"');
+}
+
 // The draft panel of /manager/schedule carries `data-schedule-draft` only while the month has a draft.
 function hasScheduleDraft(actual) {
   return actual.body.includes("data-schedule-draft");
@@ -190,7 +195,10 @@ const steps = [
     {
       status: 200,
       check: (actual) =>
-        hasNavLink(actual, "/auth/signin") && hasNavLink(actual, "/auth/signup") && !hasNavLink(actual, "/account"),
+        hasNavLink(actual, "/auth/signin") &&
+        hasNavLink(actual, "/auth/signup") &&
+        !hasNavLink(actual, "/account") &&
+        !hasSignOut(actual),
     },
   ],
   [
@@ -236,8 +244,8 @@ const steps = [
     () => request("/account"),
     {
       status: 200,
-      // The fresh user is an employee: the bar links their account and no manager page.
-      check: (actual) => hasNavLink(actual, "/account") && !hasNavLink(actual, "/manager/users"),
+      // The fresh user is an employee: the bar links their account and no manager page, and offers Sign out.
+      check: (actual) => hasNavLink(actual, "/account") && !hasNavLink(actual, "/manager/users") && hasSignOut(actual),
     },
   ],
   [
