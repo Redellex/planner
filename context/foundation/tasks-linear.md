@@ -37,21 +37,21 @@ The roadmap's Backlog Handoff table already asks for "stable human-readable iden
 
 ## Issue map
 
-| Roadmap ID | Issue | Title                                                                        | Labels                                              | Milestone | Blocked by |
-| ---------- | ----- | ---------------------------------------------------------------------------- | --------------------------------------------------- | --------- | ---------- |
-| F-01       | #1    | [F-01] Add manager/employee roles to auth                                    | roadmap, foundation — **closed** (done)             | M-1       | —          |
-| S-01       | #2    | [S-01] Employee availability CRUD with monthly lock                          | roadmap, slice — **closed** (done)                  | M-1       | #1         |
-| S-02       | #3    | [S-02] Manager view of all employee availability                             | roadmap, slice — **closed** (done)                  | M-1       | #1, #2     |
-| S-03       | #4    | [S-03] Auto-generate conflict-free, fairly-rotated monthly schedule          | roadmap, slice, north-star — **closed** (done)      | M-1       | #2         |
-| S-04       | #5    | [S-04] Manager review/override/publish workflow for generated schedule       | roadmap, slice — **closed** (done)                  | M-1       | #4         |
-| S-05       | #6    | [S-05] Published schedule grid view for employees and managers               | roadmap, slice — **done** (PR #39, closes on merge) | M-1       | #5         |
-| T-01       | #24   | [T-01] Test runner and station-time logic (unit tests on UTC)                | roadmap, testing — **closed** (done)                | —         | —          |
-| T-02       | #27   | [T-02] Database rules: ownership, month lock and roles (pgTAP)               | roadmap, testing — **closed** (done)                | —         | —          |
-| QG-01      | #29   | [QG-01] Quality-gate hooks: agent hooks and pre-commit tests on staged files | roadmap, testing — **closed** (done)                | —         | —          |
-| T-03       | #31   | [T-03] Route gating and honest availability reads                            | roadmap, testing — **closed** (done)                | —         | —          |
-| Q-01       | #7    | [Q-01] Expected request and data volume (qps)?                               | roadmap, question                                   | M-1       | —          |
-| P-01       | #8    | [P-01] Export/print schedule (FR-008)                                        | roadmap, parked                                     | —         | —          |
-| P-02       | #9    | [P-02] Notify employees when schedule is published (FR-009)                  | roadmap, parked                                     | —         | —          |
+| Roadmap ID | Issue | Title                                                                        | Labels                                         | Milestone | Blocked by |
+| ---------- | ----- | ---------------------------------------------------------------------------- | ---------------------------------------------- | --------- | ---------- |
+| F-01       | #1    | [F-01] Add manager/employee roles to auth                                    | roadmap, foundation — **closed** (done)        | M-1       | —          |
+| S-01       | #2    | [S-01] Employee availability CRUD with monthly lock                          | roadmap, slice — **closed** (done)             | M-1       | #1         |
+| S-02       | #3    | [S-02] Manager view of all employee availability                             | roadmap, slice — **closed** (done)             | M-1       | #1, #2     |
+| S-03       | #4    | [S-03] Auto-generate conflict-free, fairly-rotated monthly schedule          | roadmap, slice, north-star — **closed** (done) | M-1       | #2         |
+| S-04       | #5    | [S-04] Manager review/override/publish workflow for generated schedule       | roadmap, slice — **closed** (done)             | M-1       | #4         |
+| S-05       | #6    | [S-05] Published schedule grid view for employees and managers               | roadmap, slice — **closed** (done)             | M-1       | #5         |
+| T-01       | #24   | [T-01] Test runner and station-time logic (unit tests on UTC)                | roadmap, testing — **closed** (done)           | —         | —          |
+| T-02       | #27   | [T-02] Database rules: ownership, month lock and roles (pgTAP)               | roadmap, testing — **closed** (done)           | —         | —          |
+| QG-01      | #29   | [QG-01] Quality-gate hooks: agent hooks and pre-commit tests on staged files | roadmap, testing — **closed** (done)           | —         | —          |
+| T-03       | #31   | [T-03] Route gating and honest availability reads                            | roadmap, testing — **closed** (done)           | —         | —          |
+| Q-01       | #7    | [Q-01] Expected request and data volume (qps)?                               | roadmap, question                              | M-1       | —          |
+| P-01       | #8    | [P-01] Export/print schedule (FR-008)                                        | roadmap, parked                                | —         | —          |
+| P-02       | #9    | [P-02] Notify employees when schedule is published (FR-009)                  | roadmap, parked                                | —         | —          |
 
 The issues were created in the order the roadmap lists them, so the numbers match that order. S-02 and S-03 can run in parallel; each issue mentions the other.
 
@@ -210,16 +210,16 @@ The temporary body files were kept in the session scratchpad and are not in the 
 
 ## What to do next
 
-Status as of 2026-10-08: M-1 is 6/6 done (S-05 closes when PR #39 merges).
+Status as of 2026-10-08: M-1 is 6/6 done.
 
 - #1 (F-01) was delivered in PR #10 and archived to `context/archive/2026-09-25-role-aware-access-control/`.
 - #2 (S-01) was delivered in PR #12 (review reports in PR #13) and archived to `context/archive/2026-09-26-employee-availability-management/`.
 - #3 (S-02) was delivered in PR #21 and archived to `context/archive/2026-09-29-manager-availability-visibility/`.
 - #4 (S-03, north star) was delivered in PR #35 and archived to `context/archive/2026-10-06-generate-monthly-schedule/`.
 - #5 (S-04) was delivered in PR #37 and archived to `context/archive/2026-10-06-review-override-publish-schedule/`.
-- #6 (S-05) was delivered in PR #39 (`Closes #6`), from `context/changes/view-published-schedule/`.
+- #6 (S-05) was delivered in PR #39 and archived to `context/archive/2026-10-07-view-published-schedule/`.
 
-1. **M-1 is complete** once PR #39 merges: every F/S issue is closed. Archive `view-published-schedule`, then close M-1 and open M-2 via `/10x-roadmap`. Q-01 (#7) and the parked #8/#9 stay open for that decision.
+1. **M-1 is complete**: every F/S issue is closed. Close M-1 and open M-2 via `/10x-roadmap`. Q-01 (#7) and the parked #8/#9 stay open for that decision.
 2. **After S-03's merge:** push its migrations to the hosted project (`npx supabase db push`), and check a generate request's `cpuTime` with `wrangler tail`.
 3. **After S-04's merge:** push its two migrations to the hosted project (`20261007120000_publish_and_override_schedules.sql`, `20261007130000_guard_published_schedule_shifts.sql`).
 4. **After S-05's merge:** push its three migrations to the hosted project before deploying (`20261007140000_published_schedule_and_display_names.sql`, `20261007150000_display_name_visible_characters.sql`, `20261007160000_published_schedule_is_own.sql`); the new `/schedule` reads `is_own`.

@@ -1,10 +1,10 @@
 ---
 change_id: view-published-schedule
 title: View published schedule
-status: impl_reviewed
+status: archived
 created: 2026-10-07
-updated: 2026-10-07
-archived_at: null
+updated: 2026-10-08
+archived_at: 2026-10-08T08:55:42Z
 ---
 
 ## Notes
