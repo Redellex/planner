@@ -1,0 +1,23 @@
+---
+// The 403 panel: shown when the gate refuses a signed-in user (e.g. an employee on a manager page). Rendered by
+// /403 and by the /dev/access-denied-states kitchen sink. Smoke matches the "Access denied" heading.
+import { ShieldAlert } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+---
+
+<section
+  aria-labelledby="access-denied-title"
+  class="flex flex-col items-center gap-4 rounded-xl border bg-card p-6 text-center text-card-foreground"
+>
+  <ShieldAlert aria-hidden="true" className="size-10 text-muted-foreground" />
+  <h1 id="access-denied-title" class="text-2xl font-semibold">
+    Access denied
+  </h1>
+  <div class="flex flex-col gap-1 text-sm">
+    <p>You don't have access to this page.</p>
+    <p class="text-muted-foreground">Some pages are available to managers only. Ask a manager if you need access.</p>
+  </div>
+  <a href="/" class:list={buttonVariants({ variant: "outline" })}>
+    Go home
+  </a>
+</section>

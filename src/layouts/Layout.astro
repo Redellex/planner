@@ -30,12 +30,17 @@ const { user, role } = Astro.locals;
     </a>
     {missingConfigs.map((cfg) => (
       <Banner variant="error">
-        <strong>Uwaga:</strong> {cfg.message}
+        <strong>Warning:</strong> {cfg.message}
         {cfg.docsUrl && (
           <>
             {" "}
-            <a href={cfg.docsUrl} target="_blank" rel="noopener noreferrer">
-              {cfg.docsLabel ?? "Dokumentacja"}
+            <a
+              href={cfg.docsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="rounded-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              {cfg.docsLabel ?? "Documentation"}
             </a>
             .
           </>

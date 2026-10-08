@@ -691,31 +691,31 @@ No database change. The redirect URLs from the lock endpoint gain `&month=YYYY-M
 
 #### Automated
 
-- [x] 2.1 `npm test`, `npm run lint`, `npx astro check` pass
-- [x] 2.2 No literal hits in the auth files (they enter `SCOPE` in Phase 6): `rg "bg-cosmic|backdrop-blur|white/|blue-|purple-|red-" src/components/auth src/pages/auth` returns nothing
-- [x] 2.3 `npm run smoke` passes (sign-in page renders the anonymous nav, sign-up → `/auth/confirm-email`, wrong password → `/auth/signin?error=`)
+- [x] 2.1 `npm test`, `npm run lint`, `npx astro check` pass — 11a8a35
+- [x] 2.2 No literal hits in the auth files (they enter `SCOPE` in Phase 6): `rg "bg-cosmic|backdrop-blur|white/|blue-|purple-|red-" src/components/auth src/pages/auth` returns nothing — 11a8a35
+- [x] 2.3 `npm run smoke` passes (sign-in page renders the anonymous nav, sign-up → `/auth/confirm-email`, wrong password → `/auth/signin?error=`) — 11a8a35
 
 #### Manual
 
-- [x] 2.4 `/auth/signin?error=Anything%20you%20like` shows "Could not sign in. Try again.", not the crafted text
-- [x] 2.5 A wrong password shows "Wrong email or password." in a destructive `Alert`
-- [x] 2.6 Submitting empty fields shows field errors, focus lands on the first invalid field, and a screen reader (or the accessibility tree) announces the input as invalid with its message
-- [x] 2.7 A valid submit disables the button with the spinner and "Signing in…"; Back from the dashboard shows the button enabled again
-- [x] 2.8 Tab order: email → password → toggle → submit → sign-up link, each with the token focus ring
+- [x] 2.4 `/auth/signin?error=Anything%20you%20like` shows "Could not sign in. Try again.", not the crafted text — 11a8a35
+- [x] 2.5 A wrong password shows "Wrong email or password." in a destructive `Alert` — 11a8a35
+- [x] 2.6 Submitting empty fields shows field errors, focus lands on the first invalid field, and a screen reader (or the accessibility tree) announces the input as invalid with its message — 11a8a35
+- [x] 2.7 A valid submit disables the button with the spinner and "Signing in…"; Back from the dashboard shows the button enabled again — 11a8a35
+- [x] 2.8 Tab order: email → password → toggle → submit → sign-up link, each with the token focus ring — 11a8a35
 
 ### Phase 3: Dashboard, 403 and Banner on tokens
 
 #### Automated
 
-- [ ] 3.1 `npm test` (including the new `roleLabel` test), `npm run lint`, `npx astro check` pass
-- [ ] 3.2 No literal hits: `rg "bg-cosmic|white/|blue-|purple-|#[0-9a-fA-F]{3,8}" src/pages/index.astro src/pages/403.astro src/components/dashboard src/components/system src/components/Banner.astro` returns nothing
-- [ ] 3.3 `npm run smoke` passes (`data-dashboard`, "Access denied" on every 403 step)
+- [x] 3.1 `npm test` (including the new `roleLabel` test), `npm run lint`, `npx astro check` pass
+- [x] 3.2 No literal hits: `rg "bg-cosmic|white/|blue-|purple-|#[0-9a-fA-F]{3,8}" src/pages/index.astro src/pages/403.astro src/components/dashboard src/components/system src/components/Banner.astro` returns nothing
+- [x] 3.3 `npm run smoke` passes (`data-dashboard`, "Access denied" on every 403 step)
 
 #### Manual
 
-- [ ] 3.4 `/` as manager shows the Manager pill and the manager links; as employee the Employee pill; link buttons show the token hover and focus ring
-- [ ] 3.5 An employee on `/manager/users` sees the token 403 panel with "Go home" leading to `/`
-- [ ] 3.6 With `SUPABASE_URL` unset in `.dev.vars`, every page shows the English destructive banner above the top bar (restore the value afterwards)
+- [x] 3.4 `/` as manager shows the Manager pill and the manager links; as employee the Employee pill; link buttons show the token hover and focus ring
+- [x] 3.5 An employee on `/manager/users` sees the token 403 panel with "Go home" leading to `/`
+- [x] 3.6 With `SUPABASE_URL` unset in `.dev.vars`, every page shows the English destructive banner above the top bar (restore the value afterwards)
 
 ### Phase 4: `/manager/months` on tokens
 

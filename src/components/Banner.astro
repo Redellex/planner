@@ -1,4 +1,9 @@
 ---
+// A full-width notice strip above the top bar (e.g. Supabase not configured, from Layout). Error reads as an alert,
+// warning and info as a status.
+import { CircleAlert, Info, TriangleAlert } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
 type Variant = "info" | "warning" | "error";
 
 interface Props {
@@ -6,37 +11,36 @@ interface Props {
 }
 
 const { variant = "info" } = Astro.props;
+const role = variant === "error" ? "alert" : "status";
 ---
 
-<div class:list={["banner", `banner--${variant}`]} role={variant === "error" ? "alert" : "status"}>
-  <slot />
+<div class="bg-background px-4 pt-4">
+  {variant === "error" ? (
+    <Alert variant="destructive" role={role}>
+      <CircleAlert aria-hidden="true" />
+      <AlertDescription>
+        <p>
+          <slot />
+        </p>
+      </AlertDescription>
+    </Alert>
+  ) : variant === "warning" ? (
+    <Alert role={role} className="border-warning/60 text-warning">
+      <TriangleAlert aria-hidden="true" />
+      <AlertDescription>
+        <p>
+          <slot />
+        </p>
+      </AlertDescription>
+    </Alert>
+  ) : (
+    <Alert role={role}>
+      <Info aria-hidden="true" />
+      <AlertDescription>
+        <p>
+          <slot />
+        </p>
+      </AlertDescription>
+    </Alert>
+  )}
 </div>
-
-<style>
-  .banner {
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
-    text-align: center;
-    border-bottom: 1px solid;
-  }
-  .banner :global(a) {
-    color: inherit;
-    text-decoration: underline;
-    font-weight: 600;
-  }
-  .banner--info {
-    background: #dbeafe;
-    color: #1e3a8a;
-    border-color: #3b82f6;
-  }
-  .banner--warning {
-    background: #fef3c7;
-    color: #78350f;
-    border-color: #f59e0b;
-  }
-  .banner--error {
-    background: #fee2e2;
-    color: #7f1d1d;
-    border-color: #dc2626;
-  }
-</style>

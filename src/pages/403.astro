@@ -1,18 +1,15 @@
 ---
 import Layout from "@/layouts/Layout.astro";
+import AccessDeniedPanel from "@/components/system/AccessDeniedPanel.astro";
 
 // Rendered for any method: rewritten /api/manager/* form posts (POST) land here too.
 Astro.response.status = 403;
 ---
 
 <Layout title="Access denied">
-  <div class="bg-cosmic flex flex-1 items-center justify-center p-4">
-    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-white/10 p-8 text-center text-white backdrop-blur-xl">
-      <h1 class="mb-4 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-2xl font-bold text-transparent">
-        Access denied
-      </h1>
-      <p class="text-blue-100/80">You don't have access to this page.</p>
-      <p class="mt-2 text-sm text-blue-100/50">This area is available to managers only.</p>
+  <div class="flex flex-1 items-start justify-center bg-background p-4 sm:items-center">
+    <div class="mx-auto w-full max-w-sm">
+      <AccessDeniedPanel />
     </div>
   </div>
 </Layout>
