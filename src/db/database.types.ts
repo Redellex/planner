@@ -216,6 +216,10 @@ export type Database = {
         Args: { shifts: Json; target_month: string }
         Returns: undefined
       }
+      save_schedule_day: {
+        Args: { rows: Json; station_day: string; target_month: string }
+        Returns: number
+      }
       set_display_name: { Args: { new_name: string }; Returns: undefined }
       unpublish_schedule: { Args: { target_month: string }; Returns: undefined }
     }
