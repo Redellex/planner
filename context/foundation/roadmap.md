@@ -130,7 +130,7 @@ No foundations are needed for this milestone.
 - **Unknowns:**
   - One `/10x-ui` change for all the views, or one per view? — Owner: user. Block: no. — **Answered:** one change for all six views.
 - **Risk:** Largest by page count but UI-only, following the pattern in `context/archive/*-ui-tokens/tokens.md`; the welcome page drops out of scope because S-06 removes it. Split per view if one change grows too large.
-- **Delivery (2026-10-08):** implemented in `context/changes/legacy-views-ui-tokens/`, PR #50. Error text on these views comes only from allow-lists (`src/lib/auth-feedback.ts`, `src/lib/manager-months.ts`; raw Supabase/PostgREST text is logged), `/manager/months` fails closed on a failed lock read and shows results in the month's row, the auth forms have a working pending state, and `bg-cosmic` and `LibBadge.astro` are deleted. No database change.
+- **Delivery (2026-10-08):** implemented in `context/archive/2026-10-08-legacy-views-ui-tokens/`, PR #50. Error text on these views comes only from allow-lists (`src/lib/auth-feedback.ts`, `src/lib/manager-months.ts`; raw Supabase/PostgREST text is logged), `/manager/months` fails closed on a failed lock read and shows results in the month's row, the auth forms have a working pending state, and `bg-cosmic` and `LibBadge.astro` are deleted. No database change.
 - **Status:** done
 
 ## Backlog Handoff
@@ -140,7 +140,7 @@ No foundations are needed for this milestone.
 | S-06       | #41   | dashboard-as-home      | Sign-in lands on the dashboard, which becomes the home page                    | —                     | Done in PR #46 — archived 2026-10-08          |
 | S-07       | #42   | role-aware-navigation  | Role-aware top-right navigation on every page                                  | —                     | Done in PR #48 — archived 2026-10-08          |
 | S-08       | #43   | schedule-day-save      | One Save per day for manual shift assignments                                  | yes                   | North star; run `/10x-plan schedule-day-save` |
-| S-09       | #44   | legacy-views-ui-tokens | Legacy views cleanup: dashboard, auth, 403, `/manager/months` on design tokens | —                     | Done in PR #50 — 2026-10-08                   |
+| S-09       | #44   | legacy-views-ui-tokens | Legacy views cleanup: dashboard, auth, 403, `/manager/months` on design tokens | —                     | Done in PR #50 — archived 2026-10-08          |
 
 ## Open Roadmap Questions
 
