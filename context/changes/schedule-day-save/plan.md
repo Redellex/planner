@@ -376,9 +376,9 @@ The migration only adds a function; no data changes. A deployed page with the ol
 
 #### Automated
 
-- [ ] 4.1 Station-time guard still passes after the smoke edit: `npx vitest run src/lib/station-time-zone.test.ts`
-- [ ] 4.2 Smoke passes against a local build with the local database: `npm run smoke`
-- [ ] 4.3 Database rules tests still pass after smoke: `npm run test:db`
+- [x] 4.1 Station-time guard still passes after the smoke edit: `npx vitest run src/lib/station-time-zone.test.ts`
+- [x] 4.2 Smoke passes against a local build with the local database: `npm run smoke`
+- [x] 4.3 Database rules tests still pass after smoke: `npm run test:db`
 
 #### Manual
 
