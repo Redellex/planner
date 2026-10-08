@@ -7,7 +7,6 @@ import TeamCalendar from "@/components/team-availability/TeamCalendar.astro";
 import TeamDayPanel from "@/components/team-availability/TeamDayPanel.astro";
 import TeamSummary from "@/components/team-availability/TeamSummary.astro";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase";
 import { buildTeamView, loadAllPages, type TeamTotal } from "@/lib/team-availability";
 import { cn } from "@/lib/utils";
@@ -222,12 +221,6 @@ const monthHref = (option: string): string => teamAvailabilityUrl({ month: optio
           </div>
         </>
       )}
-
-      <div class="mt-6 text-center">
-        <a href="/" class:list={buttonVariants({ variant: "outline" })}>
-          Back to dashboard
-        </a>
-      </div>
     </div>
   </div>
 </Layout>

@@ -6,7 +6,6 @@ import DayPanel from "@/components/availability/DayPanel.astro";
 import MonthTabs from "@/components/availability/MonthTabs.astro";
 import type { WindowRow } from "@/components/availability/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase";
 import {
   addMonths,
@@ -157,12 +156,6 @@ const feedback = feedbackError
         lockStateUnknown={lockStateUnknown}
         feedback={feedback}
       />
-
-      <div class="mt-6 text-center">
-        <a href="/" class:list={buttonVariants({ variant: "outline" })}>
-          Back to dashboard
-        </a>
-      </div>
     </div>
   </div>
 </Layout>

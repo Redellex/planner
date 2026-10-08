@@ -3,7 +3,6 @@ import { CircleAlert, CircleCheck } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
 import UserRoleRow from "@/components/manager/UserRoleRow.astro";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase";
 import {
   GENERIC_USERS_LOAD_ERROR,
@@ -88,12 +87,6 @@ const topFeedback = !loadError && !feedbackInRow ? feedback : null;
           </ul>
         )}
       </section>
-
-      <div class="mt-6 text-center">
-        <a href="/" class:list={buttonVariants({ variant: "outline" })}>
-          Back to dashboard
-        </a>
-      </div>
     </div>
   </div>
 </Layout>

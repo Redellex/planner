@@ -1,8 +1,11 @@
 ---
 import Layout from "@/layouts/Layout.astro";
+import { navLinksFor } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 const { user, role } = Astro.locals;
+// The same links as the top bar, minus Home: the gate decides, so this grid cannot drift from the navigation.
+const links = navLinksFor({ signedIn: user !== null, role }).filter((link) => link.href !== "/");
 ---
 
 <Layout title="Dashboard">
@@ -25,71 +28,15 @@ const { user, role } = Astro.locals;
       )}
       <p class="mt-2 text-sm text-blue-100/50">This page is only for authenticated users.</p>
       <div class="mt-6 flex flex-wrap justify-center gap-3">
-        {user && (
+        {links.map((link) => (
           <a
-            href="/availability"
+            href={link.href}
             class="inline-block rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm transition-colors hover:bg-white/20"
           >
-            Availability
+            {link.label}
           </a>
-        )}
-        {user && (
-          <a
-            href="/schedule"
-            class="inline-block rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm transition-colors hover:bg-white/20"
-          >
-            Schedule
-          </a>
-        )}
-        {user && (
-          <a
-            href="/account"
-            class="inline-block rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm transition-colors hover:bg-white/20"
-          >
-            Account
-          </a>
-        )}
-        {role === "manager" && (
-          <a
-            href="/manager/users"
-            class="inline-block rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm transition-colors hover:bg-white/20"
-          >
-            Users
-          </a>
-        )}
-        {role === "manager" && (
-          <a
-            href="/manager/months"
-            class="inline-block rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm transition-colors hover:bg-white/20"
-          >
-            Months
-          </a>
-        )}
-        {role === "manager" && (
-          <a
-            href="/manager/availability"
-            class="inline-block rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm transition-colors hover:bg-white/20"
-          >
-            Team availability
-          </a>
-        )}
-        {role === "manager" && (
-          <a
-            href="/manager/schedule"
-            class="inline-block rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm transition-colors hover:bg-white/20"
-          >
-            Manage schedule
-          </a>
-        )}
+        ))}
       </div>
-      <form method="POST" action="/api/auth/signout" class="mt-6">
-        <button
-          type="submit"
-          class="rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm transition-colors hover:bg-white/20"
-        >
-          Sign out
-        </button>
-      </form>
     </div>
   </div>
 </Layout>

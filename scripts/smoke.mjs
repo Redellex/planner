@@ -124,6 +124,11 @@ function isAccessDenied(actual) {
   return pageText(actual.body).includes("Access denied");
 }
 
+// The top bar (src/components/navigation/AppNav.astro) marks each link it renders with `data-nav-link`.
+function hasNavLink(actual, href) {
+  return actual.body.includes(`data-nav-link="${href}"`);
+}
+
 // The draft panel of /manager/schedule carries `data-schedule-draft` only while the month has a draft.
 function hasScheduleDraft(actual) {
   return actual.body.includes("data-schedule-draft");
@@ -180,6 +185,15 @@ const steps = [
   ["home redirects anonymous user", () => request("/"), { status: 302, location: "/auth/signin" }],
   ["dashboard redirects anonymous user", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
   [
+    "sign-in page shows the anonymous navigation",
+    () => request("/auth/signin"),
+    {
+      status: 200,
+      check: (actual) =>
+        hasNavLink(actual, "/auth/signin") && hasNavLink(actual, "/auth/signup") && !hasNavLink(actual, "/account"),
+    },
+  ],
+  [
     "signup creates account",
     () => request("/api/auth/signup", { method: "POST", form: { email, password } }),
     { status: 302, location: "/auth/confirm-email" },
@@ -217,7 +231,15 @@ const steps = [
     () => request("/schedule"),
     { status: 200, check: (actual) => !pageText(actual.body).includes(publishedScheduleLoadError) },
   ],
-  ["account page renders for signed-in user", () => request("/account"), { status: 200 }],
+  [
+    "account page renders for signed-in user",
+    () => request("/account"),
+    {
+      status: 200,
+      // The fresh user is an employee: the bar links their account and no manager page.
+      check: (actual) => hasNavLink(actual, "/account") && !hasNavLink(actual, "/manager/users"),
+    },
+  ],
   [
     "display name is saved",
     () => request("/api/account/display-name", { method: "POST", form: { display_name: "  Smoke User  " } }),
@@ -358,7 +380,11 @@ const steps = [
     },
     { status: 302, location: "/" },
   ],
-  ["manager page renders for manager", () => request("/manager/users"), { status: 200 }],
+  [
+    "manager page renders for manager",
+    () => request("/manager/users"),
+    { status: 200, check: (actual) => hasNavLink(actual, "/manager/schedule") },
+  ],
   [
     "team availability shows the employee's window",
     () => request(`/manager/availability?month=${crudMonth}&day=${teamDay}`),

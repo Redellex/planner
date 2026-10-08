@@ -3,7 +3,6 @@ import { CircleAlert } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
 import AccountPanel from "@/components/account/AccountPanel.astro";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase";
 import {
   ACCOUNT_LOAD_ERROR,
@@ -57,12 +56,6 @@ if (!supabase) {
       ) : (
         <AccountPanel profile={profile} feedback={feedback} />
       )}
-
-      <div class="mt-6 text-center">
-        <a href="/" class:list={buttonVariants({ variant: "outline" })}>
-          Back to dashboard
-        </a>
-      </div>
     </div>
   </div>
 </Layout>

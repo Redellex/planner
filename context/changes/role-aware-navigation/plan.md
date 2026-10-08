@@ -318,10 +318,10 @@ None: no schema or data change.
 
 #### Automated
 
-- [x] 2.1 `npm test` passes (route inventory includes the new sink)
-- [x] 2.2 `npm run check:ui` passes with the three new scope entries
-- [x] 2.3 `npm run lint` and `npx astro check` pass
-- [x] 2.4 `npm run build` succeeds
+- [x] 2.1 `npm test` passes (route inventory includes the new sink) — 853924b
+- [x] 2.2 `npm run check:ui` passes with the three new scope entries — 853924b
+- [x] 2.3 `npm run lint` and `npx astro check` pass — 853924b
+- [x] 2.4 `npm run build` succeeds — 853924b
 
 #### Manual
 
@@ -335,10 +335,10 @@ None: no schema or data change.
 
 #### Automated
 
-- [ ] 3.1 `grep -rn "Back to dashboard" src/` finds nothing
-- [ ] 3.2 `npm test`, `npm run lint`, `npx astro check`, `npm run check:ui` pass
-- [ ] 3.3 `npm run build` succeeds
-- [ ] 3.4 `npm run smoke` passes against a local stack with the seed applied (check `.dev.vars` points at local first)
+- [x] 3.1 `grep -rn "Back to dashboard" src/` finds nothing
+- [x] 3.2 `npm test`, `npm run lint`, `npx astro check`, `npm run check:ui` pass
+- [x] 3.3 `npm run build` succeeds
+- [x] 3.4 `npm run smoke` passes against a local stack with the seed applied (check `.dev.vars` points at local first)
 
 #### Manual
 
