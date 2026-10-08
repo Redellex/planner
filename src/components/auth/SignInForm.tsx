@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Mail, Lock, LogIn } from "lucide-react";
 import { FormField } from "@/components/auth/FormField";
 import { PasswordToggle } from "@/components/auth/PasswordToggle";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { ServerError } from "@/components/auth/ServerError";
+
+const FIELD_ORDER = ["email", "password"] as const;
 
 interface Props {
   serverError?: string | null;
@@ -13,9 +15,22 @@ export default function SignInForm({ serverError }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-  function validate() {
+  // The form posts natively, so a page restored from the bfcache (Back) still holds the pending state: clear it.
+  useEffect(() => {
+    function onPageShow(event: PageTransitionEvent) {
+      if (event.persisted) setSubmitting(false);
+    }
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, []);
+
+  /** Sets the field errors and returns the first invalid field's id (in form order), or null when valid. */
+  function validate(): keyof typeof errors | null {
     const next: typeof errors = {};
     if (!email.trim()) {
       next.email = "Email is required";
@@ -26,7 +41,7 @@ export default function SignInForm({ serverError }: Props) {
       next.password = "Password is required";
     }
     setErrors(next);
-    return Object.keys(next).length === 0;
+    return FIELD_ORDER.find((field) => next[field] !== undefined) ?? null;
   }
 
   function clearError(field: keyof typeof errors) {
@@ -34,9 +49,14 @@ export default function SignInForm({ serverError }: Props) {
   }
 
   function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
-    if (!validate()) {
+    const firstInvalid = validate();
+    if (firstInvalid) {
       e.preventDefault();
+      document.getElementById(firstInvalid)?.focus();
+      return;
     }
+    // Valid: let the native POST go ahead and show the pending button until the page is left.
+    setSubmitting(true);
   }
 
   return (
@@ -79,7 +99,11 @@ export default function SignInForm({ serverError }: Props) {
 
       <ServerError message={serverError} />
 
-      <SubmitButton pendingText="Signing in..." icon={<LogIn className="size-4" />}>
+      <SubmitButton
+        pending={submitting}
+        pendingText="Signing in…"
+        icon={<LogIn aria-hidden="true" className="size-4" />}
+      >
         Sign in
       </SubmitButton>
     </form>

@@ -675,33 +675,33 @@ No database change. The redirect URLs from the lock endpoint gain `&month=YYYY-M
 
 #### Automated
 
-- [x] 1.1 New unit tests pass: `npx vitest run src/lib/auth-feedback.test.ts src/lib/manager-months.test.ts`
-- [x] 1.2 Whole suite passes: `npm test`
-- [x] 1.3 Lint passes: `npm run lint`
-- [x] 1.4 Type check passes: `npx astro check`
-- [x] 1.5 Smoke passes against a local build (sign-in wrong password still redirects with `/auth/signin?error=`, unlock-with-draft still matches exactly): `npm run smoke`
+- [x] 1.1 New unit tests pass: `npx vitest run src/lib/auth-feedback.test.ts src/lib/manager-months.test.ts` — 21742a2
+- [x] 1.2 Whole suite passes: `npm test` — 21742a2
+- [x] 1.3 Lint passes: `npm run lint` — 21742a2
+- [x] 1.4 Type check passes: `npx astro check` — 21742a2
+- [x] 1.5 Smoke passes against a local build (sign-in wrong password still redirects with `/auth/signin?error=`, unlock-with-draft still matches exactly): `npm run smoke` — 21742a2
 
 #### Manual
 
-- [x] 1.6 Before screenshots and their README exist in `screenshots/before/`
-- [x] 1.7 `tokens.md` lists only the new rows and points at the archived maps for the rest
-- [x] 1.8 A wrong-password sign-in redirects with "Wrong email or password." and the Worker log shows the raw Supabase code/message
+- [x] 1.6 Before screenshots and their README exist in `screenshots/before/` — 21742a2
+- [x] 1.7 `tokens.md` lists only the new rows and points at the archived maps for the rest — 21742a2
+- [x] 1.8 A wrong-password sign-in redirects with "Wrong email or password." and the Worker log shows the raw Supabase code/message — 21742a2
 
 ### Phase 2: Auth views on tokens
 
 #### Automated
 
-- [ ] 2.1 `npm test`, `npm run lint`, `npx astro check` pass
-- [ ] 2.2 No literal hits in the auth files (they enter `SCOPE` in Phase 6): `rg "bg-cosmic|backdrop-blur|white/|blue-|purple-|red-" src/components/auth src/pages/auth` returns nothing
-- [ ] 2.3 `npm run smoke` passes (sign-in page renders the anonymous nav, sign-up → `/auth/confirm-email`, wrong password → `/auth/signin?error=`)
+- [x] 2.1 `npm test`, `npm run lint`, `npx astro check` pass
+- [x] 2.2 No literal hits in the auth files (they enter `SCOPE` in Phase 6): `rg "bg-cosmic|backdrop-blur|white/|blue-|purple-|red-" src/components/auth src/pages/auth` returns nothing
+- [x] 2.3 `npm run smoke` passes (sign-in page renders the anonymous nav, sign-up → `/auth/confirm-email`, wrong password → `/auth/signin?error=`)
 
 #### Manual
 
-- [ ] 2.4 `/auth/signin?error=Anything%20you%20like` shows "Could not sign in. Try again.", not the crafted text
-- [ ] 2.5 A wrong password shows "Wrong email or password." in a destructive `Alert`
-- [ ] 2.6 Submitting empty fields shows field errors, focus lands on the first invalid field, and a screen reader (or the accessibility tree) announces the input as invalid with its message
-- [ ] 2.7 A valid submit disables the button with the spinner and "Signing in…"; Back from the dashboard shows the button enabled again
-- [ ] 2.8 Tab order: email → password → toggle → submit → sign-up link, each with the token focus ring
+- [x] 2.4 `/auth/signin?error=Anything%20you%20like` shows "Could not sign in. Try again.", not the crafted text
+- [x] 2.5 A wrong password shows "Wrong email or password." in a destructive `Alert`
+- [x] 2.6 Submitting empty fields shows field errors, focus lands on the first invalid field, and a screen reader (or the accessibility tree) announces the input as invalid with its message
+- [x] 2.7 A valid submit disables the button with the spinner and "Signing in…"; Back from the dashboard shows the button enabled again
+- [x] 2.8 Tab order: email → password → toggle → submit → sign-up link, each with the token focus ring
 
 ### Phase 3: Dashboard, 403 and Banner on tokens
 

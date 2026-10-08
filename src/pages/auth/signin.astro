@@ -1,23 +1,24 @@
 ---
 import Layout from "@/layouts/Layout.astro";
+import AuthPanel from "@/components/auth/AuthPanel.astro";
 import SignInForm from "@/components/auth/SignInForm";
+import { resolveAuthFeedbackError } from "@/lib/auth-feedback";
 
-const error = Astro.url.searchParams.get("error");
+// The redirect's `?error=` is user-controlled: only sign-in messages are shown as-is, anything else is generic.
+const serverError = resolveAuthFeedbackError("signin", Astro.url.searchParams.get("error"));
 ---
 
 <Layout title="Sign in">
-  <div class="bg-cosmic flex flex-1 items-center justify-center p-4">
-    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-white/10 p-8 text-white backdrop-blur-xl">
-      <h1 class="mb-6 bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-center text-2xl font-bold text-transparent">
-        Sign in
-      </h1>
-      <SignInForm serverError={error} client:load />
-      <p class="mt-4 text-center text-sm text-blue-100/60">
-        Don't have an account?{" "}
-        <a href="/auth/signup" class="text-purple-300 hover:underline">
-          Sign up
-        </a>
-      </p>
-    </div>
-  </div>
+  <AuthPanel title="Sign in">
+    <SignInForm serverError={serverError} client:load />
+    <Fragment slot="footer">
+      Don't have an account?{" "}
+      <a
+        href="/auth/signup"
+        class="rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        Sign up
+      </a>
+    </Fragment>
+  </AuthPanel>
 </Layout>
