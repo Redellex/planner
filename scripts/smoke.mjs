@@ -177,7 +177,7 @@ async function asSmokeUser(run) {
 }
 
 const steps = [
-  ["home renders", () => request("/"), { status: 200 }],
+  ["home redirects anonymous user", () => request("/"), { status: 302, location: "/auth/signin" }],
   ["dashboard redirects anonymous user", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
   [
     "signup creates account",
@@ -192,9 +192,24 @@ const steps = [
   [
     "signin accepts correct password",
     () => request("/api/auth/signin", { method: "POST", form: { email, password } }),
-    { status: 302, location: "/" },
+    // The location expectation is a prefix match, so it would accept any redirect; sign-in must land exactly on "/".
+    { status: 302, location: "/", check: (actual) => relativeLocation(actual.location) === "/" },
   ],
-  ["dashboard renders for signed-in user", () => request("/dashboard"), { status: 200 }],
+  [
+    "home renders the dashboard for signed-in user",
+    () => request("/"),
+    { status: 200, check: (actual) => actual.body.includes("data-dashboard") },
+  ],
+  [
+    "dashboard redirects to home",
+    () => request("/dashboard"),
+    { status: 301, location: "/", check: (actual) => relativeLocation(actual.location) === "/" },
+  ],
+  [
+    "sign-in page redirects signed-in user home",
+    () => request("/auth/signin"),
+    { status: 302, location: "/", check: (actual) => relativeLocation(actual.location) === "/" },
+  ],
   ["availability renders for signed-in user", () => request("/availability"), { status: 200 }],
   // A failed get_published_schedule call (e.g. the migration missing on the target) also renders 200, so check the text.
   [
@@ -308,7 +323,12 @@ const steps = [
     () => request("/api/manager/schedule/publish", { method: "POST", form: { month: crudMonth } }),
     { status: 403, check: isAccessDenied },
   ],
-  ["signout clears session", () => request("/api/auth/signout", { method: "POST" }), { status: 302, location: "/" }],
+  [
+    "signout clears session",
+    () => request("/api/auth/signout", { method: "POST" }),
+    { status: 302, location: "/auth/signin" },
+  ],
+  ["sign-in page renders after signout", () => request("/auth/signin"), { status: 200 }],
   ["dashboard redirects after signout", () => request("/dashboard"), { status: 302, location: "/auth/signin" }],
   [
     "anonymous display name request goes to sign-in",

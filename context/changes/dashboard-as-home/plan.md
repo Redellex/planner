@@ -244,11 +244,11 @@ No data migration. Browsers cache the `/dashboard` 301 permanently, which is int
 
 #### Automated
 
-- [ ] 1.1 Unit suite passes, including the route-access and route inventory tests: `npm test`
-- [ ] 1.2 Lint passes: `npm run lint`
-- [ ] 1.3 Type-check passes: `npx astro check`
-- [ ] 1.4 Production build succeeds: `npm run build`
-- [ ] 1.5 No reference to the deleted components or to `/dashboard` links remains: `grep -rn "Welcome\|Topbar\|href=\"/dashboard\"" src` returns nothing
+- [x] 1.1 Unit suite passes, including the route-access and route inventory tests: `npm test` — ce8f409
+- [x] 1.2 Lint passes: `npm run lint` — ce8f409
+- [x] 1.3 Type-check passes: `npx astro check` — ce8f409
+- [x] 1.4 Production build succeeds: `npm run build` — ce8f409
+- [x] 1.5 No reference to the deleted components or to `/dashboard` links remains: `grep -rn "Welcome\|Topbar\|href=\"/dashboard\"" src` returns nothing — ce8f409 (only hit: the greeting text "Welcome," in `src/pages/index.astro`, moved verbatim from the dashboard; no component or `/dashboard` link remains)
 
 #### Manual
 
