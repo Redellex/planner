@@ -1,10 +1,12 @@
 import type { APIRoute } from "astro";
 import { createClient } from "@/lib/supabase";
 import { monthOfDate, monthStart, parseDate, parseMonth } from "@/lib/availability";
-import { applyOverride, overrideWarnings } from "@/lib/schedule-override";
+import { alreadySaved, changedRows, matchesStored, parseDaySaveForm, sameRows } from "@/lib/schedule-day-save";
+import { applyOverrides, overrideWarnings } from "@/lib/schedule-override";
 import { summarizeSchedule } from "@/lib/schedule-summary";
 import { loadAllPages } from "@/lib/team-availability";
 import {
+  DAY_CHANGED_ERROR,
   describeScheduleWriteError,
   GENERIC_SCHEDULE_WRITE_ERROR,
   INVALID_ASSIGNEE_ERROR,
@@ -13,41 +15,37 @@ import {
   logScheduleError,
   managerScheduleUrl,
   NO_SCHEDULE_ERROR,
-  parseShiftParam,
   SCHEDULE_PAGE_SIZE,
   SCHEDULE_PUBLISHED_ERROR,
   scheduleMonths,
-  STALE_SHIFT_ERROR,
+  stationDayOf,
   SUPABASE_NOT_CONFIGURED_ERROR,
+  type DayRow,
 } from "@/lib/schedule";
 
-// Changes one draft shift's assignee (FR-005). The warnings are recomputed here from a full read, never taken from
-// the confirm panel: a change that introduces a problem is refused without `confirm=override` and sent back to the
-// page's confirm panel instead (FR-004). RLS (manager-only update of `employee_id` on an unpublished month) is the
-// real enforcement; a refused update affects zero rows.
+// Saves every assignee change of one station day of a draft at once (FR-005, S-08), all or nothing, through
+// save_schedule_day. The form posts each shift of the day with the assignee the manager saw (`was-<id>`) and the one
+// chosen (`employee-<id>`). The warnings of the combined change are recomputed here from a full read, never taken from
+// the confirm panel: a day whose changes introduce a problem is sent back to the page's confirm panel instead
+// (FR-004), and `confirm=override` is honoured only for exactly the rows that panel listed. RLS (manager-only update
+// of `employee_id` on an unpublished month) and the function's own checks are the real enforcement.
 export const POST: APIRoute = async (context) => {
   const form = await context.request.formData();
   const month = parseMonth(form.get("month"));
   const requestedDay = parseDate(form.get("day"));
-  // Every calendar date of the month starts one station day; any other day is dropped, not an error.
+  // Every calendar date of the month starts one station day; any other day is dropped.
   const day = month && requestedDay && monthOfDate(requestedDay) === month ? requestedDay : null;
-  const shift = parseShiftParam(form.get("shift"));
-  // Every redirect keeps the shift, so the page renders the result in that shift's row.
-  const fail = (error: string) => context.redirect(managerScheduleUrl({ month, day, shift, error }));
+  const fail = (error: string) => context.redirect(managerScheduleUrl({ month, day, error }));
 
   if (!month || !scheduleMonths().includes(month)) {
     return fail(INVALID_MONTH_ERROR);
   }
-  if (!shift) {
-    return fail(STALE_SHIFT_ERROR);
+  // A missing day or malformed rows (e.g. a page rendered before a deploy) cannot be matched to the stored day.
+  const parsed = parseDaySaveForm(form);
+  if (!day || !parsed) {
+    return fail(DAY_CHANGED_ERROR);
   }
-  // `""` is Uncovered; anything else must be a loaded member id (checked after the read).
-  const employeeField = form.get("employee");
-  if (typeof employeeField !== "string") {
-    return fail(INVALID_ASSIGNEE_ERROR);
-  }
-  const employee = employeeField === "" ? null : employeeField;
-  const confirmed = form.get("confirm") === "override";
+  const { rows, confirmed } = parsed;
 
   const supabase = createClient(context.request.headers, context.cookies);
   if (!supabase) {
@@ -85,17 +83,22 @@ export const POST: APIRoute = async (context) => {
   if (draftResult.data.published_at !== null) {
     return fail(SCHEDULE_PUBLISHED_ERROR);
   }
-  const shifts = shiftsResult.data;
-  const target = shifts.find((row) => row.id === shift);
-  if (!target) {
-    return fail(STALE_SHIFT_ERROR);
-  }
-  if (employee !== null && !inputs.members.some((member) => member.id === employee)) {
-    return fail(INVALID_ASSIGNEE_ERROR);
-  }
 
-  if (target.employee_id === employee) {
-    return context.redirect(managerScheduleUrl({ month, day, overridden: true, shift }));
+  const changes = changedRows(rows);
+  if (changes.length === 0) {
+    return context.redirect(managerScheduleUrl({ month, day, unchanged: true }));
+  }
+  const shifts = shiftsResult.data;
+  const dayShifts = shifts.filter((shift) => stationDayOf(shift.starts_at) === day);
+  // Before the stale check: the second click of a double submit finds the day already saved as requested.
+  if (alreadySaved(rows, dayShifts)) {
+    return context.redirect(managerScheduleUrl({ month, day, overridden: true }));
+  }
+  if (!matchesStored(rows, dayShifts)) {
+    return fail(DAY_CHANGED_ERROR);
+  }
+  if (changes.some((row) => row.to !== null && !inputs.members.some((member) => member.id === row.to))) {
+    return fail(INVALID_ASSIGNEE_ERROR);
   }
 
   const common = {
@@ -107,29 +110,42 @@ export const POST: APIRoute = async (context) => {
   };
   const warnings = overrideWarnings({
     before: summarizeSchedule({ ...common, shifts }),
-    after: summarizeSchedule({ ...common, shifts: applyOverride(shifts, shift, employee) }),
-    shiftId: shift,
+    after: summarizeSchedule({
+      ...common,
+      shifts: applyOverrides(shifts, new Map(changes.map((row) => [row.shift, row.to]))),
+    }),
+    shiftIds: new Set(changes.map((row) => row.shift)),
   });
-  if (warnings.length > 0 && !confirmed) {
-    // Not an error: the page rebuilds the same warnings from its own reads and asks for the explicit confirm.
-    return context.redirect(managerScheduleUrl({ month, day, confirm: "override", shift, employee }));
+  // "Assign anyway" accepts only the set the confirm panel listed; a pick changed during the confirm is checked again.
+  const accepted = confirmed !== null && sameRows(rows, confirmed);
+  if (warnings.length > 0 && !accepted) {
+    // Not an error: the page rebuilds the same warnings from its own reads and asks for the explicit confirm. The rows
+    // go in start order (matchesStored made the posted set equal the stored day).
+    const rowsByShift = new Map(rows.map((row) => [row.shift, row]));
+    const ordered = dayShifts.map((shift) => rowsByShift.get(shift.id)).filter((row): row is DayRow => !!row);
+    return context.redirect(managerScheduleUrl({ month, day, confirm: "override", rows: ordered }));
   }
 
-  // The month filter keeps the write inside the month that was read; a regenerate in between replaced every shift id,
-  // and a publish in between makes RLS hide the row, so both affect zero rows.
-  const { data, error } = await supabase
-    .from("schedule_shifts")
-    .update({ employee_id: employee })
-    .eq("id", shift)
-    .eq("month", monthStart(month))
-    .select("id");
+  // One transaction: the function re-checks the stored day under row locks (SP004 if it moved since the read above),
+  // refuses a published month (SP001) and writes every change or none.
+  const { error } = await supabase.rpc("save_schedule_day", {
+    target_month: monthStart(month),
+    station_day: day,
+    rows: rows.map((row) => ({ id: row.shift, was: row.was, employee_id: row.to })),
+  });
   if (error) {
-    logScheduleError("could not override the shift", error);
+    logScheduleError("could not save the schedule day", error);
+    // Only the assignee foreign key can fail on an employee_id update (an account deleted since the read).
+    if (error.code === "23503") {
+      return fail(INVALID_ASSIGNEE_ERROR);
+    }
+    // A deadlock: a discard or regenerate of this month ran at the same moment (it locks the schedules row before the
+    // shifts, the save the other way round), so the day changed under the save.
+    if (error.code === "40P01") {
+      return fail(DAY_CHANGED_ERROR);
+    }
     return fail(describeScheduleWriteError(error));
   }
-  if (data.length === 0) {
-    return fail(STALE_SHIFT_ERROR);
-  }
 
-  return context.redirect(managerScheduleUrl({ month, day, overridden: true, shift }));
+  return context.redirect(managerScheduleUrl({ month, day, overridden: true }));
 };

@@ -2,9 +2,9 @@
 // manager endpoints refusing an employee's and an anonymous POST), the availability/lock flow, the manager's team
 // availability view, the account page (a display name saved, a too-long one refused, an anonymous POST sent to sign-in),
 // the published schedule page and the draft schedule flow (generate and publish refused for an employee and an
-// anonymous user; generate, view, the draft invisible to the employee on /schedule, an override refused for an
-// employee, then warned, confirmed and shown, publish refused while days have no one, unlock refused while a draft
-// exists, discard, unlock) still work together. The manager steps need the seeded manager (supabase/seed.sql) or
+// anonymous user; generate, view, the draft invisible to the employee on /schedule, a day save refused for an
+// employee, then unchanged, refused as stale, warned, confirmed and shown, publish refused while days have no one,
+// unlock refused while a draft exists, discard, unlock) still work together. The manager steps need the seeded manager (supabase/seed.sql) or
 // SMOKE_MANAGER_* env.
 // Zero dependencies on purpose. Run against a live server: BASE_URL=http://localhost:4321 node scripts/smoke.mjs
 
@@ -57,10 +57,13 @@ const unlockWithDraftError = "Discard this month's draft schedule before unlocki
 // Mirrors PUBLISH_GAPS_ERROR in src/lib/schedule.ts: the smoke month's draft is almost all Uncovered, so publishing it
 // is always refused (a successful publish is covered by pgTAP and the manual walkthrough, not here).
 const publishGapsError = "Assign someone on every day before publishing.";
-// The override steps change the first shift of crudMonth's day 1 (read from the page's `data-shift-id`) to the
-// manager, who has no windows there, so the change is outside availability and needs the confirm step.
+// The day save steps post every row of crudMonth's day 1 (read from the page's `data-shift-id` rows and their selected
+// "Who") and change the first shift to the manager, who has no windows there, so the change is outside availability
+// and needs the confirm step.
 const scheduleDayPage = `/manager/schedule?month=${crudMonth}&day=${crudDay}`;
-let overrideShiftId;
+let dayRows;
+// Mirrors DAY_CHANGED_ERROR in src/lib/schedule.ts (a day save whose rows no longer match the stored day).
+const dayChangedError = "This day changed since you opened it. Reload and try again.";
 // Mirrors DISPLAY_NAME_TOO_LONG_ERROR (src/lib/account.ts), NOT_PUBLISHED_MESSAGE and PUBLISHED_SCHEDULE_LOAD_ERROR
 // (src/lib/published-schedule.ts).
 const displayNameTooLongError = "Use at most 40 characters for your name.";
@@ -166,6 +169,36 @@ function selectedAssignee(html, shiftId) {
   const row = ends.length > 0 ? rest.slice(0, Math.min(...ends)) : rest;
   const selected = (row.match(/<option\b[^>]*>/g) ?? []).find((tag) => /\sselected(?:=""|\s|>)/.test(tag));
   return selected === undefined ? undefined : /\svalue="([^"]*)"/.exec(selected)?.[1];
+}
+
+// The editable rows of the /manager/schedule day panel, in page (start) order: each `data-shift-id` with a "Who"
+// select and its selected value as `was` ("" = Uncovered). Read-only rows (day 1's previous-month night) have no
+// select and are left out. Undefined when there is none.
+function editableDayRows(html) {
+  const ids = [...html.matchAll(/data-shift-id="([0-9a-f-]{36})"/g)].map((match) => match[1]);
+  const rows = ids
+    .map((shift) => ({ shift, was: selectedAssignee(html, shift) }))
+    .filter((row) => row.was !== undefined);
+  return rows.length > 0 ? rows : undefined;
+}
+
+// The day form as `[name, value]` pairs (repeated fields): `month`, `day`, then per row `shift`, `was-<id>` and
+// `employee-<id>`. `picks` maps a shift id to its new assignee ("" = Uncovered); other rows keep `was`.
+function dayForm(rows, picks = {}, extra = []) {
+  const form = [
+    ["month", crudMonth],
+    ["day", crudDay],
+  ];
+  for (const { shift, was } of rows) {
+    form.push(["shift", shift], [`was-${shift}`, was], [`employee-${shift}`, picks[shift] ?? was]);
+  }
+  return [...form, ...extra];
+}
+
+// A row as the confirm URL's `row=` and the form's `confirmed` value: `<shift>:<was|none>:<to|none>`.
+function dayRowValue({ shift, was }, picks = {}) {
+  const to = picks[shift] ?? was;
+  return `${shift}:${was || "none"}:${to || "none"}`;
 }
 
 // Runs `run` signed in as the fresh smoke user (an employee), then signs that session out and restores the manager's
@@ -468,66 +501,104 @@ const steps = [
     { needs: "scheduleMonthClean" },
   ],
   [
-    "manager reads a shift id from the draft's day 1",
+    "manager reads the rows of the draft's day 1",
     () => request(scheduleDayPage),
     {
       status: 200,
       check: (actual) => {
-        overrideShiftId = /data-shift-id="([0-9a-f-]{36})"/.exec(actual.body)?.[1];
-        return overrideShiftId !== undefined;
+        dayRows = editableDayRows(actual.body);
+        // Every station day has at least two shifts (12+12 is the shortest pattern); the stale step drops one.
+        return dayRows !== undefined && dayRows.length >= 2;
       },
     },
     { needs: "scheduleMonthClean" },
   ],
   // The middleware rewrites the employee's POST to the 403 page before the handler runs, so nothing is written; the
-  // manager's override below still needs the confirm step, and the page then shows the manager's assignment only.
+  // manager's save below still needs the confirm step, and the page then shows the manager's assignment only.
   [
-    "employee cannot override a shift",
+    "employee cannot save a schedule day",
     () =>
       asSmokeUser(() =>
         request("/api/manager/schedule/override", {
           method: "POST",
-          form: { month: crudMonth, day: crudDay, shift: overrideShiftId, employee: sessionUserId() },
+          form: dayForm(dayRows, { [dayRows[0].shift]: sessionUserId() }),
         }),
       ),
     { status: 403, check: isAccessDenied },
     { needs: "scheduleMonthClean" },
   ],
   [
-    "override outside availability asks for confirmation",
+    "day save with nothing changed writes nothing",
+    () => request("/api/manager/schedule/override", { method: "POST", form: dayForm(dayRows) }),
+    {
+      status: 302,
+      location: `/manager/schedule?unchanged=1&month=${crudMonth}&day=${crudDay}`,
+      check: (actual) =>
+        relativeLocation(actual.location) === `/manager/schedule?unchanged=1&month=${crudMonth}&day=${crudDay}`,
+    },
+    { needs: "scheduleMonthClean" },
+  ],
+  // A shift set that no longer matches the stored day (the last row left out). A wrong `was` alone would not do: with
+  // every pick equal to the stored value, the idempotent check answers overridden=1 first.
+  [
+    "day save of rows that no longer match the day is refused",
     () =>
       request("/api/manager/schedule/override", {
         method: "POST",
-        form: { month: crudMonth, day: crudDay, shift: overrideShiftId, employee: managerId },
+        form: dayForm(dayRows.slice(0, -1), { [dayRows[0].shift]: managerId }),
       }),
     {
       status: 302,
-      // A getter: the shift id is read by an earlier step.
+      location: `/manager/schedule?error=${encodeURIComponent(dayChangedError)}&month=${crudMonth}&day=${crudDay}`,
+      check: (actual) =>
+        relativeLocation(actual.location) ===
+        `/manager/schedule?error=${encodeURIComponent(dayChangedError)}&month=${crudMonth}&day=${crudDay}`,
+    },
+    { needs: "scheduleMonthClean" },
+  ],
+  [
+    "day save outside availability asks for confirmation",
+    () =>
+      request("/api/manager/schedule/override", {
+        method: "POST",
+        form: dayForm(dayRows, { [dayRows[0].shift]: managerId }),
+      }),
+    {
+      status: 302,
+      // A getter: the rows are read by an earlier step. Every row of the day, in start order.
       get location() {
-        return `/manager/schedule?month=${crudMonth}&day=${crudDay}&confirm=override&shift=${overrideShiftId}&employee=${managerId}`;
+        const picks = { [dayRows[0].shift]: managerId };
+        const rowParams = dayRows.map((row) => `row=${dayRowValue(row, picks)}`).join("&");
+        return `/manager/schedule?month=${crudMonth}&day=${crudDay}&confirm=override&${rowParams}`;
+      },
+      check(actual) {
+        return relativeLocation(actual.location) === this.location;
       },
     },
     { needs: "scheduleMonthClean" },
   ],
   [
-    "confirmed override saves the shift",
-    () =>
-      request("/api/manager/schedule/override", {
+    "confirmed day save stores the change",
+    () => {
+      const picks = { [dayRows[0].shift]: managerId };
+      const confirmed = dayRows.map((row) => ["confirmed", dayRowValue(row, picks)]);
+      return request("/api/manager/schedule/override", {
         method: "POST",
-        form: { month: crudMonth, day: crudDay, shift: overrideShiftId, employee: managerId, confirm: "override" },
-      }),
+        form: dayForm(dayRows, picks, [["confirm", "override"], ...confirmed]),
+      });
+    },
     {
       status: 302,
-      get location() {
-        return `/manager/schedule?overridden=1&month=${crudMonth}&day=${crudDay}&shift=${overrideShiftId}`;
-      },
+      location: `/manager/schedule?overridden=1&month=${crudMonth}&day=${crudDay}`,
+      check: (actual) =>
+        relativeLocation(actual.location) === `/manager/schedule?overridden=1&month=${crudMonth}&day=${crudDay}`,
     },
     { needs: "scheduleMonthClean" },
   ],
   [
-    "schedule page shows the manager on the overridden shift",
+    "schedule page shows the manager on the saved shift",
     () => request(scheduleDayPage),
-    { status: 200, check: (actual) => selectedAssignee(actual.body, overrideShiftId) === managerId },
+    { status: 200, check: (actual) => selectedAssignee(actual.body, dayRows[0].shift) === managerId },
     { needs: "scheduleMonthClean" },
   ],
   [

@@ -1,15 +1,16 @@
 import type { ScheduleSummary, SummaryShift } from "./schedule-summary";
 
-// What one assignee change on a draft introduces (FR-004). The override endpoint and /manager/schedule both run
-// summarizeSchedule on the stored shifts (before) and on the same shifts with the change applied (after), then call
+// What a set of assignee changes on a draft introduces (FR-004): a station day's changes are checked together, so two
+// changes that only conflict with each other are caught. The override endpoint and /manager/schedule both run
+// summarizeSchedule on the stored shifts (before) and on the same shifts with the changes applied (after), then call
 // overrideWarnings, so they agree on when a confirmation is needed and what it lists. Pure: no reads, no clock.
 
 /** A stored draft shift: the summary's fields plus the row id an override targets. */
 export type OverrideShift = SummaryShift & { id: string };
 
 /**
- * One problem the change introduces. `outside`, `sameDay`, `backToBack`, `previousNight` and `nextMorning` always
- * involve the overridden shift; `fairness` can land on another shift (its count or the lowest eligible count moved);
+ * One problem the changes introduce. `outside`, `sameDay`, `backToBack`, `previousNight` and `nextMorning` always
+ * involve a changed shift (a pair of two changed shifts is one warning); `fairness` can land on another shift (its count or the lowest eligible count moved);
  * `noOne` is a station date (`YYYY-MM-DD`) left with no assigned shift.
  */
 export type OverrideWarning<S extends OverrideShift = OverrideShift> =
@@ -21,40 +22,51 @@ export type OverrideWarning<S extends OverrideShift = OverrideShift> =
   | { kind: "fairness"; rule: "long" | "night"; shift: S; assignee: string; eligibleMin: number }
   | { kind: "noOne"; date: string };
 
-/** A copy of `shifts` with the assignee of `shiftId` replaced (null: Uncovered); every other shift is unchanged. */
-export function applyOverride<S extends OverrideShift>(
+/**
+ * A copy of `shifts` with the assignee of every id in `changes` replaced (null: Uncovered); every other shift is
+ * unchanged, and an id that is not in `shifts` changes nothing.
+ */
+export function applyOverrides<S extends OverrideShift>(
   shifts: readonly S[],
-  shiftId: string,
-  employeeId: string | null,
+  changes: ReadonlyMap<string, string | null>,
 ): S[] {
-  return shifts.map((shift) => (shift.id === shiftId ? { ...shift, employee_id: employeeId } : shift));
+  return shifts.map((shift) => {
+    const employeeId = changes.get(shift.id);
+    return employeeId === undefined ? shift : { ...shift, employee_id: employeeId };
+  });
 }
 
-/** Every warning `summary` holds about `shiftId`, plus its fairness breaks and days with no one, in kind order. */
-function candidates<S extends OverrideShift>(summary: ScheduleSummary<S>, shiftId: string): OverrideWarning<S>[] {
+/**
+ * Every warning `summary` holds about a shift in `shiftIds`, plus its fairness breaks and days with no one, in kind
+ * order.
+ */
+function candidates<S extends OverrideShift>(
+  summary: ScheduleSummary<S>,
+  shiftIds: ReadonlySet<string>,
+): OverrideWarning<S>[] {
   const warnings: OverrideWarning<S>[] = [];
   for (const shift of summary.outsideAvailability) {
-    if (shift.id === shiftId && shift.employee_id !== null) {
+    if (shiftIds.has(shift.id) && shift.employee_id !== null) {
       warnings.push({ kind: "outside", shift, assignee: shift.employee_id });
     }
   }
   for (const { assignee, shifts } of summary.sameDay) {
-    if (shifts.some((shift) => shift.id === shiftId)) {
+    if (shifts.some((shift) => shiftIds.has(shift.id))) {
       warnings.push({ kind: "sameDay", assignee, shifts });
     }
   }
   for (const { assignee, first, second } of summary.backToBack) {
-    if (first.id === shiftId || second.id === shiftId) {
+    if (shiftIds.has(first.id) || shiftIds.has(second.id)) {
       warnings.push({ kind: "backToBack", assignee, first, second });
     }
   }
   for (const shift of summary.touchesPreviousNight) {
-    if (shift.id === shiftId && shift.employee_id !== null) {
+    if (shiftIds.has(shift.id) && shift.employee_id !== null) {
       warnings.push({ kind: "previousNight", shift, assignee: shift.employee_id });
     }
   }
   for (const shift of summary.touchesNextMorning) {
-    if (shift.id === shiftId && shift.employee_id !== null) {
+    if (shiftIds.has(shift.id) && shift.employee_id !== null) {
       warnings.push({ kind: "nextMorning", shift, assignee: shift.employee_id });
     }
   }
@@ -86,16 +98,16 @@ function warningKey(warning: OverrideWarning): string {
 }
 
 /**
- * The problems an override of `shiftId` introduces: what `after` reports about that shift (outside availability, a
- * second shift that station day, back to back inside the month or across either boundary), every 12h or night break
- * and every day with no one, minus what `before` already reported. Empty means no confirmation is needed; an
- * unchanged assignee gives `after` equal to `before`, so it always gives none.
+ * The problems the changes of `shiftIds` introduce: what `after` reports about those shifts (outside availability, a
+ * second shift that station day, back to back inside the month or across either boundary; a pair of two changed
+ * shifts is reported once), every 12h or night break and every day with no one, minus what `before` already
+ * reported. Empty means no confirmation is needed; no change gives `after` equal to `before`, so it always gives none.
  */
 export function overrideWarnings<S extends OverrideShift>(input: {
   before: ScheduleSummary<S>;
   after: ScheduleSummary<S>;
-  shiftId: string;
+  shiftIds: ReadonlySet<string>;
 }): OverrideWarning<S>[] {
-  const existing = new Set(candidates(input.before, input.shiftId).map(warningKey));
-  return candidates(input.after, input.shiftId).filter((warning) => !existing.has(warningKey(warning)));
+  const existing = new Set(candidates(input.before, input.shiftIds).map(warningKey));
+  return candidates(input.after, input.shiftIds).filter((warning) => !existing.has(warningKey(warning)));
 }
