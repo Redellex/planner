@@ -1,7 +1,7 @@
 ---
 change_id: role-aware-navigation
 title: Role aware navigation
-status: implemented
+status: impl_reviewed
 created: 2026-10-08
 updated: 2026-10-08
 archived_at: null
