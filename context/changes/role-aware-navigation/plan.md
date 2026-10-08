@@ -309,19 +309,19 @@ None: no schema or data change.
 
 #### Automated
 
-- [x] 1.1 `npm test` passes, including `src/lib/navigation.test.ts` and the unchanged `route-inventory.test.ts`
-- [x] 1.2 Removing a page's entry from `NAV_LINKS` (e.g. `/schedule`) makes the coverage test fail; restore it
-- [x] 1.3 Adding a manager page to the employee literal set makes the per-actor test fail; restore it
-- [x] 1.4 `npm run lint` and `npx astro check` pass
+- [x] 1.1 `npm test` passes, including `src/lib/navigation.test.ts` and the unchanged `route-inventory.test.ts` — b0c71e8
+- [x] 1.2 Removing a page's entry from `NAV_LINKS` (e.g. `/schedule`) makes the coverage test fail; restore it — b0c71e8
+- [x] 1.3 Adding a manager page to the employee literal set makes the per-actor test fail; restore it — b0c71e8
+- [x] 1.4 `npm run lint` and `npx astro check` pass — b0c71e8
 
 ### Phase 2: Nav component, layout mount and kitchen sink
 
 #### Automated
 
-- [ ] 2.1 `npm test` passes (route inventory includes the new sink)
-- [ ] 2.2 `npm run check:ui` passes with the three new scope entries
-- [ ] 2.3 `npm run lint` and `npx astro check` pass
-- [ ] 2.4 `npm run build` succeeds
+- [x] 2.1 `npm test` passes (route inventory includes the new sink)
+- [x] 2.2 `npm run check:ui` passes with the three new scope entries
+- [x] 2.3 `npm run lint` and `npx astro check` pass
+- [x] 2.4 `npm run build` succeeds
 
 #### Manual
 

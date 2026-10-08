@@ -26,6 +26,7 @@ const EXPECTED_ACCESS: Record<string, AccessClass> = {
   "/dev/schedule-states": "public",
   "/dev/account-states": "public",
   "/dev/published-schedule-states": "public",
+  "/dev/navigation-states": "public",
   "/dashboard": "signed-in",
   "/availability": "signed-in",
   "/api/availability/create": "signed-in",

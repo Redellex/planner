@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import Banner from "@/components/Banner.astro";
+import AppNav from "@/components/navigation/AppNav.astro";
 import { missingConfigs } from "@/lib/config-status";
 
 interface Props {
@@ -8,6 +9,8 @@ interface Props {
 }
 
 const { title = "10x Astro Starter" } = Astro.props;
+// Signed in exactly as the middleware decides it: a user with no role is signed in too.
+const { user, role } = Astro.locals;
 ---
 
 <!doctype html>
@@ -18,7 +21,7 @@ const { title = "10x Astro Starter" } = Astro.props;
     <link rel="icon" type="image/png" href="/favicon.png" />
     <title>{title}</title>
   </head>
-  <body>
+  <body class="flex min-h-screen flex-col">
     {missingConfigs.map((cfg) => (
       <Banner variant="error">
         <strong>Uwaga:</strong> {cfg.message}
@@ -33,6 +36,7 @@ const { title = "10x Astro Starter" } = Astro.props;
         )}
       </Banner>
     ))}
+    <AppNav actor={{ signedIn: user !== null, role }} email={user?.email} pathname={Astro.url.pathname} />
     <slot />
   </body>
 </html>
@@ -42,6 +46,9 @@ const { title = "10x Astro Starter" } = Astro.props;
   body {
     margin: 0;
     width: 100%;
+  }
+  /* Only html gets a fixed height: capping body would let long pages overflow past it. Pages fill the rest with flex-1. */
+  html {
     height: 100%;
   }
 </style>
