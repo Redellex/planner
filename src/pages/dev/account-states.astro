@@ -1,0 +1,91 @@
+---
+// Kitchen sink for /account: every state of the view, side by side, rendered by the real component from fixture
+// data. Dev only (the visual gate for context/changes/view-published-schedule); 404 in production.
+// No database access and no user data: the profiles below are fixtures.
+import { CircleAlert } from "lucide-react";
+import Layout from "@/layouts/Layout.astro";
+import AccountPanel from "@/components/account/AccountPanel.astro";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  ACCOUNT_LOAD_ERROR,
+  DISPLAY_NAME_CHARACTERS_ERROR,
+  DISPLAY_NAME_TOO_LONG_ERROR,
+  DISPLAY_NAME_UPDATED_MESSAGE,
+  GENERIC_DISPLAY_NAME_WRITE_ERROR,
+} from "@/lib/account";
+
+// Outside dev: 404 with an empty body (the template below renders only in dev). A frontmatter `return` would do,
+// but it crashes @typescript-eslint/no-misused-promises in .astro files.
+const isDev = import.meta.env.DEV;
+if (!isDev) {
+  Astro.response.status = 404;
+}
+
+const named = { id: "00000000-0000-4000-8000-00000000e001", email: "employee@example.com", display_name: "Ewa" };
+const unnamed = { ...named, display_name: null };
+
+const states = [
+  { title: "Name set", profile: named, feedback: null },
+  { title: "No name (email prefix)", profile: unnamed, feedback: null },
+  { title: "Saved", profile: named, feedback: { kind: "success" as const, message: DISPLAY_NAME_UPDATED_MESSAGE } },
+  {
+    title: "Too long",
+    profile: named,
+    feedback: { kind: "error" as const, message: DISPLAY_NAME_TOO_LONG_ERROR },
+  },
+  {
+    title: "Invisible characters",
+    profile: named,
+    feedback: { kind: "error" as const, message: DISPLAY_NAME_CHARACTERS_ERROR },
+  },
+  {
+    title: "Generic write error",
+    profile: unnamed,
+    feedback: { kind: "error" as const, message: GENERIC_DISPLAY_NAME_WRITE_ERROR },
+  },
+];
+---
+
+{isDev && (
+  <Layout title="Account states">
+    <div class="min-h-screen bg-background p-4">
+      <div class="mx-auto flex w-full max-w-2xl flex-col gap-10">
+        <header class="flex flex-col gap-1">
+          <h1 class="text-2xl font-semibold">Account states</h1>
+          <p class="text-sm text-muted-foreground">
+            Dev-only kitchen sink. Fixture profiles; forms on this page do not submit. Loading — N/A: SSR + full-page
+            form POST.
+          </p>
+        </header>
+
+        {states.map((state, index) => (
+          <section aria-labelledby={`state-${index}`} class="flex flex-col gap-3">
+            <h2 id={`state-${index}`} class="text-sm font-medium text-muted-foreground">
+              {state.title}
+            </h2>
+            <AccountPanel profile={state.profile} feedback={state.feedback} idPrefix={`state-${index}-`} />
+          </section>
+        ))}
+
+        <section aria-labelledby="state-load-error" class="flex flex-col gap-3">
+          <h2 id="state-load-error" class="text-sm font-medium text-muted-foreground">
+            Load failure (no form)
+          </h2>
+          <section aria-label="Account" class="rounded-xl border bg-card p-4 text-card-foreground">
+            <Alert variant="destructive">
+              <CircleAlert />
+              <AlertDescription>{ACCOUNT_LOAD_ERROR}</AlertDescription>
+            </Alert>
+          </section>
+        </section>
+      </div>
+    </div>
+  </Layout>
+)}
+
+<script>
+  // Fixture forms: keep them inert so a click here never reaches /api/account/*.
+  document.addEventListener("submit", (event) => {
+    event.preventDefault();
+  });
+</script>

@@ -13,6 +13,7 @@ import ScheduleDayPanel from "@/components/schedule/ScheduleDayPanel.astro";
 import ScheduleSummary from "@/components/schedule/ScheduleSummary.astro";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { buildWindow, calendarWeeks, daysInMonth, formatDay } from "@/lib/availability";
+import { calendarName } from "@/lib/manager-users";
 import {
   CONFIRM_REPLACE_ERROR,
   DISCARDED_MESSAGE,
@@ -21,6 +22,7 @@ import {
   GENERIC_SCHEDULE_WRITE_ERROR,
   INVALID_ASSIGNEE_ERROR,
   INVALID_MONTH_ERROR,
+  managerScheduleUrl,
   MONTH_UNLOCKED_ERROR,
   NO_DRAFT_ERROR,
   NO_SCHEDULE_ERROR,
@@ -85,6 +87,11 @@ const members = [ALICE, BOB, CAROL, DAVE, ERIN, NO_EMAIL];
 // same person would get every night (see schedule-generator.test.ts).
 const fullTeam = [ALICE, BOB, DAVE, ERIN];
 const membersById = new Map(members.map((member) => [member.id, member]));
+// The calendar names a person by their email prefix and shows the full email on hover.
+const calendarLabels = new Map(
+  members.map((member) => [member.id, { name: calendarName(member), title: member.email || undefined }]),
+);
+const calendarHref = (day: string): string => managerScheduleUrl({ month, day });
 
 /** A 24h window per day (06:00 to the next 06:00), so the full team can cover the whole month. */
 function allMonth(employee_id: string, skip: (date: string) => "skip" | "no-night" | null): ScheduleWindow[] {
@@ -484,7 +491,8 @@ const errorStates = [
             weeks={weeks}
             selectedDay="2026-04-15"
             shiftsByDay={coveredView.byDay}
-            members={membersById}
+            labels={calendarLabels}
+            hrefFor={calendarHref}
             uncoveredCount={coveredView.summary.uncovered.length}
             daysWithNoOne={coveredView.summary.daysWithNoOne}
             outsideAvailability={coveredView.summary.outsideAvailability}
@@ -525,7 +533,8 @@ const errorStates = [
             weeks={weeks}
             selectedDay={NIGHT_GAP_DAY}
             shiftsByDay={gapsView.byDay}
-            members={membersById}
+            labels={calendarLabels}
+            hrefFor={calendarHref}
             uncoveredCount={gapsView.summary.uncovered.length}
             daysWithNoOne={gapsView.summary.daysWithNoOne}
             outsideAvailability={gapsView.summary.outsideAvailability}
@@ -643,7 +652,8 @@ const errorStates = [
             weeks={weeks}
             selectedDay="2026-04-15"
             shiftsByDay={gapsView.byDay}
-            members={membersById}
+            labels={calendarLabels}
+            hrefFor={calendarHref}
             uncoveredCount={gapsView.summary.uncovered.length}
             daysWithNoOne={[]}
             outsideAvailability={[

@@ -1,0 +1,117 @@
+---
+// Everything /schedule shows below the month tabs for one `get_published_schedule` result: the load error, "Not
+// published yet", or the published card, the station-day calendar and the selected day. Rendered by /schedule and by
+// the /dev/published-schedule-states kitchen sink.
+import { CircleAlert, Info } from "lucide-react";
+import ScheduleCalendar from "@/components/schedule/ScheduleCalendar.astro";
+import PublishedDayPanel from "@/components/published-schedule/PublishedDayPanel.astro";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { calendarWeeks, formatDay, formatMonth, formatStationInstant } from "@/lib/availability";
+import {
+  calendarAssigneeKey,
+  NOT_PUBLISHED_MESSAGE,
+  OWN_ASSIGNEE_KEY,
+  PUBLISHED_SCHEDULE_LOAD_ERROR,
+  publishedScheduleUrl,
+  type PublishedSchedule,
+} from "@/lib/published-schedule";
+import { managerScheduleUrl, shiftsByStationDay } from "@/lib/schedule";
+import { daysWithNoOne } from "@/lib/schedule-summary";
+
+interface Props {
+  /** `YYYY-MM`, one of `scheduleMonths()`. */
+  month: string;
+  /** The selected station day (`YYYY-MM-DD`) of `month`. */
+  selectedDay: string;
+  /** The viewer's own shifts (`is_own`) are marked "You". */
+  schedule: PublishedSchedule;
+  /** Managers get a link to /manager/schedule on a month that is not published. */
+  isManager: boolean;
+  /** Shown when `schedule` is unknown; /schedule passes the not-configured message when there is no client. */
+  loadError?: string;
+  /** Prepended to every element id; set it when a page renders more than one of these (the kitchen sink). */
+  idPrefix?: string;
+}
+
+const {
+  month,
+  selectedDay,
+  schedule,
+  isManager,
+  loadError = PUBLISHED_SCHEDULE_LOAD_ERROR,
+  idPrefix = "",
+} = Astro.props;
+const monthLabel = formatMonth(month);
+const headingId = `${idPrefix}published-schedule-heading`;
+const shifts = schedule.kind === "published" ? schedule.shifts : [];
+// The calendar keys cells by `employee_id`; the published read has no profile ids, so it gets calendarAssigneeKey.
+const calendarShifts = shifts.map((shift) => ({ ...shift, employee_id: calendarAssigneeKey(shift) }));
+const labels = new Map(
+  calendarShifts.flatMap((shift) =>
+    shift.employee_id !== null && shift.assignee_name !== null
+      ? [[shift.employee_id, { name: shift.assignee_name }] as const]
+      : [],
+  ),
+);
+const hrefFor = (day: string): string => publishedScheduleUrl({ month, day });
+---
+
+{schedule.kind === "unknown" ? (
+  <div class="mx-auto w-full max-w-2xl">
+    <Alert variant="destructive">
+      <CircleAlert />
+      <AlertDescription>{loadError}</AlertDescription>
+    </Alert>
+  </div>
+) : schedule.kind === "notPublished" ? (
+  <div class="mx-auto w-full max-w-2xl">
+    <Alert role="status">
+      <Info />
+      <AlertTitle>{NOT_PUBLISHED_MESSAGE}</AlertTitle>
+      <AlertDescription>
+        <p>The {monthLabel} schedule appears here once the manager publishes it.</p>
+        {isManager && (
+          <a href={managerScheduleUrl({ month })} class="text-primary underline-offset-4 hover:underline">
+            Open the {monthLabel} schedule to review and publish it
+          </a>
+        )}
+      </AlertDescription>
+    </Alert>
+  </div>
+) : (
+  <>
+    <div class="mx-auto w-full max-w-2xl">
+      <section
+        aria-labelledby={headingId}
+        data-schedule-published=""
+        class="mb-6 rounded-xl border bg-card p-4 text-card-foreground"
+      >
+        <h2 id={headingId} class="mb-1 text-base font-semibold">
+          Published — {monthLabel}
+        </h2>
+        <p class="text-sm text-muted-foreground">Published {formatStationInstant(schedule.publishedAt)}</p>
+      </section>
+    </div>
+
+    <ScheduleCalendar
+      month={month}
+      weeks={calendarWeeks(month)}
+      selectedDay={selectedDay}
+      shiftsByDay={shiftsByStationDay(calendarShifts)}
+      labels={labels}
+      hrefFor={hrefFor}
+      ownEmployeeId={OWN_ASSIGNEE_KEY}
+      uncoveredCount={shifts.filter((shift) => shift.assignee_name === null).length}
+      daysWithNoOne={daysWithNoOne(month, calendarShifts)}
+      outsideAvailability={[]}
+    />
+
+    <div class="mx-auto w-full max-w-2xl">
+      <PublishedDayPanel
+        selectedLabel={formatDay(selectedDay)}
+        shifts={shiftsByStationDay(shifts).get(selectedDay) ?? []}
+        idPrefix={idPrefix}
+      />
+    </div>
+  </>
+)}

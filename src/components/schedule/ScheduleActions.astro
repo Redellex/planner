@@ -3,6 +3,7 @@ import { CircleAlert, CircleCheck } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatMonth, formatStationInstant } from "@/lib/availability";
+import { publishedScheduleUrl } from "@/lib/published-schedule";
 import { managerScheduleUrl } from "@/lib/schedule";
 
 interface Props {
@@ -70,12 +71,17 @@ const gapsText = daysWithNoOne === 1 ? "1 day has no one" : `${daysWithNoOne} da
           </AlertDescription>
         </Alert>
       )}
-      <form method="POST" action="/api/manager/schedule/unpublish">
-        <input type="hidden" name="month" value={month} />
-        <Button type="submit" variant="secondary" size="sm" aria-label={`Unpublish the ${monthLabel} schedule`}>
-          Unpublish
-        </Button>
-      </form>
+      <div class="flex flex-wrap items-center gap-2">
+        <a href={publishedScheduleUrl({ month })} class:list={buttonVariants({ variant: "outline", size: "sm" })}>
+          View published schedule
+        </a>
+        <form method="POST" action="/api/manager/schedule/unpublish">
+          <input type="hidden" name="month" value={month} />
+          <Button type="submit" variant="secondary" size="sm" aria-label={`Unpublish the ${monthLabel} schedule`}>
+            Unpublish
+          </Button>
+        </form>
+      </div>
       <p class="mt-3 text-xs text-muted-foreground">
         Unpublish to change, regenerate or discard it; it becomes a draft again. A published month stays locked.
       </p>

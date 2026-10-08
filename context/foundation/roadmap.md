@@ -3,7 +3,7 @@ project: Planner
 version: 1
 status: draft
 created: 2026-09-24
-updated: 2026-10-07
+updated: 2026-10-08
 prd_version: 1
 main_goal: speed
 top_blocker: capacity
@@ -46,7 +46,7 @@ A gas-station manager currently builds the monthly shift schedule by hand in a s
 | S-02 | manager-availability-visibility  | Manager can view every employee's submitted availability for the month                | F-01, S-01    | FR-002                         | done   |
 | S-03 | generate-monthly-schedule        | Manager generates a proposed schedule: no conflicts, fair long-shift rotation         | S-01          | US-01, FR-003, FR-004          | done   |
 | S-04 | review-override-publish-schedule | Manager reviews, overrides (with conflict warnings), and publishes the schedule       | S-03          | FR-004, FR-005, FR-006         | done   |
-| S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | ready  |
+| S-05 | view-published-schedule          | Employee and Manager can view the published schedule as a visual grid                 | S-04          | FR-007, Access Control         | done   |
 
 ## Baseline
 
@@ -165,7 +165,11 @@ Foundations below assume these are present and do NOT re-scaffold them.
   - RLS on `schedules` and `schedule_shifts` is still manager-only, so employees cannot read anything yet. S-05 needs a select policy for authenticated users limited to rows of published months (and must not expose drafts), plus a way to show assignee names that does not open `profiles` to everyone.
   - A published month can still gain Uncovered shifts when an assignee's account is deleted (`on delete set null`); the grid should show them.
   - The station-day model (06:00 → 06:00, the 00:00–06:00 night on day 1 of M+1 belongs to M) and `shiftsByStationDay`/`calendarName` from S-03/S-04 can be reused for the grid.
-- **Status:** ready
+- **Known limitations:**
+  - Display names are self-chosen and not unique. Two people can share a name, or one can take a colleague's name, and `/schedule` cannot tell them apart. Only Uncovered keeps its own marker.
+  - Accepted for one station's small team (impl-review F5). If it matters later, add a unique index on `lower(display_name)` with a mapped error, or show the email prefix next to a name that two people share.
+- **Delivery (2026-10-08):** implemented in `context/changes/view-published-schedule/`, PR #39. S-04 handoff outcome: no select policy was widened; `get_published_schedule(target_month)` (SECURITY DEFINER) is the only read path for non-managers, returns a month's shifts only while it is published, names each assignee by display name (set on `/account` through `set_display_name`) or email prefix, and marks the caller's shifts with `is_own` instead of exposing profile ids; Uncovered shifts show in the grid. Push `20261007140000_published_schedule_and_display_names.sql`, `20261007150000_display_name_visible_characters.sql` and `20261007160000_published_schedule_is_own.sql` to the hosted project before deploying.
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -183,7 +187,7 @@ Foundations below assume these are present and do NOT re-scaffold them.
 | T-03 (test plan)     | #31      | testing-route-gating-honest-reads | Route gating and honest availability reads                                        | —                     | Done in PR #32 — archived 2026-10-03                            |
 | S-03                 | #4       | generate-monthly-schedule         | Auto-generate conflict-free, fairly-rotated monthly schedule                      | —                     | Done in PR #35 — archived 2026-10-06                            |
 | S-04                 | #5       | review-override-publish-schedule  | Manager review/override/publish workflow for generated schedule                   | —                     | Done in PR #37 — archived 2026-10-07                            |
-| S-05                 | #6       | view-published-schedule           | Published schedule grid view for employees and managers                           | yes                   | Ready — S-04 merged 2026-10-07; handoff recorded under S-05     |
+| S-05                 | #6       | view-published-schedule           | Published schedule grid view for employees and managers                           | —                     | Done in PR #39 — 2026-10-08                                     |
 
 ## Open Roadmap Questions
 

@@ -2,7 +2,14 @@ import { isAppRole, type AppRole } from "./roles";
 
 // The only place that knows which paths are gated. src/middleware.ts resolves the user and role and maps the
 // decision onto redirect/rewrite/next; src/lib/route-inventory.test.ts checks every file under src/pages against it.
-export const PROTECTED_ROUTES: readonly string[] = ["/dashboard", "/availability", "/api/availability"];
+export const PROTECTED_ROUTES: readonly string[] = [
+  "/dashboard",
+  "/availability",
+  "/api/availability",
+  "/account",
+  "/api/account",
+  "/schedule",
+];
 export const MANAGER_ROUTES: readonly string[] = ["/manager", "/api/manager"];
 
 export type RouteAccess = "allow" | "signin" | "forbidden";

@@ -2,8 +2,7 @@
 import { CircleAlert, TriangleAlert } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { dayOfMonth, formatDay, formatMonth } from "@/lib/availability";
-import { calendarName } from "@/lib/manager-users";
-import { managerScheduleUrl, shiftsByStationDay } from "@/lib/schedule";
+import { shiftsByStationDay } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -12,9 +11,13 @@ interface Props {
   selectedDay: string;
   /** Station day (`YYYY-MM-DD`) -> its shifts sorted by start (`shiftsByStationDay`); listed in the cell from `lg`. */
   shiftsByDay: Map<string, { starts_at: string; ends_at: string; employee_id: string | null }[]>;
-  /** Profile id -> profile, for the names in the cells. */
-  members: Map<string, { id: string; email: string }>;
-  /** The draft's uncovered shifts in the whole month. */
+  /** Employee id -> the name shown in the cells and an optional `title` (the manager page passes the email). */
+  labels: Map<string, { name: string; title?: string }>;
+  /** Where a day cell links to. */
+  hrefFor: (day: string) => string;
+  /** The viewer's id: their shifts are marked "You" and their days get the highlight border. */
+  ownEmployeeId?: string | null;
+  /** The schedule's uncovered shifts in the whole month. */
   uncoveredCount: number;
   /** Station days whose shifts are all uncovered. */
   daysWithNoOne: string[];
@@ -22,8 +25,18 @@ interface Props {
   outsideAvailability: { starts_at: string }[];
 }
 
-const { month, weeks, selectedDay, shiftsByDay, members, uncoveredCount, daysWithNoOne, outsideAvailability } =
-  Astro.props;
+const {
+  month,
+  weeks,
+  selectedDay,
+  shiftsByDay,
+  labels,
+  hrefFor,
+  ownEmployeeId = null,
+  uncoveredCount,
+  daysWithNoOne,
+  outsideAvailability,
+} = Astro.props;
 const outsideByDay = shiftsByStationDay(outsideAvailability);
 // Shifts never overlap station-wide, so a start time names one shift.
 const outsideStarts = new Set(outsideAvailability.map((shift) => shift.starts_at));
@@ -77,16 +90,18 @@ const WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
       const uncovered = total - assigned;
       const outside = outsideByDay.get(day)?.length ?? 0;
       const selected = day === selectedDay;
+      const own = ownEmployeeId !== null && dayShifts.some((shift) => shift.employee_id === ownEmployeeId);
       const summary = [
         `${assigned} of ${total} shifts assigned`,
         uncovered > 0 && `${uncovered} uncovered`,
         outside > 0 && `${outside} outside availability`,
+        own && "your shift",
       ]
         .filter(Boolean)
         .join(", ");
       return (
         <a
-          href={managerScheduleUrl({ month, day })}
+          href={hrefFor(day)}
           aria-current={selected ? "date" : undefined}
           aria-label={`${formatDay(day)}: ${summary}`}
           class:list={cn(
@@ -95,6 +110,8 @@ const WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
             "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
             uncovered > 0 && !selected && "border-destructive/40",
             uncovered === 0 && outside > 0 && !selected && "border-warning/60",
+            // Uncovered and outside-availability keep their colour; the viewer's own day is marked only otherwise.
+            uncovered === 0 && outside === 0 && own && !selected && "border-highlight",
             selected
               ? "border-primary bg-primary text-primary-foreground"
               : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
@@ -129,13 +146,15 @@ const WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
           {/* From lg the cell is wide enough to list who works each shift; the day panel stays the place to edit. */}
           <ul class="hidden w-full min-w-0 flex-col gap-0.5 lg:flex">
             {dayShifts.map((shift) => {
-              const member = shift.employee_id ? members.get(shift.employee_id) : undefined;
+              const label = shift.employee_id ? labels.get(shift.employee_id) : undefined;
               const isOutside = shift.employee_id !== null && outsideStarts.has(shift.starts_at);
+              const isOwn = ownEmployeeId !== null && shift.employee_id === ownEmployeeId;
               return (
                 <li
-                  title={member && member.email !== "" ? member.email : undefined}
+                  title={label?.title}
                   class:list={cn(
                     "flex min-w-0 items-center gap-1",
+                    isOwn && "rounded-sm bg-highlight/20",
                     !selected && shift.employee_id === null && "text-destructive",
                     !selected && isOutside && "text-warning",
                   )}
@@ -146,8 +165,9 @@ const WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
                   {shift.employee_id === null ? (
                     <span class="truncate font-medium">Uncovered</span>
                   ) : (
-                    <span class="truncate">{calendarName(member ?? { id: shift.employee_id, email: "" })}</span>
+                    <span class="truncate">{label?.name ?? shift.employee_id.slice(0, 8)}</span>
                   )}
+                  {isOwn && <span class="shrink-0 font-medium">You</span>}
                   {isOutside && <TriangleAlert className="size-3 shrink-0" />}
                 </li>
               );

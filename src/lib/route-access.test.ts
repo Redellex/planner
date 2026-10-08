@@ -34,6 +34,7 @@ describe("manager pages and the endpoints behind them are gated alike", () => {
     ["/manager/users", MANAGER],
     ["/manager/months", MANAGER],
     ["/manager/availability", MANAGER],
+    ["/manager/schedule", MANAGER],
     ["/api/manager/months/lock", MANAGER],
     ["/api/manager/users/role", MANAGER],
   ])("%s", (pathname, expected) => {
@@ -48,6 +49,9 @@ describe("signed-in pages and their endpoints send anonymous users to sign-in", 
     ["/api/availability/create", SIGNED_IN],
     ["/api/availability/update", SIGNED_IN],
     ["/api/availability/delete", SIGNED_IN],
+    ["/account", SIGNED_IN],
+    ["/api/account/display-name", SIGNED_IN],
+    ["/schedule", SIGNED_IN],
   ])("%s", (pathname, expected) => {
     expect(outcomesFor(pathname)).toEqual(expected);
   });
@@ -76,6 +80,10 @@ describe("gates match on segment boundaries, not on string prefixes", () => {
     ["/dashboardX", PUBLIC],
     ["/availability-old", PUBLIC],
     ["/api/availabilityX/create", PUBLIC],
+    ["/accounts", PUBLIC],
+    ["/api/accounts/display-name", PUBLIC],
+    ["/schedules", PUBLIC],
+    ["/schedule/", SIGNED_IN],
   ])("%s", (pathname, expected) => {
     expect(outcomesFor(pathname)).toEqual(expected);
   });
