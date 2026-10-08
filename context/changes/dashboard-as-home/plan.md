@@ -261,9 +261,9 @@ No data migration. Browsers cache the `/dashboard` 301 permanently, which is int
 
 #### Automated
 
-- [ ] 2.1 Smoke passes against the local stack (`npx supabase start`, `npm run build`, `npm run preview`, then `npm run smoke`); check `.dev.vars` points at local first
-- [ ] 2.2 Lint passes on the edited script: `npm run lint`
-- [ ] 2.3 Formatting is clean: `npx prettier --check CLAUDE.md scripts/smoke.mjs`
+- [x] 2.1 Smoke passes against the local stack (`npx supabase start`, `npm run build`, `npm run preview`, then `npm run smoke`); check `.dev.vars` points at local first — 1b476a3
+- [x] 2.2 Lint passes on the edited script: `npm run lint` — 1b476a3
+- [x] 2.3 Formatting is clean: `npx prettier --check CLAUDE.md scripts/smoke.mjs` — 1b476a3
 
 #### Manual
 
