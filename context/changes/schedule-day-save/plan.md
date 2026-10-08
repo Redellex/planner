@@ -349,9 +349,9 @@ The migration only adds a function; no data changes. A deployed page with the ol
 
 #### Automated
 
-- [x] 2.1 Unit tests pass: `npm test`
-- [x] 2.2 Lint passes: `npm run lint`
-- [x] 2.3 Type check passes: `npx astro check`
+- [x] 2.1 Unit tests pass: `npm test` — a686ada
+- [x] 2.2 Lint passes: `npm run lint` — a686ada
+- [x] 2.3 Type check passes: `npx astro check` — a686ada
 
 ### Phase 3: Endpoint, page and day panel
 
