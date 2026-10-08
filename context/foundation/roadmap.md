@@ -43,12 +43,12 @@ A gas-station manager used to build the monthly shift schedule by hand in a spre
 
 ## At a glance
 
-| ID   | Change ID              | Outcome (user can …)                                                                | Prerequisites | PRD refs | Status      |
-| ---- | ---------------------- | ----------------------------------------------------------------------------------- | ------------- | -------- | ----------- |
-| S-06 | dashboard-as-home      | User lands on the dashboard after sign-in; the dashboard is the home page at `/`    | —             | MS-01    | done        |
-| S-07 | role-aware-navigation  | User sees a top-right navigation on every page with only the links their role opens | S-06          | MS-02    | in-progress |
-| S-08 | schedule-day-save      | Manager saves all of one day's manual assignments with a single Save                | —             | MS-03    | ready       |
-| S-09 | legacy-views-ui-tokens | User sees the dashboard, auth pages, 403 and `/manager/months` on the design tokens | S-06, S-07    | MS-04    | proposed    |
+| ID   | Change ID              | Outcome (user can …)                                                                | Prerequisites | PRD refs | Status   |
+| ---- | ---------------------- | ----------------------------------------------------------------------------------- | ------------- | -------- | -------- |
+| S-06 | dashboard-as-home      | User lands on the dashboard after sign-in; the dashboard is the home page at `/`    | —             | MS-01    | done     |
+| S-07 | role-aware-navigation  | User sees a top-right navigation on every page with only the links their role opens | S-06          | MS-02    | done     |
+| S-08 | schedule-day-save      | Manager saves all of one day's manual assignments with a single Save                | —             | MS-03    | ready    |
+| S-09 | legacy-views-ui-tokens | User sees the dashboard, auth pages, 403 and `/manager/months` on the design tokens | S-06, S-07    | MS-04    | proposed |
 
 ## Streams
 
@@ -103,7 +103,7 @@ No foundations are needed for this milestone.
   - How does the navigation fit a phone-width screen — a collapsed menu or wrapping links? — Owner: user. Block: no.
   - Do the bottom "Back to dashboard" buttons go once the navigation has a home link? — Owner: user. Block: no (default: remove them).
 - **Risk:** Touches every page's layout; the failure mode is a link the route gate refuses or a permitted page with no link, so the link list must come from the same route lists the middleware uses.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-08: Day-level save for manual assignments
 
@@ -168,3 +168,4 @@ No foundations are needed for this milestone.
 (M-1's items, Backlog Handoff and Done entries are in its closing roadmap: `git show 53eaffe:context/foundation/roadmap.md`.)
 
 - **S-06: User signs in and lands straight on their dashboard, which is now the home page at `/`; the starter welcome page is gone.** — Archived 2026-10-08 → `context/archive/2026-10-08-dashboard-as-home/`. Lesson: —.
+- **S-07: On every page, a signed-in user sees a top-right navigation with links to exactly the pages their role may open (plus Sign out), and an anonymous visitor sees Sign in / Sign up; the outdated welcome-page top bar is gone.** — Archived 2026-10-08 → `context/archive/2026-10-08-role-aware-navigation/`. Lesson: —.
