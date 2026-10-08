@@ -33,6 +33,19 @@ const SCOPE = [
   "src/layouts/Layout.astro",
   "src/components/navigation/",
   "src/pages/dev/navigation-states.astro",
+  "src/pages/index.astro",
+  "src/pages/403.astro",
+  "src/pages/auth/",
+  "src/pages/manager/months.astro",
+  "src/components/auth/",
+  "src/components/dashboard/",
+  "src/components/system/",
+  "src/components/manager-months/",
+  "src/components/Banner.astro",
+  "src/pages/dev/auth-states.astro",
+  "src/pages/dev/dashboard-states.astro",
+  "src/pages/dev/access-denied-states.astro",
+  "src/pages/dev/manager-months-states.astro",
 ];
 
 const PALETTE =

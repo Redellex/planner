@@ -737,26 +737,26 @@ No database change. The redirect URLs from the lock endpoint gain `&month=YYYY-M
 
 #### Automated
 
-- [x] 5.1 Route inventory and navigation tests pass: `npx vitest run src/lib/route-inventory.test.ts src/lib/navigation.test.ts`
-- [x] 5.2 `npm test`, `npm run lint`, `npx astro check` pass
-- [x] 5.3 Production build returns 404 for each kitchen sink: `npm run build && npm run preview`, then `curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/dev/auth-states` (and the other three) prints `404`
+- [x] 5.1 Route inventory and navigation tests pass: `npx vitest run src/lib/route-inventory.test.ts src/lib/navigation.test.ts` — 4341812
+- [x] 5.2 `npm test`, `npm run lint`, `npx astro check` pass — 4341812
+- [x] 5.3 Production build returns 404 for each kitchen sink: `npm run build && npm run preview`, then `curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/dev/auth-states` (and the other three) prints `404` — 4341812
 
 #### Manual
 
-- [x] 5.4 Each kitchen sink renders every listed state in `astro dev` with no console errors, and its forms do not submit
+- [x] 5.4 Each kitchen sink renders every listed state in `astro dev` with no console errors, and its forms do not submit — 4341812
 - [ ] 5.5 After screenshots and the README exist; reviewer compares before/after and accepts the look at 1280 and 390 (no horizontal scroll at 390)
 
 ### Phase 6: Make it stick
 
 #### Automated
 
-- [ ] 6.1 Colour check passes on the whole scope: `npm run check:ui`
-- [ ] 6.2 `rg -n "bg-cosmic" src` returns nothing; `rg -n "LibBadge" src` returns nothing
-- [ ] 6.3 `npm test`, `npm run lint`, `npx astro check`, `npm run build` pass
-- [ ] 6.4 `npm run smoke` passes against a fresh local build
-- [ ] 6.5 A deliberately added `text-purple-300` in `src/pages/manager/months.astro` makes `node scripts/check-ui-literals.mjs src/pages/manager/months.astro` exit non-zero (revert afterwards)
+- [x] 6.1 Colour check passes on the whole scope: `npm run check:ui`
+- [x] 6.2 `rg -n "bg-cosmic" src` returns nothing; `rg -n "LibBadge" src` returns nothing
+- [x] 6.3 `npm test`, `npm run lint`, `npx astro check`, `npm run build` pass
+- [x] 6.4 `npm run smoke` passes against a fresh local build
+- [x] 6.5 A deliberately added `text-purple-300` in `src/pages/manager/months.astro` makes `node scripts/check-ui-literals.mjs src/pages/manager/months.astro` exit non-zero (revert afterwards)
 
 #### Manual
 
-- [ ] 6.6 CLAUDE.md no longer mentions legacy views or `bg-cosmic` as a pattern, and the new modules are named where an agent will look for feedback rules
-- [ ] 6.7 A quick visual pass over every app page in `astro dev` shows no remaining purple/blue gradient surface
+- [x] 6.6 CLAUDE.md no longer mentions legacy views or `bg-cosmic` as a pattern, and the new modules are named where an agent will look for feedback rules
+- [x] 6.7 A quick visual pass over every app page in `astro dev` shows no remaining purple/blue gradient surface

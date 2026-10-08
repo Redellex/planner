@@ -255,7 +255,7 @@ Exclusions agreed during the rollout (Phase 2 interview, Q5). Future
 contributors should respect these unless the underlying assumption changes.
 
 - **Visual / snapshot tests of views** — colours are guarded by `check:ui` and each `/10x-ui` change ships screenshots. Re-evaluate if a visual regression reaches production. (Source: Phase 2 interview Q5.)
-- **Dev-only kitchen-sink pages and legacy `bg-cosmic` views** — not user-facing or scheduled for rework. Re-evaluate when a legacy view is moved onto tokens. (Source: Phase 2 interview Q5.)
+- **Dev-only kitchen-sink pages** — not user-facing. Re-evaluated 2026-10-08 with S-09 (`legacy-views-ui-tokens`): the legacy `bg-cosmic` views (dashboard, auth pages, 403, `/manager/months`) are now on tokens and in `check:ui`, so they are no longer excluded; their message and read modules have unit tests (`src/lib/auth-feedback.test.ts`, `src/lib/manager-months.test.ts`, `roleLabel` in `src/lib/roles.test.ts`). Kitchen sinks stay excluded. (Source: Phase 2 interview Q5.)
 - **Vendor platforms: Supabase (Auth, PostgREST, Postgres engine) and Cloudflare runtime** — the vendor's job; smoke covers the auth happy path. Our own migrations' rules stay in scope (§1 vendor boundary). Re-evaluate if we start depending on a vendor behaviour that broke once. (Source: Phase 2 interview Q5.)
 
 ## 8. Freshness Ledger
