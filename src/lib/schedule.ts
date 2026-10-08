@@ -44,19 +44,24 @@ export const SCHEDULE_LOAD_ERROR = "Could not load the schedule. Reload the page
 export const SCHEDULE_PUBLISHED_ERROR = "Unpublish the schedule before changing it.";
 /** A station day has no one assigned, so the month cannot be published (SQLSTATE SP003). */
 export const PUBLISH_GAPS_ERROR = "Assign someone on every day before publishing.";
-/** The overridden shift is not in the month's current draft (regenerated, discarded or published in between). */
-export const STALE_SHIFT_ERROR = "This shift is no longer in the draft. Reload and try again.";
 /**
- * `?confirm=override` whose panel the page cannot rebuild (no warnings any more, or its shift or assignee is gone):
+ * The station day's stored shifts no longer match what the manager saw (another assignee, or a different set of
+ * shifts after a regenerate or discard), so nothing of the day was saved (SQLSTATE SP004 from save_schedule_day).
+ */
+export const DAY_CHANGED_ERROR = "This day changed since you opened it. Reload and try again.";
+/**
+ * `?confirm=override` whose panel the page cannot rebuild (no warnings any more, or a shift or assignee is gone):
  * nothing was saved. Computed by /manager/schedule, never read from `?error=`, so not in SCHEDULE_FEEDBACK_ERRORS.
  */
-export const OVERRIDE_NOT_SAVED_ERROR = "Nothing was saved. Choose the assignee again.";
+export const OVERRIDE_NOT_SAVED_ERROR = "Nothing was saved. Choose the assignees again.";
 export const INVALID_ASSIGNEE_ERROR = "Invalid assignee";
 /** Publish or unpublish found no schedule row for the month (SQLSTATE SP002). */
 export const NO_SCHEDULE_ERROR = "No schedule for this month";
 export const GENERATED_MESSAGE = "Draft generated.";
 export const DISCARDED_MESSAGE = "Draft discarded.";
-export const OVERRIDDEN_MESSAGE = "Shift updated.";
+export const OVERRIDDEN_MESSAGE = "Day saved.";
+/** A day save where no select differs from what the manager saw: nothing was written. */
+export const NO_CHANGES_MESSAGE = "No changes to save.";
 export const PUBLISHED_MESSAGE = "Schedule published.";
 export const UNPUBLISHED_MESSAGE = "Schedule unpublished. It is a draft again.";
 
@@ -72,7 +77,7 @@ export const SCHEDULE_FEEDBACK_ERRORS: ReadonlySet<string> = new Set([
   GENERIC_SCHEDULE_WRITE_ERROR,
   SCHEDULE_PUBLISHED_ERROR,
   PUBLISH_GAPS_ERROR,
-  STALE_SHIFT_ERROR,
+  DAY_CHANGED_ERROR,
   INVALID_ASSIGNEE_ERROR,
   NO_SCHEDULE_ERROR,
 ]);
@@ -112,10 +117,56 @@ export function describeScheduleWriteError(error: { code: string; message: strin
       return NO_SCHEDULE_ERROR;
     case "SP003":
       return PUBLISH_GAPS_ERROR;
+    // Raised by save_schedule_day when the day's stored shifts differ from what the manager saw.
+    case "SP004":
+      return DAY_CHANGED_ERROR;
     default:
       logScheduleError("unmapped write error", { code: error.code, message: error.message });
       return GENERIC_SCHEDULE_WRITE_ERROR;
   }
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * One shift of a station day as the day form posts it: the shift id, the assignee the manager saw (`was`) and the one
+ * chosen (`to`); null is Uncovered. The row is a change only when `to` differs from `was`.
+ */
+export interface DayRow {
+  shift: string;
+  was: string | null;
+  to: string | null;
+}
+
+/** A day row as one URL or form value: `<shift>:<was|none>:<to|none>` (`none` is Uncovered). */
+export function formatDayRow(row: DayRow): string {
+  return `${row.shift}:${row.was ?? "none"}:${row.to ?? "none"}`;
+}
+
+/**
+ * A `formatDayRow` value back as a row, or null unless it has exactly three `:`-separated parts: a UUID shift id, then
+ * the seen and chosen assignees, each a UUID or `none`.
+ */
+export function parseDayRow(value: unknown): DayRow | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const parts = value.split(":");
+  if (parts.length !== 3) {
+    return null;
+  }
+  const [shift, was, to] = parts;
+  if (!UUID_PATTERN.test(shift)) {
+    return null;
+  }
+  const assignee = (part: string): string | null | undefined =>
+    part === "none" ? null : UUID_PATTERN.test(part) ? part : undefined;
+  const wasValue = assignee(was);
+  const toValue = assignee(to);
+  if (wasValue === undefined || toValue === undefined) {
+    return null;
+  }
+  return { shift, was: wasValue, to: toValue };
 }
 
 export interface ManagerScheduleUrlParams {
@@ -124,32 +175,32 @@ export interface ManagerScheduleUrlParams {
   /** `YYYY-MM-DD` station day of `month`; only included together with `month`. */
   day?: string | null;
   /**
-   * Opens a confirmation panel: `replace` for regenerate, `override` for an assignee change with warnings. Only
+   * Opens a confirmation panel: `replace` for regenerate, `override` for a day's assignee changes with warnings. Only
    * included together with `month`.
    */
   confirm?: "replace" | "override";
-  /** The overridden shift's id (a uuid), so its feedback or confirm panel renders in its row; only with `month`. */
-  shift?: string | null;
   /**
-   * The override's new assignee: a profile id, or null for Uncovered (`employee=none`); left out when undefined.
-   * Only included together with `month`.
+   * Every row of the day save waiting for "Assign anyway", as repeated `row=` values (`formatDayRow`) in the given
+   * order. Only included together with `month`.
    */
-  employee?: string | null;
+  rows?: readonly DayRow[];
   error?: string;
   generated?: boolean;
   discarded?: boolean;
   overridden?: boolean;
+  /** A day save with no changed select: nothing was written. */
+  unchanged?: boolean;
   published?: boolean;
   unpublished?: boolean;
 }
 
 /**
  * `/manager/schedule` link or redirect target. The status param (`error=`, `generated=1`, `discarded=1`,
- * `overridden=1`, `published=1` or `unpublished=1`) is always first, so a caller can match the location with
- * `startsWith("/manager/schedule?error=")`. Then `month`, `day`, `confirm`, `shift` and `employee`, in that order.
+ * `overridden=1`, `unchanged=1`, `published=1` or `unpublished=1`) is always first, so a caller can match the location
+ * with `startsWith("/manager/schedule?error=")`. Then `month`, `day`, `confirm` and every `row`, in that order.
  */
 export function managerScheduleUrl(params: ManagerScheduleUrlParams): string {
-  const { month, day, confirm, shift, employee, error, generated, discarded, overridden, published, unpublished } =
+  const { month, day, confirm, rows, error, generated, discarded, overridden, unchanged, published, unpublished } =
     params;
   const query: string[] = [];
   if (error) {
@@ -160,6 +211,8 @@ export function managerScheduleUrl(params: ManagerScheduleUrlParams): string {
     query.push("discarded=1");
   } else if (overridden) {
     query.push("overridden=1");
+  } else if (unchanged) {
+    query.push("unchanged=1");
   } else if (published) {
     query.push("published=1");
   } else if (unpublished) {
@@ -173,17 +226,14 @@ export function managerScheduleUrl(params: ManagerScheduleUrlParams): string {
     if (confirm) {
       query.push(`confirm=${confirm}`);
     }
-    if (shift) {
-      query.push(`shift=${encodeURIComponent(shift)}`);
-    }
-    if (employee !== undefined) {
-      query.push(`employee=${employee === null ? "none" : encodeURIComponent(employee)}`);
+    // Each part is encoded on its own, so the `:` separators stay readable (they are legal in a query value).
+    for (const row of rows ?? []) {
+      const parts = [row.shift, row.was ?? "none", row.to ?? "none"].map(encodeURIComponent);
+      query.push(`row=${parts.join(":")}`);
     }
   }
   return query.length > 0 ? `/manager/schedule?${query.join("&")}` : "/manager/schedule";
 }
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** A shift id from a form field or `?shift=`: the value when it is a UUID, null otherwise. */
 export function parseShiftParam(value: unknown): string | null {

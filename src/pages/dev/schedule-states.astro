@@ -16,6 +16,7 @@ import { buildWindow, calendarWeeks, daysInMonth, formatDay } from "@/lib/availa
 import { calendarName } from "@/lib/manager-users";
 import {
   CONFIRM_REPLACE_ERROR,
+  DAY_CHANGED_ERROR,
   DISCARDED_MESSAGE,
   GENERATE_LOAD_ERROR,
   GENERATED_MESSAGE,
@@ -34,7 +35,6 @@ import {
   SCHEDULE_LOAD_ERROR,
   SCHEDULE_PUBLISHED_ERROR,
   shiftsByStationDay,
-  STALE_SHIFT_ERROR,
   SUPABASE_NOT_CONFIGURED_ERROR,
   UNPUBLISHED_MESSAGE,
   type ScheduleMember,
@@ -354,7 +354,7 @@ const draftStates = [
   },
 ];
 
-// Every allow-listed ?error= message, in the state it arrives in (STALE_SHIFT_ERROR renders in its shift's row, below;
+// Every allow-listed ?error= message, in the state it arrives in (DAY_CHANGED_ERROR renders in its shift's row, below;
 // with no such row on the selected day it lands on a draft card like INVALID_ASSIGNEE_ERROR).
 const errorStates = [
   { message: INVALID_MONTH_ERROR, draft: null, daysWithNoOne: 0 },
@@ -598,7 +598,7 @@ const errorStates = [
                 editable={true}
                 feedback={
                   uncoveredGapShift
-                    ? { shiftId: uncoveredGapShift.id, kind: "error", message: STALE_SHIFT_ERROR }
+                    ? { shiftId: uncoveredGapShift.id, kind: "error", message: DAY_CHANGED_ERROR }
                     : null
                 }
                 idPrefix="override-error-"

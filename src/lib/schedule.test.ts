@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildScheduleInputs,
   CONFIRM_REPLACE_ERROR,
+  DAY_CHANGED_ERROR,
   describeScheduleWriteError,
+  formatDayRow,
   GENERATE_LOAD_ERROR,
   GENERIC_SCHEDULE_WRITE_ERROR,
   groupRuleBreaks,
@@ -11,17 +13,19 @@ import {
   INVALID_MONTH_ERROR,
   managerScheduleUrl,
   MONTH_UNLOCKED_ERROR,
+  NO_CHANGES_MESSAGE,
   NO_DRAFT_ERROR,
   NO_SCHEDULE_ERROR,
   NOT_PERMITTED_ERROR,
   OVERRIDDEN_MESSAGE,
+  OVERRIDE_NOT_SAVED_ERROR,
+  parseDayRow,
   parseShiftParam,
   PUBLISH_GAPS_ERROR,
   PUBLISHED_MESSAGE,
   resolveScheduleFeedbackError,
   SCHEDULE_PUBLISHED_ERROR,
   shiftsByStationDay,
-  STALE_SHIFT_ERROR,
   stationDayOf,
   UNLOCK_WITH_PUBLISHED_ERROR,
   UNPUBLISHED_MESSAGE,
@@ -34,6 +38,8 @@ import type { PagedResult } from "./team-availability";
 
 const SHIFT_ID = "8f1c2b3a-4d5e-4f60-8a71-92b3c4d5e6f7";
 const EMPLOYEE_ID = "00000000-0000-4000-8000-00000000000a";
+const SECOND_SHIFT_ID = "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d";
+const OTHER_EMPLOYEE_ID = "00000000-0000-4000-8000-00000000000b";
 
 describe("only known messages from ?error= are shown", () => {
   it.each([CONFIRM_REPLACE_ERROR, GENERATE_LOAD_ERROR, NOT_PERMITTED_ERROR, MONTH_UNLOCKED_ERROR, NO_DRAFT_ERROR])(
@@ -46,7 +52,7 @@ describe("only known messages from ?error= are shown", () => {
   it.each([
     "Unpublish the schedule before changing it.",
     "Assign someone on every day before publishing.",
-    "This shift is no longer in the draft. Reload and try again.",
+    "This day changed since you opened it. Reload and try again.",
     "Invalid assignee",
     "No schedule for this month",
   ])("shows the review/override/publish message %s as-is", (message) => {
@@ -62,22 +68,30 @@ describe("only known messages from ?error= are shown", () => {
     expect([
       SCHEDULE_PUBLISHED_ERROR,
       PUBLISH_GAPS_ERROR,
-      STALE_SHIFT_ERROR,
+      DAY_CHANGED_ERROR,
+      OVERRIDE_NOT_SAVED_ERROR,
       INVALID_ASSIGNEE_ERROR,
       NO_SCHEDULE_ERROR,
       OVERRIDDEN_MESSAGE,
+      NO_CHANGES_MESSAGE,
       PUBLISHED_MESSAGE,
       UNPUBLISHED_MESSAGE,
     ]).toEqual([
       "Unpublish the schedule before changing it.",
       "Assign someone on every day before publishing.",
-      "This shift is no longer in the draft. Reload and try again.",
+      "This day changed since you opened it. Reload and try again.",
+      "Nothing was saved. Choose the assignees again.",
       "Invalid assignee",
       "No schedule for this month",
-      "Shift updated.",
+      "Day saved.",
+      "No changes to save.",
       "Schedule published.",
       "Schedule unpublished. It is a draft again.",
     ]);
+  });
+
+  it("does not show the page-computed unsaved-confirm message from ?error=", () => {
+    expect(resolveScheduleFeedbackError(OVERRIDE_NOT_SAVED_ERROR)).toBe(GENERIC_SCHEDULE_WRITE_ERROR);
   });
 
   it("shows nothing for an absent or empty param", () => {
@@ -100,6 +114,7 @@ describe("database errors map to allow-listed messages", () => {
     ["SP001", "Unpublish the schedule before changing it."],
     ["SP002", "No schedule for this month"],
     ["SP003", "Assign someone on every day before publishing."],
+    ["SP004", "This day changed since you opened it. Reload and try again."],
     ["23P01", GENERIC_SCHEDULE_WRITE_ERROR],
   ])("maps %s to %s", (code, message) => {
     expect(describeScheduleWriteError({ code, message: "raw database text" })).toBe(message);
@@ -134,9 +149,12 @@ describe("the redirect URL puts the status param first", () => {
     expect(managerScheduleUrl({ month: null, day: "2026-11-05" })).toBe("/manager/schedule");
   });
 
-  it("puts the overridden, published and unpublished flags first", () => {
-    expect(managerScheduleUrl({ month: "2026-11", day: "2026-11-05", overridden: true, shift: SHIFT_ID })).toBe(
-      "/manager/schedule?overridden=1&month=2026-11&day=2026-11-05&shift=8f1c2b3a-4d5e-4f60-8a71-92b3c4d5e6f7",
+  it("puts the overridden, unchanged, published and unpublished flags first", () => {
+    expect(managerScheduleUrl({ month: "2026-11", day: "2026-11-05", overridden: true })).toBe(
+      "/manager/schedule?overridden=1&month=2026-11&day=2026-11-05",
+    );
+    expect(managerScheduleUrl({ month: "2026-11", day: "2026-11-05", unchanged: true })).toBe(
+      "/manager/schedule?unchanged=1&month=2026-11&day=2026-11-05",
     );
     expect(managerScheduleUrl({ month: "2026-11", published: true })).toBe(
       "/manager/schedule?published=1&month=2026-11",
@@ -146,35 +164,92 @@ describe("the redirect URL puts the status param first", () => {
     );
   });
 
-  it("orders month, day, confirm, shift and employee for the override confirm step", () => {
+  it("orders month, day, confirm and every row, in the given order, for the day-save confirm step", () => {
     expect(
       managerScheduleUrl({
         month: "2026-11",
         day: "2026-11-05",
         confirm: "override",
-        shift: SHIFT_ID,
-        employee: EMPLOYEE_ID,
+        rows: [
+          { shift: SHIFT_ID, was: OTHER_EMPLOYEE_ID, to: EMPLOYEE_ID },
+          { shift: SECOND_SHIFT_ID, was: EMPLOYEE_ID, to: EMPLOYEE_ID },
+        ],
       }),
     ).toBe(
-      "/manager/schedule?month=2026-11&day=2026-11-05&confirm=override&shift=8f1c2b3a-4d5e-4f60-8a71-92b3c4d5e6f7&employee=00000000-0000-4000-8000-00000000000a",
+      "/manager/schedule?month=2026-11&day=2026-11-05&confirm=override" +
+        "&row=8f1c2b3a-4d5e-4f60-8a71-92b3c4d5e6f7:00000000-0000-4000-8000-00000000000b:00000000-0000-4000-8000-00000000000a" +
+        "&row=1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d:00000000-0000-4000-8000-00000000000a:00000000-0000-4000-8000-00000000000a",
     );
   });
 
-  it("writes employee=none for Uncovered", () => {
+  it("writes none for Uncovered on either side of a row", () => {
     expect(
-      managerScheduleUrl({ month: "2026-11", day: "2026-11-05", confirm: "override", shift: SHIFT_ID, employee: null }),
+      managerScheduleUrl({
+        month: "2026-11",
+        day: "2026-11-05",
+        confirm: "override",
+        rows: [
+          { shift: SHIFT_ID, was: null, to: EMPLOYEE_ID },
+          { shift: SECOND_SHIFT_ID, was: EMPLOYEE_ID, to: null },
+        ],
+      }),
     ).toBe(
-      "/manager/schedule?month=2026-11&day=2026-11-05&confirm=override&shift=8f1c2b3a-4d5e-4f60-8a71-92b3c4d5e6f7&employee=none",
+      "/manager/schedule?month=2026-11&day=2026-11-05&confirm=override" +
+        "&row=8f1c2b3a-4d5e-4f60-8a71-92b3c4d5e6f7:none:00000000-0000-4000-8000-00000000000a" +
+        "&row=1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d:00000000-0000-4000-8000-00000000000a:none",
     );
   });
 
-  it("keeps the error first and drops shift and employee without a month", () => {
-    expect(managerScheduleUrl({ month: "2026-11", day: "2026-11-05", shift: SHIFT_ID, error: STALE_SHIFT_ERROR })).toBe(
-      "/manager/schedule?error=This%20shift%20is%20no%20longer%20in%20the%20draft.%20Reload%20and%20try%20again.&month=2026-11&day=2026-11-05&shift=8f1c2b3a-4d5e-4f60-8a71-92b3c4d5e6f7",
+  it("keeps the error first and drops the rows without a month", () => {
+    expect(managerScheduleUrl({ month: "2026-11", day: "2026-11-05", error: DAY_CHANGED_ERROR })).toBe(
+      "/manager/schedule?error=This%20day%20changed%20since%20you%20opened%20it.%20Reload%20and%20try%20again.&month=2026-11&day=2026-11-05",
     );
-    expect(managerScheduleUrl({ month: null, shift: SHIFT_ID, employee: null, error: INVALID_MONTH_ERROR })).toBe(
-      "/manager/schedule?error=Invalid%20month",
+    expect(
+      managerScheduleUrl({
+        month: null,
+        rows: [{ shift: SHIFT_ID, was: null, to: null }],
+        error: INVALID_MONTH_ERROR,
+      }),
+    ).toBe("/manager/schedule?error=Invalid%20month");
+  });
+});
+
+describe("a day row travels as <shift>:<was|none>:<to|none>", () => {
+  it("formats a row with none for Uncovered", () => {
+    expect(formatDayRow({ shift: SHIFT_ID, was: EMPLOYEE_ID, to: null })).toBe(
+      "8f1c2b3a-4d5e-4f60-8a71-92b3c4d5e6f7:00000000-0000-4000-8000-00000000000a:none",
     );
+    expect(formatDayRow({ shift: SHIFT_ID, was: null, to: OTHER_EMPLOYEE_ID })).toBe(
+      "8f1c2b3a-4d5e-4f60-8a71-92b3c4d5e6f7:none:00000000-0000-4000-8000-00000000000b",
+    );
+  });
+
+  it("parses a formatted value back to the same row", () => {
+    expect(parseDayRow("8f1c2b3a-4d5e-4f60-8a71-92b3c4d5e6f7:none:00000000-0000-4000-8000-00000000000b")).toEqual({
+      shift: "8f1c2b3a-4d5e-4f60-8a71-92b3c4d5e6f7",
+      was: null,
+      to: "00000000-0000-4000-8000-00000000000b",
+    });
+    for (const row of [
+      { shift: SHIFT_ID, was: EMPLOYEE_ID, to: OTHER_EMPLOYEE_ID },
+      { shift: SHIFT_ID, was: null, to: null },
+    ]) {
+      expect(parseDayRow(formatDayRow(row))).toEqual(row);
+    }
+  });
+
+  it.each([
+    ["a non-string form value", 42],
+    ["an empty value", ""],
+    ["two parts", `${SHIFT_ID}:none`],
+    ["four parts", `${SHIFT_ID}:none:none:none`],
+    ["a shift that is not a uuid", "s1:none:none"],
+    ["none as the shift", "none:none:none"],
+    ["a seen assignee that is not a uuid", `${SHIFT_ID}:bob:none`],
+    ["a chosen assignee that is not a uuid", `${SHIFT_ID}:none:${EMPLOYEE_ID}x`],
+    ["an empty assignee part", `${SHIFT_ID}::none`],
+  ])("rejects %s", (_name, value) => {
+    expect(parseDayRow(value)).toBeNull();
   });
 });
 

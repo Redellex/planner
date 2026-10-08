@@ -1,10 +1,11 @@
 import type { APIRoute } from "astro";
 import { createClient } from "@/lib/supabase";
 import { monthOfDate, monthStart, parseDate, parseMonth } from "@/lib/availability";
-import { applyOverride, overrideWarnings } from "@/lib/schedule-override";
+import { applyOverrides, overrideWarnings } from "@/lib/schedule-override";
 import { summarizeSchedule } from "@/lib/schedule-summary";
 import { loadAllPages } from "@/lib/team-availability";
 import {
+  DAY_CHANGED_ERROR,
   describeScheduleWriteError,
   GENERIC_SCHEDULE_WRITE_ERROR,
   INVALID_ASSIGNEE_ERROR,
@@ -17,7 +18,6 @@ import {
   SCHEDULE_PAGE_SIZE,
   SCHEDULE_PUBLISHED_ERROR,
   scheduleMonths,
-  STALE_SHIFT_ERROR,
   SUPABASE_NOT_CONFIGURED_ERROR,
 } from "@/lib/schedule";
 
@@ -32,14 +32,13 @@ export const POST: APIRoute = async (context) => {
   // Every calendar date of the month starts one station day; any other day is dropped, not an error.
   const day = month && requestedDay && monthOfDate(requestedDay) === month ? requestedDay : null;
   const shift = parseShiftParam(form.get("shift"));
-  // Every redirect keeps the shift, so the page renders the result in that shift's row.
-  const fail = (error: string) => context.redirect(managerScheduleUrl({ month, day, shift, error }));
+  const fail = (error: string) => context.redirect(managerScheduleUrl({ month, day, error }));
 
   if (!month || !scheduleMonths().includes(month)) {
     return fail(INVALID_MONTH_ERROR);
   }
   if (!shift) {
-    return fail(STALE_SHIFT_ERROR);
+    return fail(DAY_CHANGED_ERROR);
   }
   // `""` is Uncovered; anything else must be a loaded member id (checked after the read).
   const employeeField = form.get("employee");
@@ -88,14 +87,14 @@ export const POST: APIRoute = async (context) => {
   const shifts = shiftsResult.data;
   const target = shifts.find((row) => row.id === shift);
   if (!target) {
-    return fail(STALE_SHIFT_ERROR);
+    return fail(DAY_CHANGED_ERROR);
   }
   if (employee !== null && !inputs.members.some((member) => member.id === employee)) {
     return fail(INVALID_ASSIGNEE_ERROR);
   }
 
   if (target.employee_id === employee) {
-    return context.redirect(managerScheduleUrl({ month, day, overridden: true, shift }));
+    return context.redirect(managerScheduleUrl({ month, day, overridden: true }));
   }
 
   const common = {
@@ -107,12 +106,19 @@ export const POST: APIRoute = async (context) => {
   };
   const warnings = overrideWarnings({
     before: summarizeSchedule({ ...common, shifts }),
-    after: summarizeSchedule({ ...common, shifts: applyOverride(shifts, shift, employee) }),
-    shiftId: shift,
+    after: summarizeSchedule({ ...common, shifts: applyOverrides(shifts, new Map([[shift, employee]])) }),
+    shiftIds: new Set([shift]),
   });
   if (warnings.length > 0 && !confirmed) {
     // Not an error: the page rebuilds the same warnings from its own reads and asks for the explicit confirm.
-    return context.redirect(managerScheduleUrl({ month, day, confirm: "override", shift, employee }));
+    return context.redirect(
+      managerScheduleUrl({
+        month,
+        day,
+        confirm: "override",
+        rows: [{ shift, was: target.employee_id, to: employee }],
+      }),
+    );
   }
 
   // The month filter keeps the write inside the month that was read; a regenerate in between replaced every shift id,
@@ -128,8 +134,8 @@ export const POST: APIRoute = async (context) => {
     return fail(describeScheduleWriteError(error));
   }
   if (data.length === 0) {
-    return fail(STALE_SHIFT_ERROR);
+    return fail(DAY_CHANGED_ERROR);
   }
 
-  return context.redirect(managerScheduleUrl({ month, day, overridden: true, shift }));
+  return context.redirect(managerScheduleUrl({ month, day, overridden: true }));
 };

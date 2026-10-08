@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createClient } from "@/lib/supabase";
 import { calendarName } from "@/lib/manager-users";
 import { loadAllPages } from "@/lib/team-availability";
-import { applyOverride, overrideWarnings, type OverrideWarning } from "@/lib/schedule-override";
+import { applyOverrides, overrideWarnings, type OverrideWarning } from "@/lib/schedule-override";
 import { summarizeSchedule, type ScheduleSummary as DraftSummary } from "@/lib/schedule-summary";
 import {
   addMonths,
@@ -34,7 +34,7 @@ import {
   managerScheduleUrl,
   OVERRIDDEN_MESSAGE,
   OVERRIDE_NOT_SAVED_ERROR,
-  parseShiftParam,
+  parseDayRow,
   PUBLISHED_MESSAGE,
   resolveScheduleFeedbackError,
   SCHEDULE_LOAD_ERROR,
@@ -78,8 +78,10 @@ const feedback = feedbackError
           : Astro.url.searchParams.get("unpublished") === "1"
             ? { kind: "success" as const, message: UNPUBLISHED_MESSAGE }
             : null;
-// The overridden shift (`&shift=`): its feedback or confirm panel renders in its row when it is on the selected day.
-const shiftParam = parseShiftParam(Astro.url.searchParams.get("shift"));
+// The confirm step's changed shift (`&row=<shift>:<was>:<to>`): its confirm panel renders in its row when it is on the
+// selected day.
+const [confirmRow] = Astro.url.searchParams.getAll("row").map(parseDayRow);
+const shiftParam = confirmRow?.shift ?? null;
 
 let members: ScheduleMember[] = [];
 let summary: DraftSummary<ScheduleShiftRow> | null = null;
@@ -174,16 +176,16 @@ const editable = summary !== null && draft !== null && draft.publishedAt === nul
 const shiftOnSelectedDay = shiftParam && selectedShifts.some((shift) => shift.id === shiftParam) ? shiftParam : null;
 const shiftFeedback = feedback && shiftOnSelectedDay && editable ? { shiftId: shiftOnSelectedDay, ...feedback } : null;
 
-// `?confirm=override&shift=&employee=`: the warnings are rebuilt from this page's own reads, never taken from the URL.
+// `?confirm=override&row=`: the warnings are rebuilt from this page's own reads, never taken from the URL.
 // A shift or an employee that is not loaded, or a change with no warnings, shows no panel.
 let overrideConfirm: {
   shiftId: string;
   employee: string | null;
   warnings: OverrideWarning[];
 } | null = null;
-const employeeParam = Astro.url.searchParams.get("employee");
+const employeeParam = confirmRow ? confirmRow.to : undefined;
 const confirmEmployee =
-  employeeParam === "none" ? null : members.some((member) => member.id === employeeParam) ? employeeParam : undefined;
+  employeeParam === null ? null : members.some((member) => member.id === employeeParam) ? employeeParam : undefined;
 if (
   Astro.url.searchParams.get("confirm") === "override" &&
   editable &&
@@ -196,11 +198,11 @@ if (
     month,
     members,
     windows,
-    shifts: applyOverride(shifts, shiftOnSelectedDay, confirmEmployee),
+    shifts: applyOverrides(shifts, new Map([[shiftOnSelectedDay, confirmEmployee]])),
     previousNight,
     nextMorning,
   });
-  const warnings = overrideWarnings({ before: summary, after, shiftId: shiftOnSelectedDay });
+  const warnings = overrideWarnings({ before: summary, after, shiftIds: new Set([shiftOnSelectedDay]) });
   if (warnings.length > 0) {
     overrideConfirm = { shiftId: shiftOnSelectedDay, employee: confirmEmployee, warnings };
   }
