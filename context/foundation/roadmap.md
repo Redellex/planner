@@ -43,12 +43,12 @@ A gas-station manager used to build the monthly shift schedule by hand in a spre
 
 ## At a glance
 
-| ID   | Change ID              | Outcome (user can …)                                                                | Prerequisites | PRD refs | Status |
-| ---- | ---------------------- | ----------------------------------------------------------------------------------- | ------------- | -------- | ------ |
-| S-06 | dashboard-as-home      | User lands on the dashboard after sign-in; the dashboard is the home page at `/`    | —             | MS-01    | done   |
-| S-07 | role-aware-navigation  | User sees a top-right navigation on every page with only the links their role opens | S-06          | MS-02    | done   |
-| S-08 | schedule-day-save      | Manager saves all of one day's manual assignments with a single Save                | —             | MS-03    | ready  |
-| S-09 | legacy-views-ui-tokens | User sees the dashboard, auth pages, 403 and `/manager/months` on the design tokens | S-06, S-07    | MS-04    | ready  |
+| ID   | Change ID              | Outcome (user can …)                                                                | Prerequisites | PRD refs | Status      |
+| ---- | ---------------------- | ----------------------------------------------------------------------------------- | ------------- | -------- | ----------- |
+| S-06 | dashboard-as-home      | User lands on the dashboard after sign-in; the dashboard is the home page at `/`    | —             | MS-01    | done        |
+| S-07 | role-aware-navigation  | User sees a top-right navigation on every page with only the links their role opens | S-06          | MS-02    | done        |
+| S-08 | schedule-day-save      | Manager saves all of one day's manual assignments with a single Save                | —             | MS-03    | ready       |
+| S-09 | legacy-views-ui-tokens | User sees the dashboard, auth pages, 403 and `/manager/months` on the design tokens | S-06, S-07    | MS-04    | in-progress |
 
 ## Streams
 
@@ -130,7 +130,7 @@ No foundations are needed for this milestone.
 - **Unknowns:**
   - One `/10x-ui` change for all the views, or one per view? — Owner: user. Block: no.
 - **Risk:** Largest by page count but UI-only, following the pattern in `context/archive/*-ui-tokens/tokens.md`; the welcome page drops out of scope because S-06 removes it. Split per view if one change grows too large.
-- **Status:** ready
+- **Status:** in-progress
 
 ## Backlog Handoff
 
