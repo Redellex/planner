@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createClient } from "@/lib/supabase";
 import { calendarName } from "@/lib/manager-users";
 import { loadAllPages } from "@/lib/team-availability";
+import { changedRows, matchesStored } from "@/lib/schedule-day-save";
 import { applyOverrides, overrideWarnings, type OverrideWarning } from "@/lib/schedule-override";
 import { summarizeSchedule, type ScheduleSummary as DraftSummary } from "@/lib/schedule-summary";
 import {
@@ -26,12 +27,14 @@ import {
   upcomingMonths,
 } from "@/lib/availability";
 import {
+  DAY_CHANGED_ERROR,
   DISCARDED_MESSAGE,
   GENERATED_MESSAGE,
   generatableMonths,
   loadScheduleInputs,
   logScheduleError,
   managerScheduleUrl,
+  NO_CHANGES_MESSAGE,
   OVERRIDDEN_MESSAGE,
   OVERRIDE_NOT_SAVED_ERROR,
   parseDayRow,
@@ -44,6 +47,7 @@ import {
   shiftsByStationDay,
   SUPABASE_NOT_CONFIGURED_ERROR,
   UNPUBLISHED_MESSAGE,
+  type DayRow,
   type ScheduleMember,
   type ScheduleShiftRow,
   type ScheduleWindowRow,
@@ -62,26 +66,34 @@ const requestedDay = parseDate(Astro.url.searchParams.get("day"));
 const selectedDay = requestedDay && monthOfDate(requestedDay) === month ? requestedDay : monthStart(month);
 const canGenerate = generatableMonths().includes(month);
 
-// Result of the last generate, discard, override, publish or unpublish, from the redirect URL; only known messages are
-// shown as-is.
+// Result of the last generate, discard, day save, publish or unpublish, from the redirect URL; only known messages are
+// shown as-is. `dayStatus` marks the statuses a day save can produce (they belong in the day panel).
 const feedbackError = resolveScheduleFeedbackError(Astro.url.searchParams.get("error"));
-const feedback = feedbackError
-  ? { kind: "error" as const, message: feedbackError }
+interface Feedback {
+  kind: "error" | "success" | "notice";
+  message: string;
+}
+const feedback: Feedback | null = feedbackError
+  ? { kind: "error", message: feedbackError }
   : Astro.url.searchParams.get("generated") === "1"
-    ? { kind: "success" as const, message: GENERATED_MESSAGE }
+    ? { kind: "success", message: GENERATED_MESSAGE }
     : Astro.url.searchParams.get("discarded") === "1"
-      ? { kind: "success" as const, message: DISCARDED_MESSAGE }
+      ? { kind: "success", message: DISCARDED_MESSAGE }
       : Astro.url.searchParams.get("overridden") === "1"
-        ? { kind: "success" as const, message: OVERRIDDEN_MESSAGE }
-        : Astro.url.searchParams.get("published") === "1"
-          ? { kind: "success" as const, message: PUBLISHED_MESSAGE }
-          : Astro.url.searchParams.get("unpublished") === "1"
-            ? { kind: "success" as const, message: UNPUBLISHED_MESSAGE }
-            : null;
-// The confirm step's changed shift (`&row=<shift>:<was>:<to>`): its confirm panel renders in its row when it is on the
-// selected day.
-const [confirmRow] = Astro.url.searchParams.getAll("row").map(parseDayRow);
-const shiftParam = confirmRow?.shift ?? null;
+        ? { kind: "success", message: OVERRIDDEN_MESSAGE }
+        : Astro.url.searchParams.get("unchanged") === "1"
+          ? { kind: "notice", message: NO_CHANGES_MESSAGE }
+          : Astro.url.searchParams.get("published") === "1"
+            ? { kind: "success", message: PUBLISHED_MESSAGE }
+            : Astro.url.searchParams.get("unpublished") === "1"
+              ? { kind: "success", message: UNPUBLISHED_MESSAGE }
+              : null;
+const dayStatus =
+  feedbackError !== null ||
+  Astro.url.searchParams.get("overridden") === "1" ||
+  Astro.url.searchParams.get("unchanged") === "1";
+// The confirm step's rows (`&row=<shift>:<was>:<to>`, every shift of the day); null marks a row that does not parse.
+const confirmRowParams = Astro.url.searchParams.getAll("row").map(parseDayRow);
 
 let members: ScheduleMember[] = [];
 let summary: DraftSummary<ScheduleShiftRow> | null = null;
@@ -171,52 +183,56 @@ const confirming =
 // Overrides are open on an unpublished draft read in full (the summary is set only then).
 const editable = summary !== null && draft !== null && draft.publishedAt === null;
 
-// The override result goes to its shift's row; without that shift on the selected day, or on a published month (its
-// read-only rows show no feedback), it stays in the draft card.
-const shiftOnSelectedDay = shiftParam && selectedShifts.some((shift) => shift.id === shiftParam) ? shiftParam : null;
-const shiftFeedback = feedback && shiftOnSelectedDay && editable ? { shiftId: shiftOnSelectedDay, ...feedback } : null;
+// A day save's result (error, saved, nothing changed) carries `day` and renders in that day's panel while the draft is
+// editable; any other status, or one on a published month (its read-only rows show no feedback), stays in the card.
+const dayFeedback = feedback && dayStatus && requestedDay === selectedDay && editable ? feedback : null;
 
-// `?confirm=override&row=`: the warnings are rebuilt from this page's own reads, never taken from the URL.
-// A shift or an employee that is not loaded, or a change with no warnings, shows no panel.
-let overrideConfirm: {
-  shiftId: string;
-  employee: string | null;
-  warnings: OverrideWarning[];
-} | null = null;
-const employeeParam = confirmRow ? confirmRow.to : undefined;
-const confirmEmployee =
-  employeeParam === null ? null : members.some((member) => member.id === employeeParam) ? employeeParam : undefined;
-if (
-  Astro.url.searchParams.get("confirm") === "override" &&
-  editable &&
-  summary &&
-  !feedback &&
-  shiftOnSelectedDay &&
-  confirmEmployee !== undefined
-) {
-  const after = summarizeSchedule({
-    month,
-    members,
-    windows,
-    shifts: applyOverrides(shifts, new Map([[shiftOnSelectedDay, confirmEmployee]])),
-    previousNight,
-    nextMorning,
-  });
-  const warnings = overrideWarnings({ before: summary, after, shiftIds: new Set([shiftOnSelectedDay]) });
-  if (warnings.length > 0) {
-    overrideConfirm = { shiftId: shiftOnSelectedDay, employee: confirmEmployee, warnings };
+// `?confirm=override&row=…`: the warnings are rebuilt from this page's own reads, never taken from the URL. The rows
+// must still describe the selected day as stored (else DAY_CHANGED_ERROR), name loaded members, change something and
+// introduce at least one warning (else OVERRIDE_NOT_SAVED_ERROR); both errors render in the day panel.
+let overrideConfirm: { rows: DayRow[]; warnings: OverrideWarning[] } | null = null;
+let confirmError: string | null = null;
+if (Astro.url.searchParams.get("confirm") === "override" && editable && summary && !feedback) {
+  const rows = confirmRowParams.filter((row): row is DayRow => row !== null);
+  const changes = changedRows(rows);
+  if (rows.length !== confirmRowParams.length || !matchesStored(rows, selectedShifts)) {
+    confirmError = DAY_CHANGED_ERROR;
+  } else if (changes.length === 0 || changes.some((row) => row.to !== null && !membersById.has(row.to))) {
+    confirmError = OVERRIDE_NOT_SAVED_ERROR;
+  } else {
+    const after = summarizeSchedule({
+      month,
+      members,
+      windows,
+      shifts: applyOverrides(shifts, new Map(changes.map((row) => [row.shift, row.to]))),
+      previousNight,
+      nextMorning,
+    });
+    const warnings = overrideWarnings({
+      before: summary,
+      after,
+      shiftIds: new Set(changes.map((row) => row.shift)),
+    });
+    if (warnings.length > 0) {
+      // In the day's start order, so the panel lists the changes as the rows appear.
+      const rowsByShift = new Map(rows.map((row) => [row.shift, row]));
+      overrideConfirm = {
+        rows: selectedShifts.map((shift) => rowsByShift.get(shift.id)).filter((row): row is DayRow => !!row),
+        warnings,
+      };
+    } else {
+      confirmError = OVERRIDE_NOT_SAVED_ERROR;
+    }
   }
 }
 
-// A `?confirm=override` that builds no panel saved nothing; the card says so instead of showing nothing.
-const unsavedOverride =
-  Astro.url.searchParams.get("confirm") === "override" && !feedback && overrideConfirm === null
-    ? {
-        kind: "error" as const,
-        message: draft?.publishedAt ? SCHEDULE_PUBLISHED_ERROR : OVERRIDE_NOT_SAVED_ERROR,
-      }
+// A `?confirm=override` that is not on an editable draft saved nothing; the card says so instead of showing nothing.
+const unsavedOverride: Feedback | null =
+  Astro.url.searchParams.get("confirm") === "override" && !feedback && !editable
+    ? { kind: "error", message: draft?.publishedAt ? SCHEDULE_PUBLISHED_ERROR : OVERRIDE_NOT_SAVED_ERROR }
     : null;
-const cardFeedback = shiftFeedback ? null : (feedback ?? unsavedOverride);
+const panelFeedback: Feedback | null = dayFeedback ?? (confirmError ? { kind: "error", message: confirmError } : null);
+const cardFeedback = dayFeedback ? null : (feedback ?? unsavedOverride);
 
 const lockedMonths = new Set(lockedAt.keys());
 const monthLockedAt = lockedAt.get(month);
@@ -296,7 +312,7 @@ const monthHref = (option: string): string => managerScheduleUrl({ month: option
                   shifts={selectedShifts}
                   members={membersById}
                   editable={editable}
-                  feedback={shiftFeedback}
+                  feedback={panelFeedback}
                   confirm={overrideConfirm}
                   previousNight={
                     previousNight && selectedDay === monthStart(month)

@@ -25,6 +25,7 @@ import {
   INVALID_MONTH_ERROR,
   managerScheduleUrl,
   MONTH_UNLOCKED_ERROR,
+  NO_CHANGES_MESSAGE,
   NO_DRAFT_ERROR,
   NO_SCHEDULE_ERROR,
   NOT_PERMITTED_ERROR,
@@ -37,6 +38,7 @@ import {
   shiftsByStationDay,
   SUPABASE_NOT_CONFIGURED_ERROR,
   UNPUBLISHED_MESSAGE,
+  type DayRow,
   type ScheduleMember,
 } from "@/lib/schedule";
 import { generateSchedule, type GeneratedShift, type ScheduleWindow } from "@/lib/schedule-generator";
@@ -133,9 +135,6 @@ const coveredView = view(covered, isDev ? coveredWindows : [], 0);
 const gapsView = view(gaps, isDev ? gapWindows : [], 1000);
 const coveredDayShifts = coveredView.byDay.get("2026-04-15") ?? [];
 const gapNightShifts = gapsView.byDay.get(NIGHT_GAP_DAY) ?? [];
-// The override feedback rows: a saved change on the first covered shift, a refused one on the uncovered night.
-const savedShift = coveredDayShifts.at(0) ?? null;
-const uncoveredGapShift = gapNightShifts.find((shift) => shift.employee_id === null) ?? null;
 
 // An assignment outside availability never comes from the generator, and the rule breaks it reports depend on the
 // team (e.g. two people covering every night), so this summary is written by hand to show every warning at once
@@ -233,8 +232,9 @@ const ruleBreakSummary: DraftSummary = {
   touchesNextMorning: [aprilLastNight],
 };
 
-// The override confirm panel (`?confirm=override`) with one warning of each kind, written by hand: no single real
-// change produces all of them. The night shift (Dave today) is being given to Carol.
+// The day-save confirm panel (`?confirm=override&row=…`) with one warning of each kind, written by hand: no single real
+// day save produces all of them. Both shifts of the day (Bob's 12h day, Dave's night) are being given to Carol, so the
+// same-day and back-to-back pairs are between the two changed shifts.
 const confirmDayShift: OverrideShift = {
   id: fixtureShiftId(2000),
   starts_at: "2026-04-30T06:00:00",
@@ -247,21 +247,21 @@ const confirmNightShift: OverrideShift = {
   ends_at: "2026-05-01T06:00:00",
   employee_id: DAVE.id,
 };
+const confirmDayAfter: OverrideShift = { ...confirmDayShift, employee_id: CAROL.id };
 const confirmNightAfter: OverrideShift = { ...confirmNightShift, employee_id: CAROL.id };
 const confirmFirstMorning: OverrideShift = { id: fixtureShiftId(2002), ...firstMorning };
+const confirmRows: DayRow[] = [
+  { shift: confirmDayShift.id, was: BOB.id, to: CAROL.id },
+  { shift: confirmNightShift.id, was: DAVE.id, to: CAROL.id },
+];
 const confirmWarnings: OverrideWarning[] = [
   { kind: "outside", shift: confirmNightAfter, assignee: CAROL.id },
-  { kind: "sameDay", assignee: CAROL.id, shifts: [{ ...confirmDayShift, employee_id: CAROL.id }, confirmNightAfter] },
-  {
-    kind: "backToBack",
-    assignee: CAROL.id,
-    first: { ...confirmDayShift, employee_id: CAROL.id },
-    second: confirmNightAfter,
-  },
+  { kind: "sameDay", assignee: CAROL.id, shifts: [confirmDayAfter, confirmNightAfter] },
+  { kind: "backToBack", assignee: CAROL.id, first: confirmDayAfter, second: confirmNightAfter },
   { kind: "previousNight", shift: confirmFirstMorning, assignee: ALICE.id },
   { kind: "nextMorning", shift: confirmNightAfter, assignee: CAROL.id },
-  { kind: "fairness", rule: "long", shift: confirmDayShift, assignee: BOB.id, eligibleMin: 2 },
-  { kind: "fairness", rule: "night", shift: confirmNightAfter, assignee: CAROL.id, eligibleMin: 1 },
+  { kind: "fairness", rule: "long", shift: confirmDayAfter, assignee: CAROL.id, eligibleMin: 0 },
+  { kind: "fairness", rule: "night", shift: confirmNightAfter, assignee: CAROL.id, eligibleMin: 0 },
   { kind: "noOne", date: EMPTY_DAY },
 ];
 
@@ -354,8 +354,8 @@ const draftStates = [
   },
 ];
 
-// Every allow-listed ?error= message, in the state it arrives in (DAY_CHANGED_ERROR renders in its shift's row, below;
-// with no such row on the selected day it lands on a draft card like INVALID_ASSIGNEE_ERROR).
+// Every allow-listed ?error= message, in the state it arrives in (a day save's error renders in its day panel, below;
+// on a month that is no longer editable it lands on the draft card like these).
 const errorStates = [
   { message: INVALID_MONTH_ERROR, draft: null, daysWithNoOne: 0 },
   { message: SUPABASE_NOT_CONFIGURED_ERROR, draft: null, daysWithNoOne: 0 },
@@ -369,7 +369,8 @@ const errorStates = [
   { message: PUBLISH_GAPS_ERROR, draft: draftCard, daysWithNoOne: 2 },
   { message: NO_SCHEDULE_ERROR, draft: null, daysWithNoOne: 0 },
   { message: INVALID_ASSIGNEE_ERROR, draft: draftCard, daysWithNoOne: 0 },
-  // Not a ?error= value: the page shows it when ?confirm=override can no longer build its panel.
+  // Not a ?error= value: the page shows it when ?confirm=override can no longer build its panel (in the day panel
+  // while the draft is editable).
   { message: OVERRIDE_NOT_SAVED_ERROR, draft: draftCard, daysWithNoOne: 0 },
 ];
 ---
@@ -566,13 +567,13 @@ const errorStates = [
 
         <section aria-labelledby="states-override" class="flex flex-col gap-3">
           <h2 id="states-override" class="text-sm font-medium text-muted-foreground">
-            Overrides: saved, refused, the confirm panel with one warning of each kind, and read-only rows (published
-            month)
+            Day save: saved, nothing changed, day changed, the confirm panel with two pending changes and one warning of
+            each kind, and read-only rows (published month)
           </h2>
           <div class="grid gap-6 lg:grid-cols-2">
             <div class="flex flex-col gap-2">
               <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Success in the row (?overridden=1&shift=)
+                Day saved (?overridden=1&day=)
               </h3>
               <ScheduleDayPanel
                 selectedLabel={formatDay("2026-04-15")}
@@ -581,13 +582,28 @@ const errorStates = [
                 shifts={coveredDayShifts}
                 members={membersById}
                 editable={true}
-                feedback={savedShift ? { shiftId: savedShift.id, kind: "success", message: OVERRIDDEN_MESSAGE } : null}
+                feedback={{ kind: "success", message: OVERRIDDEN_MESSAGE }}
                 idPrefix="override-saved-"
               />
             </div>
             <div class="flex flex-col gap-2">
               <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Error in the row (?error=&shift=)
+                Nothing changed (?unchanged=1&day=)
+              </h3>
+              <ScheduleDayPanel
+                selectedLabel={formatDay("2026-04-15")}
+                month={month}
+                day="2026-04-15"
+                shifts={coveredDayShifts}
+                members={membersById}
+                editable={true}
+                feedback={{ kind: "notice", message: NO_CHANGES_MESSAGE }}
+                idPrefix="override-unchanged-"
+              />
+            </div>
+            <div class="flex flex-col gap-2">
+              <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Day changed (?error=&day=)
               </h3>
               <ScheduleDayPanel
                 selectedLabel={formatDay(NIGHT_GAP_DAY)}
@@ -596,17 +612,13 @@ const errorStates = [
                 shifts={gapNightShifts}
                 members={membersById}
                 editable={true}
-                feedback={
-                  uncoveredGapShift
-                    ? { shiftId: uncoveredGapShift.id, kind: "error", message: DAY_CHANGED_ERROR }
-                    : null
-                }
+                feedback={{ kind: "error", message: DAY_CHANGED_ERROR }}
                 idPrefix="override-error-"
               />
             </div>
             <div class="flex flex-col gap-2">
               <h3 class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Confirm panel (?confirm=override&shift=&employee=), every warning kind (hand-written)
+                Confirm panel (?confirm=override&row=…), two pending changes, every warning kind (hand-written)
               </h3>
               <ScheduleDayPanel
                 selectedLabel={formatDay("2026-04-30")}
@@ -615,11 +627,7 @@ const errorStates = [
                 shifts={[confirmDayShift, confirmNightShift]}
                 members={membersById}
                 editable={true}
-                confirm={{
-                  shiftId: confirmNightShift.id,
-                  employee: CAROL.id,
-                  warnings: confirmWarnings,
-                }}
+                confirm={{ rows: confirmRows, warnings: confirmWarnings }}
                 idPrefix="override-confirm-"
                 summaryIdPrefix="breaks-"
               />

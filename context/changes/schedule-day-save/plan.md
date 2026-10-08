@@ -357,11 +357,11 @@ The migration only adds a function; no data changes. A deployed page with the ol
 
 #### Automated
 
-- [ ] 3.1 Unit tests pass: `npm test`
-- [ ] 3.2 Lint passes: `npm run lint`
-- [ ] 3.3 Type check passes: `npx astro check`
-- [ ] 3.4 No colour literals in the scoped views: `npm run check:ui`
-- [ ] 3.5 Production build succeeds: `npm run build`
+- [x] 3.1 Unit tests pass: `npm test`
+- [x] 3.2 Lint passes: `npm run lint`
+- [x] 3.3 Type check passes: `npx astro check`
+- [x] 3.4 No colour literals in the scoped views: `npm run check:ui`
+- [x] 3.5 Production build succeeds: `npm run build`
 
 #### Manual
 
