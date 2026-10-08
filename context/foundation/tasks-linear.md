@@ -49,8 +49,8 @@ The roadmap's Backlog Handoff table already asks for "stable human-readable iden
 | T-02       | #27   | [T-02] Database rules: ownership, month lock and roles (pgTAP)                      | roadmap, testing — **closed** (done)           | —                    | —          |
 | QG-01      | #29   | [QG-01] Quality-gate hooks: agent hooks and pre-commit tests on staged files        | roadmap, testing — **closed** (done)           | —                    | —          |
 | T-03       | #31   | [T-03] Route gating and honest availability reads                                   | roadmap, testing — **closed** (done)           | —                    | —          |
-| S-06       | #41   | [S-06] Sign-in lands on the dashboard, which becomes the home page                  | roadmap, slice, status:ready                   | M-2                  | —          |
-| S-07       | #42   | [S-07] Role-aware top-right navigation on every page                                | roadmap, slice, status:proposed                | M-2                  | #41        |
+| S-06       | #41   | [S-06] Sign-in lands on the dashboard, which becomes the home page                  | roadmap, slice — **closed** (done)             | M-2                  | —          |
+| S-07       | #42   | [S-07] Role-aware top-right navigation on every page                                | roadmap, slice, status:ready                   | M-2                  | #41        |
 | S-08       | #43   | [S-08] One Save per day for manual shift assignments                                | roadmap, slice, north-star, status:ready       | M-2                  | —          |
 | S-09       | #44   | [S-09] Legacy views cleanup: dashboard, auth, 403, /manager/months on design tokens | roadmap, slice, status:proposed                | M-2                  | #41, #42   |
 | Q-01       | #7    | [Q-01] Expected request and data volume (qps)?                                      | roadmap, question                              | M-2 (moved from M-1) | —          |
@@ -224,7 +224,7 @@ The temporary body files were kept in the session scratchpad and are not in the 
 
 ## What to do next
 
-Status as of 2026-10-08: M-1 is closed (6/6 done); M-2 is open with 0/4 done.
+Status as of 2026-10-08: M-1 is closed (6/6 done); M-2 is open with 1/4 done.
 
 M-1 delivery:
 
@@ -235,6 +235,10 @@ M-1 delivery:
 - #5 (S-04) was delivered in PR #37 and archived to `context/archive/2026-10-06-review-override-publish-schedule/`.
 - #6 (S-05) was delivered in PR #39 and archived to `context/archive/2026-10-07-view-published-schedule/`.
 
-1. **Start M-2.** #41 (S-06, `dashboard-as-home`) and #43 (S-08, `schedule-day-save`, north star) are ready and independent, so they can run in parallel: `/10x-new <change-id>` then `/10x-plan <change-id>`. #42 (S-07) follows S-06; #44 (S-09) follows S-06 and S-07.
+M-2 delivery:
+
+- #41 (S-06) was delivered in PR #46 and archived to `context/archive/2026-10-08-dashboard-as-home/`.
+
+1. **Continue M-2.** #42 (S-07, `role-aware-navigation`) is now ready and #43 (S-08, `schedule-day-save`, north star) is still ready; they are independent, so they can run in parallel: `/10x-new <change-id>` then `/10x-plan <change-id>`. #44 (S-09) follows S-07.
 2. **Hosted state:** every M-1 migration through `20261007160000_published_schedule_is_own.sql` was pushed and the app deployed on 2026-10-08. Still worth doing once: check a generate request's `cpuTime` with `wrangler tail`.
 3. Q-01 (#7) and the parked #8/#9 stay open; the roadmap's `## Parked` also lists the M-1 follow-ups that have no issue.
