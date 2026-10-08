@@ -750,13 +750,13 @@ No database change. The redirect URLs from the lock endpoint gain `&month=YYYY-M
 
 #### Automated
 
-- [x] 6.1 Colour check passes on the whole scope: `npm run check:ui`
-- [x] 6.2 `rg -n "bg-cosmic" src` returns nothing; `rg -n "LibBadge" src` returns nothing
-- [x] 6.3 `npm test`, `npm run lint`, `npx astro check`, `npm run build` pass
-- [x] 6.4 `npm run smoke` passes against a fresh local build
-- [x] 6.5 A deliberately added `text-purple-300` in `src/pages/manager/months.astro` makes `node scripts/check-ui-literals.mjs src/pages/manager/months.astro` exit non-zero (revert afterwards)
+- [x] 6.1 Colour check passes on the whole scope: `npm run check:ui` — 3545f55
+- [x] 6.2 `rg -n "bg-cosmic" src` returns nothing; `rg -n "LibBadge" src` returns nothing — 3545f55
+- [x] 6.3 `npm test`, `npm run lint`, `npx astro check`, `npm run build` pass — 3545f55
+- [x] 6.4 `npm run smoke` passes against a fresh local build — 3545f55
+- [x] 6.5 A deliberately added `text-purple-300` in `src/pages/manager/months.astro` makes `node scripts/check-ui-literals.mjs src/pages/manager/months.astro` exit non-zero (revert afterwards) — 3545f55
 
 #### Manual
 
-- [x] 6.6 CLAUDE.md no longer mentions legacy views or `bg-cosmic` as a pattern, and the new modules are named where an agent will look for feedback rules
-- [x] 6.7 A quick visual pass over every app page in `astro dev` shows no remaining purple/blue gradient surface
+- [x] 6.6 CLAUDE.md no longer mentions legacy views or `bg-cosmic` as a pattern, and the new modules are named where an agent will look for feedback rules — 3545f55
+- [x] 6.7 A quick visual pass over every app page in `astro dev` shows no remaining purple/blue gradient surface — 3545f55
