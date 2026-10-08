@@ -707,31 +707,31 @@ No database change. The redirect URLs from the lock endpoint gain `&month=YYYY-M
 
 #### Automated
 
-- [x] 3.1 `npm test` (including the new `roleLabel` test), `npm run lint`, `npx astro check` pass
-- [x] 3.2 No literal hits: `rg "bg-cosmic|white/|blue-|purple-|#[0-9a-fA-F]{3,8}" src/pages/index.astro src/pages/403.astro src/components/dashboard src/components/system src/components/Banner.astro` returns nothing
-- [x] 3.3 `npm run smoke` passes (`data-dashboard`, "Access denied" on every 403 step)
+- [x] 3.1 `npm test` (including the new `roleLabel` test), `npm run lint`, `npx astro check` pass — 278003f
+- [x] 3.2 No literal hits: `rg "bg-cosmic|white/|blue-|purple-|#[0-9a-fA-F]{3,8}" src/pages/index.astro src/pages/403.astro src/components/dashboard src/components/system src/components/Banner.astro` returns nothing — 278003f
+- [x] 3.3 `npm run smoke` passes (`data-dashboard`, "Access denied" on every 403 step) — 278003f
 
 #### Manual
 
-- [x] 3.4 `/` as manager shows the Manager pill and the manager links; as employee the Employee pill; link buttons show the token hover and focus ring
-- [x] 3.5 An employee on `/manager/users` sees the token 403 panel with "Go home" leading to `/`
-- [x] 3.6 With `SUPABASE_URL` unset in `.dev.vars`, every page shows the English destructive banner above the top bar (restore the value afterwards)
+- [x] 3.4 `/` as manager shows the Manager pill and the manager links; as employee the Employee pill; link buttons show the token hover and focus ring — 278003f
+- [x] 3.5 An employee on `/manager/users` sees the token 403 panel with "Go home" leading to `/` — 278003f
+- [x] 3.6 With `SUPABASE_URL` unset in `.dev.vars`, every page shows the English destructive banner above the top bar (restore the value afterwards) — 278003f
 
 ### Phase 4: `/manager/months` on tokens
 
 #### Automated
 
-- [ ] 4.1 `npm test`, `npm run lint`, `npx astro check` pass
-- [ ] 4.2 No literal hits: `rg "bg-cosmic|white/|blue-|purple-|red-|green-" src/pages/manager/months.astro src/components/manager-months` returns nothing
-- [ ] 4.3 `npm run smoke` passes (`?updated=1` prefixes, `?error=` prefix, exact `UNLOCK_WITH_DRAFT_ERROR`, lock refused for an employee)
+- [x] 4.1 `npm test`, `npm run lint`, `npx astro check` pass
+- [x] 4.2 No literal hits: `rg "bg-cosmic|white/|blue-|purple-|red-|green-" src/pages/manager/months.astro src/components/manager-months` returns nothing
+- [x] 4.3 `npm run smoke` passes (`?updated=1` prefixes, `?error=` prefix, exact `UNLOCK_WITH_DRAFT_ERROR`, lock refused for an employee)
 
 #### Manual
 
-- [ ] 4.4 Locking and unlocking a month shows "Month updated." inside that month's row
-- [ ] 4.5 Unlocking a month with a draft shows the discard-first message in that row
-- [ ] 4.6 `/manager/months?error=crafted%20text&month=<an upcoming month>` shows "Could not update the month. Try again." in that row; with no or an invalid `month` it shows at the top
-- [ ] 4.7 With the lock read forced to fail (e.g. temporarily misspell the table name locally), the page shows only "Could not load the month locks. Reload the page." with no list or buttons; restore afterwards
-- [ ] 4.8 A double click on Lock sends one POST (network tab), and Back re-enables the button
+- [x] 4.4 Locking and unlocking a month shows "Month updated." inside that month's row
+- [x] 4.5 Unlocking a month with a draft shows the discard-first message in that row
+- [x] 4.6 `/manager/months?error=crafted%20text&month=<an upcoming month>` shows "Could not update the month. Try again." in that row; with no or an invalid `month` it shows at the top
+- [x] 4.7 With the lock read forced to fail (e.g. temporarily misspell the table name locally), the page shows only "Could not load the month locks. Reload the page." with no list or buttons; restore afterwards
+- [x] 4.8 A double click on Lock sends one POST (network tab), and Back re-enables the button
 
 ### Phase 5: States and visual gate
 

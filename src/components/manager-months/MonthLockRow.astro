@@ -1,0 +1,65 @@
+---
+// One upcoming month on /manager/months: its lock state, its Lock/Unlock form and the result of the last write when
+// it concerns this month. Rendered by the page and by the /dev/manager-months-states kitchen sink.
+import { CircleAlert, CircleCheck, Lock } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { formatStationInstant } from "@/lib/availability";
+
+interface Props {
+  /** `YYYY-MM`, posted as the form's `month`. */
+  month: string;
+  label: string;
+  /** `locked_at` of the month's lock row, or null when the month is open. */
+  lockedAt: string | null;
+  /** Result of the last lock write, when it concerns this month. */
+  feedback: { kind: "error" | "success"; message: string } | null;
+  /** Renders the button in its in-flight state; only the kitchen sink sets it (the page's script does this live). */
+  pending?: boolean;
+}
+
+const { month, label, lockedAt, feedback, pending = false } = Astro.props;
+const locked = lockedAt !== null;
+---
+
+<li class="py-3">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <span class="flex flex-col gap-0.5">
+      <span class="text-sm font-medium">{label}</span>
+      {locked ? (
+        <span class="flex items-center gap-1 text-xs text-foreground">
+          <Lock aria-hidden="true" className="size-3" />
+          Locked since {formatStationInstant(lockedAt)}
+        </span>
+      ) : (
+        <span class="text-xs text-muted-foreground">Open</span>
+      )}
+    </span>
+    <form method="POST" action="/api/manager/months/lock">
+      <input type="hidden" name="month" value={month} />
+      <input type="hidden" name="action" value={locked ? "unlock" : "lock"} />
+      <Button
+        type="submit"
+        variant={locked ? "outline" : "secondary"}
+        size="sm"
+        aria-label={locked ? `Unlock ${label}` : `Lock ${label}`}
+        disabled={pending}
+        aria-busy={pending ? true : undefined}
+      >
+        {locked ? "Unlock" : "Lock"}
+      </Button>
+    </form>
+  </div>
+  {feedback?.kind === "error" && (
+    <Alert variant="destructive" className="mt-3">
+      <CircleAlert />
+      <AlertDescription>{feedback.message}</AlertDescription>
+    </Alert>
+  )}
+  {feedback?.kind === "success" && (
+    <Alert role="status" className="mt-3">
+      <CircleCheck />
+      <AlertTitle>{feedback.message}</AlertTitle>
+    </Alert>
+  )}
+</li>
