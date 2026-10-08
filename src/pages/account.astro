@@ -3,7 +3,6 @@ import { CircleAlert } from "lucide-react";
 import Layout from "@/layouts/Layout.astro";
 import AccountPanel from "@/components/account/AccountPanel.astro";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase";
 import {
   ACCOUNT_LOAD_ERROR,
@@ -44,7 +43,7 @@ if (!supabase) {
 ---
 
 <Layout title="Account">
-  <div class="min-h-screen bg-background p-4">
+  <div class="flex-1 bg-background p-4">
     <div class="mx-auto w-full max-w-2xl">
       <h1 class="mb-6 text-center text-2xl font-semibold">Account</h1>
       {loadError || !profile ? (
@@ -57,12 +56,6 @@ if (!supabase) {
       ) : (
         <AccountPanel profile={profile} feedback={feedback} />
       )}
-
-      <div class="mt-6 text-center">
-        <a href="/" class:list={buttonVariants({ variant: "outline" })}>
-          Back to dashboard
-        </a>
-      </div>
     </div>
   </div>
 </Layout>

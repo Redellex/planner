@@ -1,7 +1,6 @@
-import { readdirSync } from "node:fs";
-import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { pageFiles, routeOf } from "./page-routes";
 import type { AppRole } from "./roles";
 import { routeAccess } from "./route-access";
 
@@ -27,6 +26,7 @@ const EXPECTED_ACCESS: Record<string, AccessClass> = {
   "/dev/schedule-states": "public",
   "/dev/account-states": "public",
   "/dev/published-schedule-states": "public",
+  "/dev/navigation-states": "public",
   "/dashboard": "signed-in",
   "/availability": "signed-in",
   "/api/availability/create": "signed-in",
@@ -60,19 +60,6 @@ const actors: { signedIn: boolean; role: AppRole | null }[] = [
   { signedIn: true, role: "employee" },
   { signedIn: true, role: "manager" },
 ];
-
-const pagesDir = path.resolve(import.meta.dirname, "../pages");
-// Every extension Astro routes under src/pages; a file or folder starting with `_` is not a route.
-const ROUTE_FILE = /\.(astro|ts|js|mjs|md|mdx|html)$/;
-const pageFiles = readdirSync(pagesDir, { recursive: true, encoding: "utf8" })
-  .map((file) => file.split(path.sep).join("/"))
-  .filter((file) => ROUTE_FILE.test(file) && !file.split("/").some((segment) => segment.startsWith("_")))
-  .sort();
-
-function routeOf(file: string): string {
-  const route = `/${file.replace(ROUTE_FILE, "")}`.replace(/\/index$/, "");
-  return route === "" ? "/" : route;
-}
 
 describe("every page and endpoint under src/pages has an explicit expected access", () => {
   it("finds the pages directory", () => {

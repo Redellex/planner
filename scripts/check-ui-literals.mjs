@@ -30,6 +30,9 @@ const SCOPE = [
   "src/pages/schedule.astro",
   "src/components/published-schedule/",
   "src/pages/dev/published-schedule-states.astro",
+  "src/layouts/Layout.astro",
+  "src/components/navigation/",
+  "src/pages/dev/navigation-states.astro",
 ];
 
 const PALETTE =

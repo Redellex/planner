@@ -6,7 +6,6 @@ import DayPanel from "@/components/availability/DayPanel.astro";
 import MonthTabs from "@/components/availability/MonthTabs.astro";
 import type { WindowRow } from "@/components/availability/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase";
 import {
   addMonths,
@@ -125,7 +124,7 @@ const feedback = feedbackError
 ---
 
 <Layout title="Availability">
-  <div class="min-h-screen bg-background p-4">
+  <div class="flex-1 bg-background p-4">
     <div class="mx-auto w-full max-w-2xl">
       <h1 class="mb-6 text-center text-2xl font-semibold">Availability</h1>
       {loadError && (
@@ -157,12 +156,6 @@ const feedback = feedbackError
         lockStateUnknown={lockStateUnknown}
         feedback={feedback}
       />
-
-      <div class="mt-6 text-center">
-        <a href="/" class:list={buttonVariants({ variant: "outline" })}>
-          Back to dashboard
-        </a>
-      </div>
     </div>
   </div>
 </Layout>

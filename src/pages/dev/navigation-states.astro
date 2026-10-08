@@ -1,0 +1,84 @@
+---
+// Kitchen sink for the top navigation: every persona's bar, rendered by the real component from fixture actors. Dev
+// only (the visual gate for context/changes/role-aware-navigation); 404 in production. The bar at the very top is the
+// real session's (the layout's); the ones below are fixtures. Every form here is inert, the real bar's Sign out too.
+// No database access and no user data.
+import Layout from "@/layouts/Layout.astro";
+import AppNav from "@/components/navigation/AppNav.astro";
+import type { AppRole } from "@/lib/roles";
+
+// Outside dev: 404 with an empty body (the template below renders only in dev). A frontmatter `return` would do,
+// but it crashes @typescript-eslint/no-misused-promises in .astro files.
+const isDev = import.meta.env.DEV;
+if (!isDev) {
+  Astro.response.status = 404;
+}
+
+const states: {
+  title: string;
+  actor: { signedIn: boolean; role: AppRole | null };
+  email: string | null;
+  pathname: string;
+}[] = [
+  { title: "Anonymous on /auth/signin", actor: { signedIn: false, role: null }, email: null, pathname: "/auth/signin" },
+  {
+    title: "Employee on /availability",
+    actor: { signedIn: true, role: "employee" },
+    email: "employee@example.com",
+    pathname: "/availability",
+  },
+  {
+    title: "Signed in with no role on /",
+    actor: { signedIn: true, role: null },
+    email: "no-role@example.com",
+    pathname: "/",
+  },
+  {
+    title: "Manager on /manager/schedule",
+    actor: { signedIn: true, role: "manager" },
+    email: "manager@example.com",
+    pathname: "/manager/schedule",
+  },
+  {
+    title: "Manager with a long email (truncated)",
+    actor: { signedIn: true, role: "manager" },
+    email: "a.very.long.manager.address.for.truncation@station-number-forty-two.example.com",
+    pathname: "/manager/users",
+  },
+];
+---
+
+{isDev && (
+  <Layout title="Navigation states">
+    <div class="flex-1 bg-background p-4">
+      <div class="mx-auto flex w-full max-w-6xl flex-col gap-10">
+        <header class="flex flex-col gap-1">
+          <h1 class="text-2xl font-semibold">Navigation states</h1>
+          <p class="text-sm text-muted-foreground">
+            Dev-only kitchen sink. Fixture actors; forms on this page do not submit. The inline links show from `lg`,
+            the email from `xl`; narrower, open "Menu". Loading — N/A: SSR, no client script.
+          </p>
+        </header>
+
+        {states.map((state, index) => (
+          <section aria-labelledby={`state-${index}`} class="flex flex-col gap-3">
+            <h2 id={`state-${index}`} class="text-sm font-medium text-muted-foreground">
+              {state.title}
+            </h2>
+            <div class="rounded-xl border">
+              <AppNav actor={state.actor} email={state.email} pathname={state.pathname} />
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  </Layout>
+)}
+
+<script>
+  // Every form on this page, the real bar's Sign out included: keep them inert so a click never reaches
+  // /api/auth/signout.
+  document.addEventListener("submit", (event) => {
+    event.preventDefault();
+  });
+</script>

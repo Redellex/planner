@@ -1,0 +1,93 @@
+---
+// The top bar on every page, mounted once in src/layouts/Layout.astro. The links come from navLinksFor, which filters
+// NAV_LINKS through the same routeAccess decision the middleware applies, so a link here never leads to a refused
+// page. Props instead of Astro.locals so /dev/navigation-states can render every persona. No hydration: below `lg` the
+// links collapse into a native <details> menu.
+import { Menu } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import type { AppRole } from "@/lib/roles";
+import { isCurrentNavLink, navBrandHref, navLinksFor } from "@/lib/navigation";
+import { cn } from "@/lib/utils";
+
+interface Props {
+  /** `signedIn` must be computed as the middleware does (`user !== null`), not from `role`. */
+  actor: { signedIn: boolean; role: AppRole | null };
+  email?: string | null;
+  pathname: string;
+}
+
+const { actor, email = null, pathname } = Astro.props;
+const links = navLinksFor(actor).map((link) => ({ ...link, current: isCurrentNavLink(pathname, link.href) }));
+---
+
+<header class="border-b bg-background">
+  <div class="flex items-center justify-between gap-4 px-4 py-2">
+    <a href={navBrandHref(actor.signedIn)} class="shrink-0 text-base font-semibold text-foreground">
+      Planner
+    </a>
+    <nav aria-label="Main" class="flex min-w-0 flex-1 justify-end">
+      <div class="hidden flex-wrap items-center justify-end gap-1 lg:flex">
+        {links.map((link) => (
+          <a
+            href={link.href}
+            aria-current={link.current ? "page" : undefined}
+            data-nav-link={link.href}
+            class:list={buttonVariants({ variant: link.current ? "secondary" : "ghost", size: "sm" })}
+          >
+            {link.label}
+          </a>
+        ))}
+        {actor.signedIn && email && (
+          <span class="hidden max-w-56 truncate px-2 text-sm text-muted-foreground xl:inline-block" title={email}>
+            {email}
+          </span>
+        )}
+        {actor.signedIn && (
+          <form method="POST" action="/api/auth/signout">
+            <Button type="submit" variant="outline" size="sm">
+              Sign out
+            </Button>
+          </form>
+        )}
+      </div>
+      <details class="relative lg:hidden">
+        <summary
+          class:list={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "list-none [&::-webkit-details-marker]:hidden",
+          )}
+        >
+          <Menu aria-hidden="true" />
+          Menu
+        </summary>
+        <div class="absolute top-full right-0 z-10 mt-2 flex w-64 flex-col gap-1 rounded-xl border bg-card p-2 text-card-foreground shadow-md">
+          {links.map((link) => (
+            <a
+              href={link.href}
+              aria-current={link.current ? "page" : undefined}
+              data-nav-link={link.href}
+              class:list={cn(
+                buttonVariants({ variant: link.current ? "secondary" : "ghost", size: "sm" }),
+                "justify-start",
+              )}
+            >
+              {link.label}
+            </a>
+          ))}
+          {actor.signedIn && email && (
+            <p class="truncate border-t px-3 pt-2 text-sm text-muted-foreground" title={email}>
+              {email}
+            </p>
+          )}
+          {actor.signedIn && (
+            <form method="POST" action="/api/auth/signout">
+              <Button type="submit" variant="outline" size="sm" className="w-full">
+                Sign out
+              </Button>
+            </form>
+          )}
+        </div>
+      </details>
+    </nav>
+  </div>
+</header>

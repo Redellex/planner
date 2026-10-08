@@ -2,7 +2,6 @@
 import Layout from "@/layouts/Layout.astro";
 import MonthTabs from "@/components/availability/MonthTabs.astro";
 import PublishedScheduleView from "@/components/published-schedule/PublishedScheduleView.astro";
-import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase";
 import { currentStationMonth, monthOfDate, monthStart, parseDate, parseMonth } from "@/lib/availability";
 import { loadPublishedSchedule, publishedScheduleUrl, type PublishedSchedule } from "@/lib/published-schedule";
@@ -27,7 +26,7 @@ const monthHref = (option: string): string => publishedScheduleUrl({ month: opti
 ---
 
 <Layout title="Schedule">
-  <div class="min-h-screen bg-background p-4">
+  <div class="flex-1 bg-background p-4">
     <!-- Only the calendar uses the desktop width (its cells list who works each shift); the rest stays narrow. -->
     <div class="mx-auto w-full max-w-2xl lg:max-w-6xl">
       <div class="mx-auto w-full max-w-2xl">
@@ -42,12 +41,6 @@ const monthHref = (option: string): string => publishedScheduleUrl({ month: opti
         isManager={role === "manager"}
         loadError={loadError}
       />
-
-      <div class="mt-6 text-center">
-        <a href="/" class:list={buttonVariants({ variant: "outline" })}>
-          Back to dashboard
-        </a>
-      </div>
     </div>
   </div>
 </Layout>
