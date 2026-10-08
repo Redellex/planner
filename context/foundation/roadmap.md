@@ -43,12 +43,12 @@ A gas-station manager used to build the monthly shift schedule by hand in a spre
 
 ## At a glance
 
-| ID   | Change ID              | Outcome (user can …)                                                                | Prerequisites | PRD refs | Status      |
-| ---- | ---------------------- | ----------------------------------------------------------------------------------- | ------------- | -------- | ----------- |
-| S-06 | dashboard-as-home      | User lands on the dashboard after sign-in; the dashboard is the home page at `/`    | —             | MS-01    | done        |
-| S-07 | role-aware-navigation  | User sees a top-right navigation on every page with only the links their role opens | S-06          | MS-02    | in-progress |
-| S-08 | schedule-day-save      | Manager saves all of one day's manual assignments with a single Save                | —             | MS-03    | ready       |
-| S-09 | legacy-views-ui-tokens | User sees the dashboard, auth pages, 403 and `/manager/months` on the design tokens | S-06, S-07    | MS-04    | proposed    |
+| ID   | Change ID              | Outcome (user can …)                                                                | Prerequisites | PRD refs | Status |
+| ---- | ---------------------- | ----------------------------------------------------------------------------------- | ------------- | -------- | ------ |
+| S-06 | dashboard-as-home      | User lands on the dashboard after sign-in; the dashboard is the home page at `/`    | —             | MS-01    | done   |
+| S-07 | role-aware-navigation  | User sees a top-right navigation on every page with only the links their role opens | S-06          | MS-02    | done   |
+| S-08 | schedule-day-save      | Manager saves all of one day's manual assignments with a single Save                | —             | MS-03    | ready  |
+| S-09 | legacy-views-ui-tokens | User sees the dashboard, auth pages, 403 and `/manager/months` on the design tokens | S-06, S-07    | MS-04    | ready  |
 
 ## Streams
 
@@ -64,7 +64,7 @@ Navigation aid — groups items that share a Prerequisites chain. Canonical orde
 What's already in place in the codebase as of `2026-10-08` (auto-researched + user-confirmed).
 No foundations are needed for this milestone.
 
-- **Frontend:** present — Astro 7 SSR + React 19 islands, Tailwind 4, shadcn tokens (`src/styles/global.css`). Legacy views still on `bg-cosmic`: `/` (`src/components/Welcome.astro` with `src/components/Topbar.astro`, the only page with a top bar), `/dashboard`, the auth pages, `403.astro`, `/manager/months`. Other pages have only a bottom "Back to dashboard" button. (Since S-06: `/` is the dashboard, `/dashboard` answers 301 → `/`, and `Welcome.astro`/`Topbar.astro` are gone.)
+- **Frontend:** present — Astro 7 SSR + React 19 islands, Tailwind 4, shadcn tokens (`src/styles/global.css`). Legacy views still on `bg-cosmic`: `/` (`src/components/Welcome.astro` with `src/components/Topbar.astro`, the only page with a top bar), `/dashboard`, the auth pages, `403.astro`, `/manager/months`. Other pages have only a bottom "Back to dashboard" button. (Since S-06: `/` is the dashboard, `/dashboard` answers 301 → `/`, and `Welcome.astro`/`Topbar.astro` are gone.) (Since S-07: every page has one top bar, `src/components/navigation/AppNav.astro` mounted in `Layout.astro`, and the "Back to dashboard" buttons are gone.)
 - **Backend / API:** present — form-post + redirect endpoints; sign-in redirects to `/` (`src/pages/api/auth/signin.ts:19`).
 - **Data:** present — Supabase migrations, RLS, pgTAP (`supabase/migrations/`, `supabase/tests/database/`).
 - **Auth:** present — Supabase SSR auth plus role gating (`src/middleware.ts`, `src/lib/route-access.ts`, route inventory guard `src/lib/route-inventory.test.ts`).
@@ -103,7 +103,7 @@ No foundations are needed for this milestone.
   - How does the navigation fit a phone-width screen — a collapsed menu or wrapping links? — Owner: user. Block: no.
   - Do the bottom "Back to dashboard" buttons go once the navigation has a home link? — Owner: user. Block: no (default: remove them).
 - **Risk:** Touches every page's layout; the failure mode is a link the route gate refuses or a permitted page with no link, so the link list must come from the same route lists the middleware uses.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-08: Day-level save for manual assignments
 
@@ -130,16 +130,16 @@ No foundations are needed for this milestone.
 - **Unknowns:**
   - One `/10x-ui` change for all the views, or one per view? — Owner: user. Block: no.
 - **Risk:** Largest by page count but UI-only, following the pattern in `context/archive/*-ui-tokens/tokens.md`; the welcome page drops out of scope because S-06 removes it. Split per view if one change grows too large.
-- **Status:** proposed
+- **Status:** ready
 
 ## Backlog Handoff
 
 | Roadmap ID | Issue | Change ID              | Suggested issue title                                                          | Ready for `/10x-plan` | Notes                                         |
 | ---------- | ----- | ---------------------- | ------------------------------------------------------------------------------ | --------------------- | --------------------------------------------- |
 | S-06       | #41   | dashboard-as-home      | Sign-in lands on the dashboard, which becomes the home page                    | —                     | Done in PR #46 — archived 2026-10-08          |
-| S-07       | #42   | role-aware-navigation  | Role-aware top-right navigation on every page                                  | yes                   | Run `/10x-plan role-aware-navigation`         |
+| S-07       | #42   | role-aware-navigation  | Role-aware top-right navigation on every page                                  | —                     | Done in PR #48 — archived 2026-10-08          |
 | S-08       | #43   | schedule-day-save      | One Save per day for manual shift assignments                                  | yes                   | North star; run `/10x-plan schedule-day-save` |
-| S-09       | #44   | legacy-views-ui-tokens | Legacy views cleanup: dashboard, auth, 403, `/manager/months` on design tokens | no                    | After S-07                                    |
+| S-09       | #44   | legacy-views-ui-tokens | Legacy views cleanup: dashboard, auth, 403, `/manager/months` on design tokens | yes                   | Run `/10x-ui` for these views                 |
 
 ## Open Roadmap Questions
 
@@ -168,3 +168,4 @@ No foundations are needed for this milestone.
 (M-1's items, Backlog Handoff and Done entries are in its closing roadmap: `git show 53eaffe:context/foundation/roadmap.md`.)
 
 - **S-06: User signs in and lands straight on their dashboard, which is now the home page at `/`; the starter welcome page is gone.** — Archived 2026-10-08 → `context/archive/2026-10-08-dashboard-as-home/`. Lesson: —.
+- **S-07: On every page, a signed-in user sees a top-right navigation with links to exactly the pages their role may open (plus Sign out), and an anonymous visitor sees Sign in / Sign up; the outdated welcome-page top bar is gone.** — Archived 2026-10-08 → `context/archive/2026-10-08-role-aware-navigation/`. Lesson: —.
