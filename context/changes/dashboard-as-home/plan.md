@@ -252,10 +252,10 @@ No data migration. Browsers cache the `/dashboard` 301 permanently, which is int
 
 #### Manual
 
-- [ ] 1.6 Anonymous `/` in the browser lands on the sign-in page; signing in lands on the dashboard at `/`
-- [ ] 1.7 `/dashboard` while signed in ends on `/` with the dashboard shown
-- [ ] 1.8 `/auth/signin` and `/auth/signup` while signed in end on `/`; after Sign out the browser is on `/auth/signin` and the forms render
-- [ ] 1.9 "Back to dashboard" on `/availability` and the 403 page's link both open `/`
+- [x] 1.6 Anonymous `/` in the browser lands on the sign-in page; signing in lands on the dashboard at `/` — confirmed by the user 2026-10-08
+- [x] 1.7 `/dashboard` while signed in ends on `/` with the dashboard shown — confirmed by the user 2026-10-08
+- [x] 1.8 `/auth/signin` and `/auth/signup` while signed in end on `/`; after Sign out the browser is on `/auth/signin` and the forms render — confirmed by the user 2026-10-08
+- [x] 1.9 "Back to dashboard" on `/availability` and the 403 page's link both open `/` — confirmed by the user 2026-10-08
 
 ### Phase 2: Smoke and docs
 
@@ -267,4 +267,4 @@ No data migration. Browsers cache the `/dashboard` 301 permanently, which is int
 
 #### Manual
 
-- [ ] 2.4 `CLAUDE.md` no longer mentions `Welcome`, `src/pages/dashboard.astro` as the protected example, or sign-out to `/`
+- [x] 2.4 `CLAUDE.md` no longer mentions `Welcome`, `src/pages/dashboard.astro` as the protected example, or sign-out to `/` — confirmed by the user 2026-10-08
