@@ -343,7 +343,7 @@ The migration only adds a function; no data changes. A deployed page with the ol
 
 #### Manual
 
-- [ ] 1.5 Sabotage check (§6.2 item 11): with the stale comparison removed from the live function, `npm run test:db` goes red; restored with `npx supabase db reset`
+- [x] 1.5 Sabotage check (§6.2 item 11): with the stale comparison removed from the live function, `npm run test:db` goes red; restored with `npx supabase db reset` — verified in impl-review 2026-10-08 (tests 5–7 red, restored)
 
 ### Phase 2: Pure logic: combined warnings, row codec, URL contract
 
@@ -365,12 +365,12 @@ The migration only adds a function; no data changes. A deployed page with the ol
 
 #### Manual
 
-- [ ] 3.6 On a generated draft, changing two shifts of one day and pressing Save once stores both and shows "Day saved." in the day panel
-- [ ] 3.7 Assigning one person to two shifts of the same day shows one confirm panel listing both changes and the same-day warning; "Assign anyway" saves both
-- [ ] 3.8 During the confirm, changing a pick and pressing Save rechecks: the panel updates, or the day saves when the new set is clean
-- [ ] 3.9 Save with nothing changed shows "No changes to save." and stores nothing
-- [ ] 3.10 With the day open in two tabs, saving in one and then in the other shows "This day changed since you opened it. Reload and try again." and the second tab's picks are not stored
-- [ ] 3.11 Kitchen sink `/dev/schedule-states` shows every state; the selects are labelled, focus is visible and Save, Assign anyway and Cancel are reachable by keyboard
+- [x] 3.6 On a generated draft, changing two shifts of one day and pressing Save once stores both and shows "Day saved." in the day panel — verified by the user 2026-10-08
+- [x] 3.7 Assigning one person to two shifts of the same day shows one confirm panel listing both changes and the same-day warning; "Assign anyway" saves both — verified by the user 2026-10-08
+- [x] 3.8 During the confirm, changing a pick and pressing Save rechecks: the panel updates, or the day saves when the new set is clean — verified by the user 2026-10-08
+- [x] 3.9 Save with nothing changed shows "No changes to save." and stores nothing — verified by the user 2026-10-08
+- [x] 3.10 With the day open in two tabs, saving in one and then in the other shows "This day changed since you opened it. Reload and try again." and the second tab's picks are not stored — verified by the user 2026-10-08
+- [x] 3.11 Kitchen sink `/dev/schedule-states` shows every state; the selects are labelled, focus is visible and Save, Assign anyway and Cancel are reachable by keyboard — verified by the user 2026-10-08
 
 ### Phase 4: Smoke and docs
 
@@ -382,4 +382,4 @@ The migration only adds a function; no data changes. A deployed page with the ol
 
 #### Manual
 
-- [ ] 4.4 CLAUDE.md reads correctly for the day save and names no removed symbol (`STALE_SHIFT_ERROR`, `applyOverride`, `shift=`/`employee=` URL params)
+- [x] 4.4 CLAUDE.md reads correctly for the day save and names no removed symbol (`STALE_SHIFT_ERROR`, `applyOverride`, `shift=`/`employee=` URL params) — verified in impl-review 2026-10-08

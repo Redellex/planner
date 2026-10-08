@@ -1,10 +1,11 @@
 -- S-08, database half: save_schedule_day stores a station day's assignee changes all or nothing. It refuses a
 -- non-manager, a duplicate id, a month with no draft, a published month and a day that changed since the manager saw
 -- it (another assignee, a missing shift or a shift of another day), and an unknown assignee fails the whole call on
--- the foreign key. Oracles: plan schedule-day-save (Phase 1 contract), roadmap S-08 default b (refuse the whole day).
+-- the foreign key. A day already stored as requested (an overlapping double submit) returns 0. Oracles: plan
+-- schedule-day-save (Phase 1 contract), roadmap S-08 default b (refuse the whole day), impl-review F1.
 -- Refused calls are checked as postgres afterwards, against a snapshot of every fixture shift.
 begin;
-select plan(20);
+select plan(22);
 
 -- Station months, derived once; now() is fixed for the transaction.
 select
@@ -94,6 +95,27 @@ select is(
    from public.schedule_shifts where id::text like '20000000-0000-4000-8000-0000000000%'),
   '11=b6,12=c6,13=a6,14=-',
   'neither change of the stale save was stored'
+);
+
+-- Already stored as requested: ..11 was A when this request read the day, but B, its new value, is stored now (the
+-- second request of an overlapping double submit). Not stale: 0 updated, nothing changed.
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"10000000-0000-4000-8000-0000000000c6","role":"authenticated"}';
+select is(
+  (select public.save_schedule_day(:'m1'::date, :'m1'::date, '[
+    {"id":"20000000-0000-4000-8000-000000000011","was":"10000000-0000-4000-8000-0000000000a6","employee_id":"10000000-0000-4000-8000-0000000000b6"},
+    {"id":"20000000-0000-4000-8000-000000000012","was":"10000000-0000-4000-8000-0000000000c6","employee_id":"10000000-0000-4000-8000-0000000000c6"},
+    {"id":"20000000-0000-4000-8000-000000000013","was":null,"employee_id":"10000000-0000-4000-8000-0000000000a6"}
+  ]'::jsonb)),
+  0,
+  'Mg saving day 1 as it is already stored, with stale was values, updates 0 shifts instead of SP004'
+);
+reset role;
+select is(
+  (select string_agg(right(id::text, 2) || '=' || coalesce(right(employee_id::text, 2), '-'), ',' order by id)
+   from public.schedule_shifts where id::text like '20000000-0000-4000-8000-0000000000%'),
+  '11=b6,12=c6,13=a6,14=-',
+  'the already-saved call left every shift as it was'
 );
 
 -- The posted shift set differs from the stored day: one shift missing, or a shift of another day added.

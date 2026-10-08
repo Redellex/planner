@@ -3,6 +3,10 @@
 // (`employee-<id>`); only rows whose choice differs are changes. Pure: no reads, no clock.
 
 import { formatDayRow, parseDayRow, parseShiftParam, type DayRow } from "./schedule";
+import { STATION_DAY_PATTERNS } from "./schedule-generator";
+
+/** The most shifts a station day holds (6×4); a form with more rows cannot match a stored day. */
+const MAX_DAY_ROWS = Math.max(...STATION_DAY_PATTERNS.map((pattern) => pattern.length));
 
 /** A stored shift of the day, as far as these comparisons need it. */
 interface StoredDayShift {
@@ -36,7 +40,8 @@ function parseAssigneeField(values: FormDataEntryValue[]): string | null | undef
  */
 export function parseDaySaveForm(form: FormData): DaySaveForm | null {
   const shiftValues = form.getAll("shift");
-  if (shiftValues.length === 0) {
+  // The cap also bounds the per-row field scans below on a crafted form.
+  if (shiftValues.length === 0 || shiftValues.length > MAX_DAY_ROWS) {
     return null;
   }
   const rows: DayRow[] = [];

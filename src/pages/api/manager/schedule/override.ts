@@ -136,7 +136,15 @@ export const POST: APIRoute = async (context) => {
   if (error) {
     logScheduleError("could not save the schedule day", error);
     // Only the assignee foreign key can fail on an employee_id update (an account deleted since the read).
-    return fail(error.code === "23503" ? INVALID_ASSIGNEE_ERROR : describeScheduleWriteError(error));
+    if (error.code === "23503") {
+      return fail(INVALID_ASSIGNEE_ERROR);
+    }
+    // A deadlock: a discard or regenerate of this month ran at the same moment (it locks the schedules row before the
+    // shifts, the save the other way round), so the day changed under the save.
+    if (error.code === "40P01") {
+      return fail(DAY_CHANGED_ERROR);
+    }
+    return fail(describeScheduleWriteError(error));
   }
 
   return context.redirect(managerScheduleUrl({ month, day, overridden: true }));

@@ -235,7 +235,7 @@ export function managerScheduleUrl(params: ManagerScheduleUrlParams): string {
   return query.length > 0 ? `/manager/schedule?${query.join("&")}` : "/manager/schedule";
 }
 
-/** A shift id from a form field or `?shift=`: the value when it is a UUID, null otherwise. */
+/** A shift or profile id from a form field or a day row: the value when it is a UUID, null otherwise. */
 export function parseShiftParam(value: unknown): string | null {
   return typeof value === "string" && UUID_PATTERN.test(value) ? value : null;
 }

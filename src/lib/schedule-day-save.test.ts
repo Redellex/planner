@@ -8,6 +8,8 @@ import { alreadySaved, changedRows, matchesStored, parseDaySaveForm, sameRows } 
 const S1 = "11111111-1111-4111-8111-111111111111";
 const S2 = "22222222-2222-4222-8222-222222222222";
 const S3 = "33333333-3333-4333-8333-333333333333";
+const S4 = "44444444-4444-4444-8444-444444444444";
+const S5 = "55555555-5555-4555-8555-555555555555";
 const ANN = "00000000-0000-4000-8000-00000000000a";
 const BOB = "00000000-0000-4000-8000-00000000000b";
 
@@ -106,8 +108,39 @@ describe("the day form is read into rows", () => {
     ["a was- value that is not a uuid", rowFields(S1, "ann", BOB)],
     ["an employee- value that is not a uuid", rowFields(S1, ANN, "none")],
     ["a malformed confirmed row", [...rowFields(S1, ANN, BOB), ["confirm", "override"], ["confirmed", `${S1}:${ANN}`]]],
+    [
+      "more rows than a station day holds (5)",
+      [
+        ...rowFields(S1, ANN, BOB),
+        ...rowFields(S2, ANN, BOB),
+        ...rowFields(S3, ANN, BOB),
+        ...rowFields(S4, ANN, BOB),
+        ...rowFields(S5, ANN, BOB),
+      ],
+    ],
   ])("is null for %s", (_name, pairs) => {
     expect(parseDaySaveForm(form(pairs))).toBeNull();
+  });
+
+  it("reads a full 6×4 day (4 rows)", () => {
+    expect(
+      parseDaySaveForm(
+        form([
+          ...rowFields(S1, ANN, BOB),
+          ...rowFields(S2, "", ""),
+          ...rowFields(S3, BOB, ANN),
+          ...rowFields(S4, "", ANN),
+        ]),
+      ),
+    ).toEqual({
+      rows: [
+        { shift: S1, was: ANN, to: BOB },
+        { shift: S2, was: null, to: null },
+        { shift: S3, was: BOB, to: ANN },
+        { shift: S4, was: null, to: ANN },
+      ],
+      confirmed: null,
+    });
   });
 });
 

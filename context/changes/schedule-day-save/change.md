@@ -1,7 +1,7 @@
 ---
 change_id: schedule-day-save
 title: Schedule day save
-status: implementing
+status: impl_reviewed
 created: 2026-10-08
 updated: 2026-10-08
 archived_at: null
