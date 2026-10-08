@@ -43,12 +43,12 @@ A gas-station manager used to build the monthly shift schedule by hand in a spre
 
 ## At a glance
 
-| ID   | Change ID              | Outcome (user can …)                                                                | Prerequisites | PRD refs | Status      |
-| ---- | ---------------------- | ----------------------------------------------------------------------------------- | ------------- | -------- | ----------- |
-| S-06 | dashboard-as-home      | User lands on the dashboard after sign-in; the dashboard is the home page at `/`    | —             | MS-01    | in-progress |
-| S-07 | role-aware-navigation  | User sees a top-right navigation on every page with only the links their role opens | S-06          | MS-02    | proposed    |
-| S-08 | schedule-day-save      | Manager saves all of one day's manual assignments with a single Save                | —             | MS-03    | ready       |
-| S-09 | legacy-views-ui-tokens | User sees the dashboard, auth pages, 403 and `/manager/months` on the design tokens | S-06, S-07    | MS-04    | proposed    |
+| ID   | Change ID              | Outcome (user can …)                                                                | Prerequisites | PRD refs | Status   |
+| ---- | ---------------------- | ----------------------------------------------------------------------------------- | ------------- | -------- | -------- |
+| S-06 | dashboard-as-home      | User lands on the dashboard after sign-in; the dashboard is the home page at `/`    | —             | MS-01    | done     |
+| S-07 | role-aware-navigation  | User sees a top-right navigation on every page with only the links their role opens | S-06          | MS-02    | proposed |
+| S-08 | schedule-day-save      | Manager saves all of one day's manual assignments with a single Save                | —             | MS-03    | ready    |
+| S-09 | legacy-views-ui-tokens | User sees the dashboard, auth pages, 403 and `/manager/months` on the design tokens | S-06, S-07    | MS-04    | proposed |
 
 ## Streams
 
@@ -89,7 +89,7 @@ No foundations are needed for this milestone.
   - What does an anonymous visitor get at `/` — a redirect to sign-in, or a minimal public page? — Owner: user. Block: no (default: redirect to sign-in, since every page needs an account).
   - Does `/dashboard` stay as a redirect to `/` so old links keep working? — Owner: user. Block: no (default: yes).
 - **Risk:** Smallest slice, but it changes the `/` row of the route gate and the route inventory guard, and the smoke sign-in step; keep those in step.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-07: Role-aware navigation
 
@@ -166,3 +166,5 @@ No foundations are needed for this milestone.
 ## Done
 
 (Empty for M-2. M-1's items, Backlog Handoff and Done entries are in its closing roadmap: `git show 53eaffe:context/foundation/roadmap.md`.)
+
+- **S-06: User signs in and lands straight on their dashboard, which is now the home page at `/`; the starter welcome page is gone.** — Archived 2026-10-08 → `context/archive/2026-10-08-dashboard-as-home/`. Lesson: —.
