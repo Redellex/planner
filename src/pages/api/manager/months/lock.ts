@@ -2,17 +2,15 @@ import type { APIRoute } from "astro";
 import { createClient } from "@/lib/supabase";
 import { monthStart, parseMonth } from "@/lib/availability";
 import {
-  GENERIC_LOCK_WRITE_ERROR,
+  describeLockWriteError,
   INVALID_ACTION_ERROR,
   INVALID_MONTH_ERROR,
+  isUnlockBlockedBySchedule,
+  type LockAction,
   logMonthsError,
   monthsUrl,
   SUPABASE_NOT_CONFIGURED_ERROR,
-  UNLOCK_WITH_DRAFT_ERROR,
-  UNLOCK_WITH_PUBLISHED_ERROR,
 } from "@/lib/manager-months";
-
-type LockAction = "lock" | "unlock";
 
 function isLockAction(value: unknown): value is LockAction {
   return value === "lock" || value === "unlock";
@@ -45,8 +43,8 @@ export const POST: APIRoute = async (context) => {
       : await supabase.from("availability_locks").delete().eq("month", monthStart(month));
 
   if (error) {
-    // A month with a draft or published schedule cannot be unlocked: schedules.month restricts deleting its lock row.
-    if (action === "unlock" && error.code === "23503") {
+    let published = false;
+    if (isUnlockBlockedBySchedule(action, error)) {
       logMonthsError("unlock refused while a schedule exists", { code: error.code, message: error.message });
       // A published month must be unpublished before its draft can be discarded; any read failure falls back to the
       // draft message (smoke.mjs matches it).
@@ -61,13 +59,11 @@ export const POST: APIRoute = async (context) => {
           message: schedule.error.message,
         });
       }
-      const published = schedule.data !== null && schedule.data.published_at !== null;
-      return context.redirect(
-        monthsUrl({ error: published ? UNLOCK_WITH_PUBLISHED_ERROR : UNLOCK_WITH_DRAFT_ERROR }, month),
-      );
+      published = schedule.data !== null && schedule.data.published_at !== null;
+    } else {
+      logMonthsError(`${action} failed`, { code: error.code, message: error.message });
     }
-    logMonthsError(`${action} failed`, { code: error.code, message: error.message });
-    return context.redirect(monthsUrl({ error: GENERIC_LOCK_WRITE_ERROR }, month));
+    return context.redirect(monthsUrl({ error: describeLockWriteError(action, error, published) }, month));
   }
 
   return context.redirect(monthsUrl({ updated: true }, month));

@@ -75,7 +75,7 @@ export function resolveAuthFeedbackError(form: AuthForm, param: string | null): 
   return FEEDBACK_ERRORS[form].has(param) ? param : GENERIC_ERROR[form];
 }
 
-/** Logs a raw auth error server-side (code and message only, never the email or password). */
+/** Logs a raw auth error server-side: Supabase's code and message, never the submitted form fields. */
 export function logAuthError(context: string, error: { code?: string; message: string }): void {
   // eslint-disable-next-line no-console -- the only record of a raw auth error is the Worker log
   console.error(`Auth: ${context}`, { code: error.code, message: error.message });

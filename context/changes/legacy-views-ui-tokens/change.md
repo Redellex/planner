@@ -1,7 +1,7 @@
 ---
 change_id: legacy-views-ui-tokens
 title: Legacy views on the design tokens
-status: implementing
+status: impl_reviewed
 created: 2026-10-08
 updated: 2026-10-08
 archived_at: null

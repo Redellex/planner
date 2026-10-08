@@ -667,6 +667,24 @@ No database change. The redirect URLs from the lock endpoint gain `&month=YYYY-M
 - Kitchen-sink model: `src/pages/dev/account-states.astro:16-21`
 - Roadmap: `context/foundation/roadmap.md` S-09
 
+## Deviations
+
+Recorded after the implementation review (`reviews/impl-review.md`).
+
+- **Kitchen-sink support (not in the plan):**
+  - `ConfirmEmailPanel.astro` holds the confirm-email body, so `/dev/auth-states` can render it.
+  - `AuthFieldStates.tsx` is a fixture wrapper, imported only by `/dev/auth-states`.
+  - `idPrefix` props on `SignInForm`, `SignUpForm`, `AuthPanel`, `DashboardPanel` and `ConfirmEmailPanel` keep ids unique when one page shows several panels.
+  - `MonthLockRow` takes `pending` so the kitchen sink can show the disabled `aria-busy` button.
+- **Hardening:**
+  - `describeAuthError` maps a code that belongs to the other form to this form's generic message.
+  - `monthsUrl` drops a month that is not `YYYY-MM`.
+  - Both are unit-tested.
+- **Panel padding:** `AuthPanel` and `AccessDeniedPanel` use `p-6` and centre the card. `tokens.md` records it (review F2).
+- **Review fixes:**
+  - The password toggle keeps `aria-pressed` with the fixed label "Show password" (F1), and uses `focus-visible:ring-3` (F3).
+  - `lock.ts` maps its errors through `describeLockWriteError` / `isUnlockBlockedBySchedule` in `manager-months.ts` (F5).
+
 ## Progress
 
 > Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands. Do not rename step titles. See `references/progress-format.md`.
@@ -744,7 +762,7 @@ No database change. The redirect URLs from the lock endpoint gain `&month=YYYY-M
 #### Manual
 
 - [x] 5.4 Each kitchen sink renders every listed state in `astro dev` with no console errors, and its forms do not submit — 4341812
-- [ ] 5.5 After screenshots and the README exist; reviewer compares before/after and accepts the look at 1280 and 390 (no horizontal scroll at 390)
+- [x] 5.5 After screenshots and the README exist; reviewer compares before/after and accepts the look at 1280 and 390 (no horizontal scroll at 390) — accepted by the user 2026-10-08
 
 ### Phase 6: Make it stick
 

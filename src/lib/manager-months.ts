@@ -48,6 +48,25 @@ export function monthsUrl(result: { error: string } | { updated: true }, month?:
   return `/manager/months?${status}${target === null ? "" : `&month=${target}`}`;
 }
 
+export type LockAction = "lock" | "unlock";
+
+/** True when an unlock failed because the month still has a schedule: schedules.month restricts deleting its lock row. */
+export function isUnlockBlockedBySchedule(action: LockAction, error: { code?: string }): boolean {
+  return action === "unlock" && error.code === "23503";
+}
+
+/**
+ * The `?error=` text for a failed lock write. An unlock blocked by a schedule names the step to take first
+ * (`published`: the month's schedule is published; false also when it could not be read, so smoke.mjs still matches
+ * the draft message); anything else is GENERIC_LOCK_WRITE_ERROR.
+ */
+export function describeLockWriteError(action: LockAction, error: { code?: string }, published: boolean): string {
+  if (isUnlockBlockedBySchedule(action, error)) {
+    return published ? UNLOCK_WITH_PUBLISHED_ERROR : UNLOCK_WITH_DRAFT_ERROR;
+  }
+  return GENERIC_LOCK_WRITE_ERROR;
+}
+
 /** The `?month=` param when it is one of the months /manager/months lists, else null (feedback goes to the top). */
 export function parseMonthParam(param: string | null): string | null {
   const month = parseMonth(param);

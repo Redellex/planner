@@ -11,14 +11,15 @@ These rows come unchanged from the archived maps:
 
 ## New rows for these views
 
-| UI role                 | Token / component                                                                              |
-| ----------------------- | ---------------------------------------------------------------------------------------------- |
-| auth panel              | page wrapper > `mx-auto w-full max-w-sm` panel, `h1 text-2xl font-semibold`                    |
-| field with leading icon | `Input` with `pl-9`, icon `text-muted-foreground` absolutely placed                            |
-| field error             | `text-destructive text-xs` + `CircleAlert`, tied with `aria-describedby`; `Input aria-invalid` |
-| password toggle         | `text-muted-foreground hover:text-foreground`, token focus ring                                |
-| text link               | `text-primary underline-offset-4 hover:underline` (or `buttonVariants({ variant: "link" })`)   |
-| role pill               | the "You" pill composition                                                                     |
-| lock status             | locked: `Lock` icon + `text-foreground`; open: `text-muted-foreground`                         |
-| page notice / banner    | `Alert variant="destructive"` + `CircleAlert`                                                  |
-| pending submit          | `Button disabled aria-busy` + `LoaderCircle animate-spin`                                      |
+| UI role                 | Token / component                                                                                                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| auth panel              | page wrapper + `flex items-start justify-center sm:items-center` > `mx-auto w-full max-w-sm` panel with `p-6` (standalone card; list panels keep `p-4`), `h1 text-2xl font-semibold` |
+| access-denied panel     | the auth panel's `p-6` card, `text-center`, icon `size-10 text-muted-foreground`                                                                                                     |
+| field with leading icon | `Input` with `pl-9`, icon `text-muted-foreground` absolutely placed                                                                                                                  |
+| field error             | `text-destructive text-xs` + `CircleAlert`, tied with `aria-describedby`; `Input aria-invalid`                                                                                       |
+| password toggle         | `text-muted-foreground hover:text-foreground`, token focus ring                                                                                                                      |
+| text link               | `text-primary underline-offset-4 hover:underline` (or `buttonVariants({ variant: "link" })`)                                                                                         |
+| role pill               | the "You" pill composition                                                                                                                                                           |
+| lock status             | locked: `Lock` icon + `text-foreground`; open: `text-muted-foreground`                                                                                                               |
+| page notice / banner    | `Alert variant="destructive"` + `CircleAlert`                                                                                                                                        |
+| pending submit          | `Button disabled aria-busy` + `LoaderCircle animate-spin`                                                                                                                            |
