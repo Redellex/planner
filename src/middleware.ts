@@ -32,6 +32,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (access === "forbidden") {
     return context.rewrite("/403");
   }
+  if (access === "home") {
+    return context.redirect("/");
+  }
 
   return next();
 });

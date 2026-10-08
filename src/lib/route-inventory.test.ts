@@ -10,14 +10,14 @@ import { routeAccess } from "./route-access";
 // so does one placed outside the gated prefixes (e.g. a manager action under /api/team/). This test reads src/pages
 // from disk, so `vitest related` never links a page to it; lint-staged runs it for staged pages instead.
 
-type AccessClass = "public" | "signed-in" | "manager";
+type AccessClass = "public" | "guest-only" | "signed-in" | "manager";
 
 const EXPECTED_ACCESS: Record<string, AccessClass> = {
-  "/": "public",
+  "/": "signed-in",
   "/403": "public",
-  "/auth/signin": "public",
-  "/auth/signup": "public",
-  "/auth/confirm-email": "public",
+  "/auth/signin": "guest-only",
+  "/auth/signup": "guest-only",
+  "/auth/confirm-email": "guest-only",
   "/api/auth/signin": "public",
   "/api/auth/signup": "public",
   "/api/auth/signout": "public",
@@ -50,6 +50,7 @@ const EXPECTED_ACCESS: Record<string, AccessClass> = {
 
 const OUTCOMES: Record<AccessClass, [anonymous: string, employee: string, manager: string]> = {
   public: ["allow", "allow", "allow"],
+  "guest-only": ["allow", "home", "home"],
   "signed-in": ["signin", "allow", "allow"],
   manager: ["signin", "forbidden", "allow"],
 };
