@@ -47,7 +47,7 @@ A gas-station manager used to build the monthly shift schedule by hand in a spre
 | ---- | ---------------------- | ----------------------------------------------------------------------------------- | ------------- | -------- | ------ |
 | S-06 | dashboard-as-home      | User lands on the dashboard after sign-in; the dashboard is the home page at `/`    | —             | MS-01    | done   |
 | S-07 | role-aware-navigation  | User sees a top-right navigation on every page with only the links their role opens | S-06          | MS-02    | done   |
-| S-08 | schedule-day-save      | Manager saves all of one day's manual assignments with a single Save                | —             | MS-03    | ready  |
+| S-08 | schedule-day-save      | Manager saves all of one day's manual assignments with a single Save                | —             | MS-03    | done   |
 | S-09 | legacy-views-ui-tokens | User sees the dashboard, auth pages, 403 and `/manager/months` on the design tokens | S-06, S-07    | MS-04    | done   |
 
 ## Streams
@@ -87,7 +87,7 @@ No foundations are needed for this milestone.
 - **Blockers:** —
 - **Unknowns:**
   - What does an anonymous visitor get at `/` — a redirect to sign-in, or a minimal public page? — Owner: user. Block: no (default: redirect to sign-in, since every page needs an account).
-  - Does `/dashboard` stay as a redirect to `/` so old links keep working? — Owner: user. Block: no (default: yes).
+  - Does `/dashboard` stay as a redirect to `/` so old links keep working? — Owner: user. Block: no (default: yes). — **Answered:** yes; the warnings are the diff of the whole day's change set, with one confirm panel per day.
 - **Risk:** Smallest slice, but it changes the `/` row of the route gate and the route inventory guard, and the smoke sign-in step; keep those in step.
 - **Status:** done
 
@@ -115,9 +115,10 @@ No foundations are needed for this milestone.
 - **Blockers:** —
 - **Unknowns:**
   - Are warnings computed on the whole day's changes together, so two changes that only conflict with each other are caught, with one confirm for all? — Owner: user. Block: no (default: yes).
-  - If one shift of the day changed underneath the manager (stale), is the whole day refused or the rest saved? — Owner: user. Block: no (default: refuse the whole day, all-or-nothing).
+  - If one shift of the day changed underneath the manager (stale), is the whole day refused or the rest saved? — Owner: user. Block: no (default: refuse the whole day, all-or-nothing). — **Answered:** refuse the whole day (`save_schedule_day`, SP004).
 - **Risk:** The only slice that touches write logic: the override endpoint and `overrideWarnings` handle one shift today, and separate row updates are not atomic, so a day's save must land all-or-nothing or a half-saved day can appear.
-- **Status:** ready
+- **Delivery (2026-10-08):** implemented in `context/changes/schedule-day-save/`, PR #52. The day panel is one form with one Save; `public.save_schedule_day` (migrations `20261008120000`, `20261008130000`) checks the stored day under row locks and writes every change or none, a double submit answers "Day saved.", and the confirm panel lists every change and every warning of the combined change. Push both migrations before deploying the Worker.
+- **Status:** done
 
 ### S-09: Legacy views on the design tokens
 
@@ -135,12 +136,12 @@ No foundations are needed for this milestone.
 
 ## Backlog Handoff
 
-| Roadmap ID | Issue | Change ID              | Suggested issue title                                                          | Ready for `/10x-plan` | Notes                                         |
-| ---------- | ----- | ---------------------- | ------------------------------------------------------------------------------ | --------------------- | --------------------------------------------- |
-| S-06       | #41   | dashboard-as-home      | Sign-in lands on the dashboard, which becomes the home page                    | —                     | Done in PR #46 — archived 2026-10-08          |
-| S-07       | #42   | role-aware-navigation  | Role-aware top-right navigation on every page                                  | —                     | Done in PR #48 — archived 2026-10-08          |
-| S-08       | #43   | schedule-day-save      | One Save per day for manual shift assignments                                  | yes                   | North star; run `/10x-plan schedule-day-save` |
-| S-09       | #44   | legacy-views-ui-tokens | Legacy views cleanup: dashboard, auth, 403, `/manager/months` on design tokens | —                     | Done in PR #50 — archived 2026-10-08          |
+| Roadmap ID | Issue | Change ID              | Suggested issue title                                                          | Ready for `/10x-plan` | Notes                                |
+| ---------- | ----- | ---------------------- | ------------------------------------------------------------------------------ | --------------------- | ------------------------------------ |
+| S-06       | #41   | dashboard-as-home      | Sign-in lands on the dashboard, which becomes the home page                    | —                     | Done in PR #46 — archived 2026-10-08 |
+| S-07       | #42   | role-aware-navigation  | Role-aware top-right navigation on every page                                  | —                     | Done in PR #48 — archived 2026-10-08 |
+| S-08       | #43   | schedule-day-save      | One Save per day for manual shift assignments                                  | —                     | Done in PR #52 — 2026-10-08          |
+| S-09       | #44   | legacy-views-ui-tokens | Legacy views cleanup: dashboard, auth, 403, `/manager/months` on design tokens | —                     | Done in PR #50 — archived 2026-10-08 |
 
 ## Open Roadmap Questions
 
