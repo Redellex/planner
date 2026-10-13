@@ -37,26 +37,27 @@ The roadmap's Backlog Handoff table already asks for "stable human-readable iden
 
 ## Issue map
 
-| Roadmap ID | Issue | Title                                                                               | Labels                                         | Milestone            | Blocked by |
-| ---------- | ----- | ----------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------- | ---------- |
-| F-01       | #1    | [F-01] Add manager/employee roles to auth                                           | roadmap, foundation — **closed** (done)        | M-1                  | —          |
-| S-01       | #2    | [S-01] Employee availability CRUD with monthly lock                                 | roadmap, slice — **closed** (done)             | M-1                  | #1         |
-| S-02       | #3    | [S-02] Manager view of all employee availability                                    | roadmap, slice — **closed** (done)             | M-1                  | #1, #2     |
-| S-03       | #4    | [S-03] Auto-generate conflict-free, fairly-rotated monthly schedule                 | roadmap, slice, north-star — **closed** (done) | M-1                  | #2         |
-| S-04       | #5    | [S-04] Manager review/override/publish workflow for generated schedule              | roadmap, slice — **closed** (done)             | M-1                  | #4         |
-| S-05       | #6    | [S-05] Published schedule grid view for employees and managers                      | roadmap, slice — **closed** (done)             | M-1                  | #5         |
-| T-01       | #24   | [T-01] Test runner and station-time logic (unit tests on UTC)                       | roadmap, testing — **closed** (done)           | —                    | —          |
-| T-02       | #27   | [T-02] Database rules: ownership, month lock and roles (pgTAP)                      | roadmap, testing — **closed** (done)           | —                    | —          |
-| QG-01      | #29   | [QG-01] Quality-gate hooks: agent hooks and pre-commit tests on staged files        | roadmap, testing — **closed** (done)           | —                    | —          |
-| T-03       | #31   | [T-03] Route gating and honest availability reads                                   | roadmap, testing — **closed** (done)           | —                    | —          |
-| T-05       | #54   | [T-05] E2E layer and the day-save override confirm (risk #5, Playwright)            | roadmap, testing — **closed** (done)           | —                    | —          |
-| S-06       | #41   | [S-06] Sign-in lands on the dashboard, which becomes the home page                  | roadmap, slice — **closed** (done)             | M-2                  | —          |
-| S-07       | #42   | [S-07] Role-aware top-right navigation on every page                                | roadmap, slice — **closed** (done)             | M-2                  | #41        |
-| S-08       | #43   | [S-08] One Save per day for manual shift assignments                                | roadmap, slice, north-star — **closed** (done) | M-2                  | —          |
-| S-09       | #44   | [S-09] Legacy views cleanup: dashboard, auth, 403, /manager/months on design tokens | roadmap, slice — **closed** (done)             | M-2                  | #41, #42   |
-| Q-01       | #7    | [Q-01] Expected request and data volume (qps)?                                      | roadmap, question                              | M-2 (moved from M-1) | —          |
-| P-01       | #8    | [P-01] Export/print schedule (FR-008)                                               | roadmap, parked                                | —                    | —          |
-| P-02       | #9    | [P-02] Notify employees when schedule is published (FR-009)                         | roadmap, parked                                | —                    | —          |
+| Roadmap ID | Issue | Title                                                                                   | Labels                                         | Milestone            | Blocked by |
+| ---------- | ----- | --------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------- | ---------- |
+| F-01       | #1    | [F-01] Add manager/employee roles to auth                                               | roadmap, foundation — **closed** (done)        | M-1                  | —          |
+| S-01       | #2    | [S-01] Employee availability CRUD with monthly lock                                     | roadmap, slice — **closed** (done)             | M-1                  | #1         |
+| S-02       | #3    | [S-02] Manager view of all employee availability                                        | roadmap, slice — **closed** (done)             | M-1                  | #1, #2     |
+| S-03       | #4    | [S-03] Auto-generate conflict-free, fairly-rotated monthly schedule                     | roadmap, slice, north-star — **closed** (done) | M-1                  | #2         |
+| S-04       | #5    | [S-04] Manager review/override/publish workflow for generated schedule                  | roadmap, slice — **closed** (done)             | M-1                  | #4         |
+| S-05       | #6    | [S-05] Published schedule grid view for employees and managers                          | roadmap, slice — **closed** (done)             | M-1                  | #5         |
+| T-01       | #24   | [T-01] Test runner and station-time logic (unit tests on UTC)                           | roadmap, testing — **closed** (done)           | —                    | —          |
+| T-02       | #27   | [T-02] Database rules: ownership, month lock and roles (pgTAP)                          | roadmap, testing — **closed** (done)           | —                    | —          |
+| QG-01      | #29   | [QG-01] Quality-gate hooks: agent hooks and pre-commit tests on staged files            | roadmap, testing — **closed** (done)           | —                    | —          |
+| T-03       | #31   | [T-03] Route gating and honest availability reads                                       | roadmap, testing — **closed** (done)           | —                    | —          |
+| T-05       | #54   | [T-05] E2E layer and the day-save override confirm (risk #5, Playwright)                | roadmap, testing — **closed** (done)           | —                    | —          |
+| T-06       | #57   | [T-06] E2E: generating a draft schedule — complete draft and gaps (risk #5, Playwright) | roadmap, testing — **closed** (done)           | —                    | —          |
+| S-06       | #41   | [S-06] Sign-in lands on the dashboard, which becomes the home page                      | roadmap, slice — **closed** (done)             | M-2                  | —          |
+| S-07       | #42   | [S-07] Role-aware top-right navigation on every page                                    | roadmap, slice — **closed** (done)             | M-2                  | #41        |
+| S-08       | #43   | [S-08] One Save per day for manual shift assignments                                    | roadmap, slice, north-star — **closed** (done) | M-2                  | —          |
+| S-09       | #44   | [S-09] Legacy views cleanup: dashboard, auth, 403, /manager/months on design tokens     | roadmap, slice — **closed** (done)             | M-2                  | #41, #42   |
+| Q-01       | #7    | [Q-01] Expected request and data volume (qps)?                                          | roadmap, question                              | M-2 (moved from M-1) | —          |
+| P-01       | #8    | [P-01] Export/print schedule (FR-008)                                                   | roadmap, parked                                | —                    | —          |
+| P-02       | #9    | [P-02] Notify employees when schedule is published (FR-009)                             | roadmap, parked                                | —                    | —          |
 
 The issues were created in the order the roadmap lists them, so the numbers match that order. S-02 and S-03 can run in parallel; each issue mentions the other.
 
