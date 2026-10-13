@@ -118,7 +118,7 @@ No foundations are needed for this milestone.
   - Are warnings computed on the whole day's changes together, so two changes that only conflict with each other are caught, with one confirm for all? — Owner: user. Block: no (default: yes).
   - If one shift of the day changed underneath the manager (stale), is the whole day refused or the rest saved? — Owner: user. Block: no (default: refuse the whole day, all-or-nothing). — **Answered:** refuse the whole day (`save_schedule_day`, SP004).
 - **Risk:** The only slice that touches write logic: the override endpoint and `overrideWarnings` handle one shift today, and separate row updates are not atomic, so a day's save must land all-or-nothing or a half-saved day can appear.
-- **Delivery (2026-10-08):** implemented in `context/changes/schedule-day-save/`, PR #52. The day panel is one form with one Save; `public.save_schedule_day` (migrations `20261008120000`, `20261008130000`) checks the stored day under row locks and writes every change or none, a double submit answers "Day saved.", and the confirm panel lists every change and every warning of the combined change. Push both migrations before deploying the Worker.
+- **Delivery (2026-10-08):** implemented in `context/archive/2026-10-08-schedule-day-save/`, PR #52. The day panel is one form with one Save; `public.save_schedule_day` (migrations `20261008120000`, `20261008130000`) checks the stored day under row locks and writes every change or none, a double submit answers "Day saved.", and the confirm panel lists every change and every warning of the combined change. Push both migrations before deploying the Worker.
 - **Status:** done
 
 ### S-09: Legacy views on the design tokens
@@ -141,7 +141,7 @@ No foundations are needed for this milestone.
 | ---------- | ----- | ---------------------- | ------------------------------------------------------------------------------ | --------------------- | ------------------------------------ |
 | S-06       | #41   | dashboard-as-home      | Sign-in lands on the dashboard, which becomes the home page                    | —                     | Done in PR #46 — archived 2026-10-08 |
 | S-07       | #42   | role-aware-navigation  | Role-aware top-right navigation on every page                                  | —                     | Done in PR #48 — archived 2026-10-08 |
-| S-08       | #43   | schedule-day-save      | One Save per day for manual shift assignments                                  | —                     | Done in PR #52 — 2026-10-08          |
+| S-08       | #43   | schedule-day-save      | One Save per day for manual shift assignments                                  | —                     | Done in PR #52 — archived 2026-10-08 |
 | S-09       | #44   | legacy-views-ui-tokens | Legacy views cleanup: dashboard, auth, 403, `/manager/months` on design tokens | —                     | Done in PR #50 — archived 2026-10-08 |
 
 ## Open Roadmap Questions
@@ -173,3 +173,4 @@ No foundations are needed for this milestone.
 - **S-06: User signs in and lands straight on their dashboard, which is now the home page at `/`; the starter welcome page is gone.** — Archived 2026-10-08 → `context/archive/2026-10-08-dashboard-as-home/`. Lesson: —.
 - **S-07: On every page, a signed-in user sees a top-right navigation with links to exactly the pages their role may open (plus Sign out), and an anonymous visitor sees Sign in / Sign up; the outdated welcome-page top bar is gone.** — Archived 2026-10-08 → `context/archive/2026-10-08-role-aware-navigation/`. Lesson: —.
 - **S-09: User sees the remaining legacy views — the dashboard (now the home page), sign-in, sign-up and confirm-email, the 403 page and `/manager/months` — on the shadcn design tokens like the rest of the app, each with a kitchen sink and inside the `check:ui` scope.** — Archived 2026-10-08 → `context/archive/2026-10-08-legacy-views-ui-tokens/`. Lesson: —.
+- **S-08: Manager changes who works several shifts of one station day on `/manager/schedule` and saves them all with one Save for that day; any warnings are shown once for the combined change before "Assign anyway".** — Archived 2026-10-08 → `context/archive/2026-10-08-schedule-day-save/`. Lesson: —.
