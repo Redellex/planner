@@ -12,4 +12,9 @@
   "observability": {
     "enabled": true,
   },
+  // Local E2E build only (playwright.config.ts sets CLOUDFLARE_ENV=e2e so secrets come from .dev.vars.e2e). Empty: it
+  // inherits everything above; add any future binding or var here too, since environments do not inherit those.
+  "env": {
+    "e2e": {},
+  },
 }

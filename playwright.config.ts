@@ -22,6 +22,15 @@ if (supabaseHost !== "127.0.0.1" && supabaseHost !== "localhost") {
 const PORT = Number(process.env.E2E_PORT ?? 4321);
 const baseURL = `http://localhost:${PORT}`;
 
+// CLOUDFLARE_ENV=e2e for the build only: it makes the Cloudflare plugin copy `.dev.vars.e2e` into dist/server/.dev.vars
+// and resolve the `e2e` environment of wrangler.jsonc into dist/server/wrangler.json, which has no `env` section, so the
+// preview must not see the variable ("No environment found … e2e"). webServer runs through cmd.exe on Windows, sh
+// elsewhere: cmd's `set` lasts for the whole line, so it is cleared again before the preview.
+const buildAndPreview =
+  process.platform === "win32"
+    ? "set CLOUDFLARE_ENV=e2e&& npm run build && set CLOUDFLARE_ENV=&& npm run preview"
+    : "CLOUDFLARE_ENV=e2e npm run build && npm run preview";
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -45,14 +54,13 @@ export default defineConfig({
   ],
   webServer: {
     // Production-like build + preview (the Cloudflare workerd runtime), on the port above.
-    command: `npm run build && npm run preview -- --port ${PORT}`,
+    command: `${buildAndPreview} -- --port ${PORT}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
     env: {
       // Astro 7 moves `astro preview` into a background daemon when it detects an agent; keep it in the foreground.
       ASTRO_PREVIEW_BACKGROUND: "1",
-      CLOUDFLARE_ENV: "e2e",
     },
   },
 });
