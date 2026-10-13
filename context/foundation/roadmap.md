@@ -136,13 +136,14 @@ No foundations are needed for this milestone.
 
 ## Backlog Handoff
 
-| Roadmap ID | Issue | Change ID                    | Suggested issue title                                                          | Ready for `/10x-plan` | Notes                                |
-| ---------- | ----- | ---------------------------- | ------------------------------------------------------------------------------ | --------------------- | ------------------------------------ |
-| S-06       | #41   | dashboard-as-home            | Sign-in lands on the dashboard, which becomes the home page                    | —                     | Done in PR #46 — archived 2026-10-08 |
-| S-07       | #42   | role-aware-navigation        | Role-aware top-right navigation on every page                                  | —                     | Done in PR #48 — archived 2026-10-08 |
-| S-08       | #43   | schedule-day-save            | One Save per day for manual shift assignments                                  | —                     | Done in PR #52 — archived 2026-10-08 |
-| S-09       | #44   | legacy-views-ui-tokens       | Legacy views cleanup: dashboard, auth, 403, `/manager/months` on design tokens | —                     | Done in PR #50 — archived 2026-10-08 |
-| T-05       | #54   | — (standalone `/10x-e2e #5`) | E2E layer and the day-save override confirm (risk #5, Playwright)              | —                     | Done in PR #55 — 2026-10-13          |
+| Roadmap ID | Issue | Change ID                    | Suggested issue title                                                            | Ready for `/10x-plan` | Notes                                |
+| ---------- | ----- | ---------------------------- | -------------------------------------------------------------------------------- | --------------------- | ------------------------------------ |
+| S-06       | #41   | dashboard-as-home            | Sign-in lands on the dashboard, which becomes the home page                      | —                     | Done in PR #46 — archived 2026-10-08 |
+| S-07       | #42   | role-aware-navigation        | Role-aware top-right navigation on every page                                    | —                     | Done in PR #48 — archived 2026-10-08 |
+| S-08       | #43   | schedule-day-save            | One Save per day for manual shift assignments                                    | —                     | Done in PR #52 — archived 2026-10-08 |
+| S-09       | #44   | legacy-views-ui-tokens       | Legacy views cleanup: dashboard, auth, 403, `/manager/months` on design tokens   | —                     | Done in PR #50 — archived 2026-10-08 |
+| T-05       | #54   | — (standalone `/10x-e2e #5`) | E2E layer and the day-save override confirm (risk #5, Playwright)                | —                     | Done in PR #55 — 2026-10-13          |
+| T-06       | #57   | — (standalone `/10x-e2e #5`) | E2E: generating a draft schedule — complete draft and gaps (risk #5, Playwright) | —                     | Done in PR #58 — 2026-10-13          |
 
 ## Open Roadmap Questions
 
@@ -175,3 +176,4 @@ No foundations are needed for this milestone.
 - **S-09: User sees the remaining legacy views — the dashboard (now the home page), sign-in, sign-up and confirm-email, the 403 page and `/manager/months` — on the shadcn design tokens like the rest of the app, each with a kitchen sink and inside the `check:ui` scope.** — Archived 2026-10-08 → `context/archive/2026-10-08-legacy-views-ui-tokens/`. Lesson: —.
 - **S-08: Manager changes who works several shifts of one station day on `/manager/schedule` and saves them all with one Save for that day; any warnings are shown once for the combined change before "Assign anyway".** — Archived 2026-10-08 → `context/archive/2026-10-08-schedule-day-save/`. Lesson: —.
 - **T-05: The app has a Playwright E2E layer (setup, auth `storageState`, seed), and a browser test proves that a manager's override outside availability is confirmed before anything is stored (test-plan risk #5).** — Done in PR #55, 2026-10-13 (standalone `/10x-e2e #5`, no change folder). Lesson: —.
+- **T-06: A browser test proves that a manager who generates a draft gets every station day staffed and Publish offered once the team covers every day, and that days with no one are flagged and publishing is refused (test-plan risk #5, generate facet).** — Done in PR #58, 2026-10-13 (standalone `/10x-e2e #5`, no change folder). Lesson: —.
