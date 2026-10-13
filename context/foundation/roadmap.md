@@ -43,12 +43,13 @@ A gas-station manager used to build the monthly shift schedule by hand in a spre
 
 ## At a glance
 
-| ID   | Change ID              | Outcome (user can …)                                                                | Prerequisites | PRD refs | Status |
-| ---- | ---------------------- | ----------------------------------------------------------------------------------- | ------------- | -------- | ------ |
-| S-06 | dashboard-as-home      | User lands on the dashboard after sign-in; the dashboard is the home page at `/`    | —             | MS-01    | done   |
-| S-07 | role-aware-navigation  | User sees a top-right navigation on every page with only the links their role opens | S-06          | MS-02    | done   |
-| S-08 | schedule-day-save      | Manager saves all of one day's manual assignments with a single Save                | —             | MS-03    | done   |
-| S-09 | legacy-views-ui-tokens | User sees the dashboard, auth pages, 403 and `/manager/months` on the design tokens | S-06, S-07    | MS-04    | done   |
+| ID   | Change ID              | Outcome (user can …)                                                                | Prerequisites                                                     | PRD refs | Status                                                       |
+| ---- | ---------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------- | -------- | ------------------------------------------------------------ |
+| S-06 | dashboard-as-home      | User lands on the dashboard after sign-in; the dashboard is the home page at `/`    | —                                                                 | MS-01    | done                                                         |
+| S-07 | role-aware-navigation  | User sees a top-right navigation on every page with only the links their role opens | S-06                                                              | MS-02    | done                                                         |
+| S-08 | schedule-day-save      | Manager saves all of one day's manual assignments with a single Save                | —                                                                 | MS-03    | done                                                         |
+| S-09 | legacy-views-ui-tokens | User sees the dashboard, auth pages, 403 and `/manager/months` on the design tokens | S-06, S-07                                                        | MS-04    | done                                                         |
+| T-05 | #54                    | — (standalone `/10x-e2e #5`)                                                        | E2E layer and the day-save override confirm (risk #5, Playwright) | —        | In review (branch `test/e2e-day-save-override`) — 2026-10-13 |
 
 ## Streams
 
