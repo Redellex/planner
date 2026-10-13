@@ -40,3 +40,14 @@ desktop.ini
 # stryker mutation testing
 reports/
 .stryker-tmp/
+
+# Playwright
+playwright/.auth/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+.playwright-cli/
+
+# E2E env: local Supabase + test user for the Playwright build (never commit)
+.dev.vars.e2e

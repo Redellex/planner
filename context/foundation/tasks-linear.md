@@ -49,6 +49,7 @@ The roadmap's Backlog Handoff table already asks for "stable human-readable iden
 | T-02       | #27   | [T-02] Database rules: ownership, month lock and roles (pgTAP)                      | roadmap, testing — **closed** (done)           | —                    | —          |
 | QG-01      | #29   | [QG-01] Quality-gate hooks: agent hooks and pre-commit tests on staged files        | roadmap, testing — **closed** (done)           | —                    | —          |
 | T-03       | #31   | [T-03] Route gating and honest availability reads                                   | roadmap, testing — **closed** (done)           | —                    | —          |
+| T-05       | #54   | [T-05] E2E layer and the day-save override confirm (risk #5, Playwright)            | roadmap, testing — **in review** (PR #55)      | —                    | —          |
 | S-06       | #41   | [S-06] Sign-in lands on the dashboard, which becomes the home page                  | roadmap, slice — **closed** (done)             | M-2                  | —          |
 | S-07       | #42   | [S-07] Role-aware top-right navigation on every page                                | roadmap, slice — **closed** (done)             | M-2                  | #41        |
 | S-08       | #43   | [S-08] One Save per day for manual shift assignments                                | roadmap, slice, north-star — **closed** (done) | M-2                  | —          |
