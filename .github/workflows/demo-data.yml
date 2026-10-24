@@ -1,0 +1,64 @@
+# Puts the demo team (scripts/seed-demo-team.mjs) and a reviewer manager account into the hosted project, so someone
+# can sign in as a manager and generate, adjust and publish a schedule over 5 demo employees.
+# Run it by hand: Actions > Demo data > Run workflow. The secret key stays in repository secrets.
+#
+# Repository secrets (Settings > Secrets and variables > Actions):
+#   SUPABASE_URL           already used by the keep-alive workflow
+#   SUPABASE_SECRET_KEY    Supabase dashboard > Project Settings > API keys > secret key
+#   DEMO_TEAM_PASSWORD     12+ characters, shared by the 5 demo employees
+#   DEMO_MANAGER_EMAIL     the reviewer's sign-in, e.g. reviewer@planner.example (no mail is sent to it)
+#   DEMO_MANAGER_PASSWORD  12+ characters
+name: Demo data
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "seed: create or refresh the accounts and windows; remove: delete the demo accounts and the reviewer"
+        type: choice
+        options: [seed, remove]
+        default: seed
+      month:
+        description: "YYYY-MM to seed; empty seeds each of the next 3 months, skipping locked ones"
+        required: false
+        default: ""
+
+concurrency: demo-data
+
+jobs:
+  demo-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Seed or remove the demo data
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          DEMO_TEAM_PASSWORD: ${{ secrets.DEMO_TEAM_PASSWORD }}
+          DEMO_MANAGER_EMAIL: ${{ secrets.DEMO_MANAGER_EMAIL }}
+          DEMO_MANAGER_PASSWORD: ${{ secrets.DEMO_MANAGER_PASSWORD }}
+          ACTION: ${{ inputs.action }}
+          MONTH: ${{ inputs.month }}
+        run: |
+          for name in SUPABASE_URL SUPABASE_SECRET_KEY DEMO_TEAM_PASSWORD DEMO_MANAGER_EMAIL DEMO_MANAGER_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::The $name repository secret is not set (Settings > Secrets and variables > Actions)."
+              exit 1
+            fi
+          done
+          if [ "$ACTION" = "remove" ]; then
+            node scripts/seed-demo-team.mjs --hosted --remove
+          elif [ -n "$MONTH" ]; then
+            if ! [[ "$MONTH" =~ ^[0-9]{4}-[0-9]{2}$ ]]; then
+              echo "::error::month must be YYYY-MM or empty."
+              exit 1
+            fi
+            node scripts/seed-demo-team.mjs --hosted --month "$MONTH"
+          else
+            node scripts/seed-demo-team.mjs --hosted --all-upcoming
+          fi

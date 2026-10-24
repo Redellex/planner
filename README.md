@@ -14,7 +14,7 @@ Monthly shift scheduling for a 24/7 gas station. Employees enter when they can w
 
 1. Open https://planner.10xplanner.workers.dev and sign up. Production keeps email confirmation on, so confirm the link in your inbox, then sign in.
 2. As an **employee**: open **Availability**, pick a day next month and add a window (for example 06:00–18:00, repeated on that weekday). Edit it and delete it. Open **Schedule** to see a published month, or "Not published yet".
-3. As a **manager** (the account is given with the submission, since new sign-ups are employees): open **Team availability**, then **Manage schedule** → Generate for next month. Look at the Uncovered shifts and the fairness summary. Change who works a shift and Save the day (a pick outside someone's availability asks "Assign anyway" first), then Publish. Publishing is refused while a day has no one. Every signed-in user then sees the month on **Schedule**.
+3. As a **manager** (a reviewer account is given with the submission, since new sign-ups are employees): open **Team availability** to see the 5 demo employees' availability, then **Manage schedule** → Generate for an upcoming month. Days 10 and 20 have no one available on purpose. Look at the Uncovered shifts and the fairness summary. Change who works a shift and Save the day (a pick outside someone's availability asks "Assign anyway" first), then Publish. Publishing is refused while a day has no one. Every signed-in user then sees the month on **Schedule**.
 
 ## Tech stack
 
@@ -75,7 +75,7 @@ After changing a migration, regenerate the types with `npx supabase gen types ty
 | `npx playwright test`               | Playwright E2E tests against a local build (needs the local stack and `.dev.vars.e2e`, see `context/foundation/test-stack.md`) |
 | `npm run smoke`                     | HTTP smoke test of auth, roles, availability and the draft schedule flow (`BASE_URL`, default `http://localhost:4321`)         |
 | `npm run check:ui`                  | Fails on colour literals in views that use the design tokens                                                                   |
-| `npm run seed:demo`                 | Puts the demo team into a database (`-- --month YYYY-MM`, `-- --remove`)                                                       |
+| `npm run seed:demo`                 | Puts the demo team into a database (`-- --month YYYY-MM`, `-- --all-upcoming`, `-- --remove`)                                  |
 | `npx stryker run`                   | Manual mutation testing of `src/lib/availability.ts`                                                                           |
 
 ## Pages
@@ -100,6 +100,15 @@ The app runs on Cloudflare Workers (`wrangler.jsonc`, entry `src/worker.ts`) aga
 2. Deploy from `master` once CI is green: `npm run deploy`.
 3. Worker secrets: `SUPABASE_URL`, `SUPABASE_KEY` and optional `SENTRY_DSN`, set with `npx wrangler secret put <NAME>`.
 4. Roll back with `npx wrangler deployments list` and `npx wrangler rollback <version-id>`.
+
+### Demo data for reviewers
+
+The **Demo data** workflow (`.github/workflows/demo-data.yml`, run by hand from the Actions tab) puts the 5-person demo team and a reviewer manager account into the hosted project. It runs `scripts/seed-demo-team.mjs --hosted` with the secret key from repository secrets, so the key is never on a laptop.
+
+1. Add the repository secrets (Settings → Secrets and variables → Actions): `SUPABASE_SECRET_KEY` (Supabase dashboard → Project Settings → API keys → secret key), `DEMO_TEAM_PASSWORD`, `DEMO_MANAGER_EMAIL` (any address, for example `reviewer@planner.example`; no mail is sent to it) and `DEMO_MANAGER_PASSWORD` (12+ characters each). `SUPABASE_URL` is already there.
+2. Actions → Demo data → Run workflow, with `seed` and an empty month. Each of the next 3 months gets demo availability; a month that is already locked (for example one a reviewer generated) is skipped.
+3. Give the reviewer `DEMO_MANAGER_EMAIL` and `DEMO_MANAGER_PASSWORD` in the submission, never in the repo.
+4. Afterwards, run it with `remove` to delete the demo employees and the reviewer account. Months they locked stay locked; discard the drafts and unlock them on `/manager/months`.
 
 The first manager is promoted once in the Supabase SQL editor after they sign up: `update public.profiles set role = 'manager' where email = '<email>';`. Production keeps email confirmation on, so production is checked by hand, and `npm run smoke` runs only against a local or CI Supabase. Details: `context/changes/deployment/deployment-plan.md` (Outcome).
 
