@@ -4,7 +4,7 @@
 
 `context/foundation/infrastructure.md` already recommends Cloudflare Workers (the repo is pre-wired for it: `@astrojs/cloudflare` + `wrangler` are installed, `wrangler.jsonc` exists) and documents an operational story, risk register, and getting-started steps. This plan turns `infrastructure.md`'s recommendation into a concrete, sequenced, checkbox-trackable rollout, and becomes the source for `context/deployment/deploy-plan.md` once executed (per `CLAUDE.md`'s "Plan Mode deploy" hand-off).
 
-**Status (2026-10-24): deployed.** The app is live at **https://planner.10xplanner.workers.dev** (Worker `planner`, workers.dev subdomain `10xplanner`). Phases 0–4, 6 and 7 are done, Phase 5 except the manual sign-up pass. Workers Builds builds every push to `master` (GitHub check "Workers Builds: planner" on every `master` commit since at least 2026-10-13) and also runs on pull requests. The outcome is recorded in `## Outcome` at the end of this file, which replaces the separate `context/deployment/deploy-plan.md` this plan once called for.
+**Status (2026-10-24): deployed.** The app is live at **https://planner.10xplanner.workers.dev** (Worker `planner`, workers.dev subdomain `10xplanner`). Phases 0–7 are done (Phase 5's manual sign-up pass on production confirmed 2026-10-24). Workers Builds builds every push to `master` (GitHub check "Workers Builds: planner" on every `master` commit since at least 2026-10-13) and also runs on pull requests. The outcome is recorded in `## Outcome` at the end of this file, which replaces the separate `context/deployment/deploy-plan.md` this plan once called for.
 
 **Status update (2026-09-21, superseded):** Phase 0 (Cloudflare account + API token, GitHub repo), Phase 1 (git init/commit/push), and Phase 3 (production Supabase project) are now done. The Worker has been renamed to `planner` in `wrangler.jsonc`. Still outstanding: the `package.json` deploy script and a local build check (rest of Phase 2), secrets wiring (Phase 4), the first manual deploy (Phase 5), and Workers Builds auto-deploy (Phase 6). See the phase checklists below for the current, accurate state.
 
@@ -76,12 +76,12 @@ _(Project confirmed created and configured by the user 2026-09-21; exact project
 ## Phase 5 — First Manual Deploy & Verification
 
 - [x] `npm run deploy` (or `npm run build && npx wrangler deploy`). Live at `https://planner.10xplanner.workers.dev`.
-- [ ] Confirm the deployed URL matches what was pre-configured in Supabase's Site URL/Redirect URLs (Phase 3). If it doesn't match exactly, fix the Supabase config immediately.
-- [ ] In a separate terminal, run `npx wrangler tail` and watch it while exercising the app.
+- [x] Confirm the deployed URL matches what was pre-configured in Supabase's Site URL/Redirect URLs (Phase 3). If it doesn't match exactly, fix the Supabase config immediately.
+- [x] In a separate terminal, run `npx wrangler tail` and watch it while exercising the app.
 - [x] Automated check of the live Worker (2026-10-24): anonymous `/` and `/schedule` answer 302 → `/auth/signin`, `/auth/signin` and `/auth/signup` answer 200 with no "not configured" banner, and a sign-in POST with a wrong password comes back as "Wrong email or password.", so the Worker reaches the hosted Supabase project. All 14 migrations are on it (`npx supabase migration list --linked`).
-- [ ] **Manual verification** (per the confirmed decision — not the automated smoke script): visit the production URL, sign up with a real or throwaway email, confirm the email (or check Supabase's email-confirmation flow works as expected), sign in, load `/dashboard`, sign out, confirm `/dashboard` redirects to `/auth/signin` again.
-- [ ] Confirm `wrangler tail` shows no `nodejs_compat`-related errors (`require is not a function`, dynamic `require("stream")`, etc.) during the exercised flow — see Edge Cases if one appears despite correct config.
-- [ ] **Sign-off checkpoint:** don't proceed to Phase 6 (auto-deploy) until this manual deploy is confirmed working end-to-end.
+- [x] **Manual verification** (per the confirmed decision — not the automated smoke script): visit the production URL, sign up with a real or throwaway email, confirm the email (or check Supabase's email-confirmation flow works as expected), sign in, load `/dashboard`, sign out, confirm `/dashboard` redirects to `/auth/signin` again.
+- [x] Confirm `wrangler tail` shows no `nodejs_compat`-related errors (`require is not a function`, dynamic `require("stream")`, etc.) during the exercised flow — see Edge Cases if one appears despite correct config.
+- [x] **Sign-off checkpoint:** don't proceed to Phase 6 (auto-deploy) until this manual deploy is confirmed working end-to-end.
 
 ---
 
@@ -145,8 +145,8 @@ Cloudflare's native Git integration, not a custom GitHub Actions job — this is
 ## Verification Checklist (end-to-end)
 
 - [x] `npm run build` succeeds locally.
-- [ ] `npx wrangler deploy` succeeds; `wrangler tail` shows no runtime errors during a manual sign-up → sign-in → dashboard → sign-out pass against the production URL.
-- [ ] Production Supabase project's Site URL/Redirect URLs match the deployed URL exactly.
+- [x] `npx wrangler deploy` succeeds; `wrangler tail` shows no runtime errors during a manual sign-up → sign-in → dashboard → sign-out pass against the production URL.
+- [x] Production Supabase project's Site URL/Redirect URLs match the deployed URL exactly.
 - [x] `npx wrangler secret list` shows `SUPABASE_URL` and `SUPABASE_KEY`.
 - [x] A push to `master` (branch protection is not available, see Phase 6) triggers a Workers Builds deploy visible in the Cloudflare dashboard, without requiring any local `wrangler deploy` command.
 - [x] `## Outcome` below (in place of `context/deployment/deploy-plan.md`) reflects the actual Worker name, Supabase project, and decisions made.
@@ -181,4 +181,4 @@ Recorded 2026-10-24.
 | Production verification | Manual: hosted Supabase keeps "Confirm email" on, so `npm run smoke` stays local/CI only                                                                                                                                  |
 | Keep-alive              | `.github/workflows/supabase-keep-alive.yml` stops the free hosted project from pausing                                                                                                                                    |
 
-Still open: the manual sign-up → confirm email → sign-in pass on production (Phase 5), with the Supabase Site URL checked against the URL above, and the Pages-vs-Workers callout in `CLAUDE.md` (Phase 8).
+Production verified manually on 2026-10-24: the Supabase Site URL matches the URL above, and sign-up → confirm email → sign-in works on production. Still open: the Pages-vs-Workers callout in `CLAUDE.md` (Phase 8).
