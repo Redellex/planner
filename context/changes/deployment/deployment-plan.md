@@ -4,7 +4,7 @@
 
 `context/foundation/infrastructure.md` already recommends Cloudflare Workers (the repo is pre-wired for it: `@astrojs/cloudflare` + `wrangler` are installed, `wrangler.jsonc` exists) and documents an operational story, risk register, and getting-started steps. This plan turns `infrastructure.md`'s recommendation into a concrete, sequenced, checkbox-trackable rollout, and becomes the source for `context/deployment/deploy-plan.md` once executed (per `CLAUDE.md`'s "Plan Mode deploy" hand-off).
 
-**Status (2026-10-24): deployed.** The app is live at **https://planner.10xplanner.workers.dev** (Worker `planner`, workers.dev subdomain `10xplanner`). Phases 0–5 and 7 are done; deploys are manual (`npm run deploy`, 10 deployments so far), so Phase 6 (Workers Builds auto-deploy) was not taken up; see its note. The outcome is recorded in `## Outcome` at the end of this file, which replaces the separate `context/deployment/deploy-plan.md` this plan once called for.
+**Status (2026-10-24): deployed.** The app is live at **https://planner.10xplanner.workers.dev** (Worker `planner`, workers.dev subdomain `10xplanner`). Phases 0–4, 6 and 7 are done, Phase 5 except the manual sign-up pass. Workers Builds builds every push to `master` (GitHub check "Workers Builds: planner" on every `master` commit since at least 2026-10-13) and also runs on pull requests. The outcome is recorded in `## Outcome` at the end of this file, which replaces the separate `context/deployment/deploy-plan.md` this plan once called for.
 
 **Status update (2026-09-21, superseded):** Phase 0 (Cloudflare account + API token, GitHub repo), Phase 1 (git init/commit/push), and Phase 3 (production Supabase project) are now done. The Worker has been renamed to `planner` in `wrangler.jsonc`. Still outstanding: the `package.json` deploy script and a local build check (rest of Phase 2), secrets wiring (Phase 4), the first manual deploy (Phase 5), and Workers Builds auto-deploy (Phase 6). See the phase checklists below for the current, accurate state.
 
@@ -87,19 +87,19 @@ _(Project confirmed created and configured by the user 2026-09-21; exact project
 
 ## Phase 6 — Cloudflare Workers Builds (Auto-Deploy on Push)
 
-**Not taken up (2026-10-24).** Every deploy so far is a manual `npm run deploy` after the `ci` and `smoke` jobs pass on `master` (`wrangler deployments list` shows `Source: Unknown (deployment)`, not a Git build). That keeps CI as the gate without branch protection. Revisit if deploys get frequent enough that forgetting one matters.
+**Done (checked 2026-10-24 from GitHub's check runs).** The Worker is connected to the repository: "Workers Builds: planner" succeeded on every `master` commit back to at least 2026-10-13 and runs on pull requests too. The steps below were done in the dashboard and are ticked from that evidence. Branch protection is **not** available: the repository is private on GitHub Free (the protection and rulesets APIs answer 403), so nothing technically stops a red commit from deploying; the gate is the habit of merging a pull request only after `ci` and `smoke` pass.
 
 Cloudflare's native Git integration, not a custom GitHub Actions job — this is the "reduce complexity" path: no `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` secrets to manage in GitHub, no deploy YAML to maintain.
 
-- [ ] In the Cloudflare dashboard: Compute → Workers & Pages → select the `planner` Worker → Settings → Builds → **Connect** a Git repository.
-- [ ] Authorize the Cloudflare GitHub App for this repository (first-time-only OAuth/App-install prompt).
-- [ ] Set the production branch to `master` (matches the existing `.github/workflows/ci.yml` trigger branch).
-- [ ] Confirm build command (`npm run build` or the Astro-specific equivalent Cloudflare suggests) and deploy command (default `npx wrangler deploy` — correct as-is, no customization needed).
-- [ ] Leave **Root directory** at the default (repo root — this isn't a monorepo).
-- [ ] Note: Worker secrets set in Phase 4 (`SUPABASE_URL`/`SUPABASE_KEY`) persist across Workers-Builds-triggered deploys automatically — they're Worker-level state, not part of the build/deploy command, so no re-entry needed here.
-- [ ] **Edge case — deploys not gated on existing checks:** Workers Builds triggers on every push to `master`, independent of the existing `ci`/`smoke` GitHub Actions jobs. To avoid auto-deploying a broken change, enable GitHub branch protection on `master` requiring the `ci` (and ideally `smoke`) status checks to pass before merge — this keeps the existing Actions checks as the real gate, with Workers Builds only ever seeing already-validated commits.
-- [ ] First push-triggered deploy: merge a trivial change (or push directly if solo and no PR flow yet) to `master`, watch the build in the Cloudflare dashboard's Builds tab, confirm it succeeds and the live URL reflects the change.
-- [ ] **Sign-off checkpoint:** watch this first automatic deploy end-to-end before trusting future pushes to auto-deploy unattended.
+- [x] In the Cloudflare dashboard: Compute → Workers & Pages → select the `planner` Worker → Settings → Builds → **Connect** a Git repository.
+- [x] Authorize the Cloudflare GitHub App for this repository (first-time-only OAuth/App-install prompt).
+- [x] Set the production branch to `master` (matches the existing `.github/workflows/ci.yml` trigger branch).
+- [x] Confirm build command (`npm run build` or the Astro-specific equivalent Cloudflare suggests) and deploy command (default `npx wrangler deploy` — correct as-is, no customization needed).
+- [x] Leave **Root directory** at the default (repo root — this isn't a monorepo).
+- [x] Note: Worker secrets set in Phase 4 (`SUPABASE_URL`/`SUPABASE_KEY`) persist across Workers-Builds-triggered deploys automatically — they're Worker-level state, not part of the build/deploy command, so no re-entry needed here.
+- [ ] (not possible on GitHub Free for a private repo, see the note above) **Edge case — deploys not gated on existing checks:** Workers Builds triggers on every push to `master`, independent of the existing `ci`/`smoke` GitHub Actions jobs. To avoid auto-deploying a broken change, enable GitHub branch protection on `master` requiring the `ci` (and ideally `smoke`) status checks to pass before merge — this keeps the existing Actions checks as the real gate, with Workers Builds only ever seeing already-validated commits.
+- [x] First push-triggered deploy: merge a trivial change (or push directly if solo and no PR flow yet) to `master`, watch the build in the Cloudflare dashboard's Builds tab, confirm it succeeds and the live URL reflects the change.
+- [x] **Sign-off checkpoint:** watch this first automatic deploy end-to-end before trusting future pushes to auto-deploy unattended.
 
 ---
 
@@ -148,7 +148,7 @@ Cloudflare's native Git integration, not a custom GitHub Actions job — this is
 - [ ] `npx wrangler deploy` succeeds; `wrangler tail` shows no runtime errors during a manual sign-up → sign-in → dashboard → sign-out pass against the production URL.
 - [ ] Production Supabase project's Site URL/Redirect URLs match the deployed URL exactly.
 - [x] `npx wrangler secret list` shows `SUPABASE_URL` and `SUPABASE_KEY`.
-- [ ] ~~A push to `master` triggers a Workers Builds deploy~~ — not taken up, see Phase 6. Original item: a push to `master` (after branch protection is set up) triggers a Workers Builds deploy visible in the Cloudflare dashboard, without requiring any local `wrangler deploy` command.
+- [x] A push to `master` (branch protection is not available, see Phase 6) triggers a Workers Builds deploy visible in the Cloudflare dashboard, without requiring any local `wrangler deploy` command.
 - [x] `## Outcome` below (in place of `context/deployment/deploy-plan.md`) reflects the actual Worker name, Supabase project, and decisions made.
 
 ## Critical Files
@@ -169,16 +169,16 @@ Cloudflare's native Git integration, not a custom GitHub Actions job — this is
 
 Recorded 2026-10-24.
 
-| Item                    | Value                                                                                                                                          |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Production URL          | https://planner.10xplanner.workers.dev                                                                                                         |
-| Worker                  | `planner` (`wrangler.jsonc`), entry `src/worker.ts` (Sentry `withSentry` around Astro's handler)                                               |
-| Worker secrets          | `SUPABASE_URL`, `SUPABASE_KEY`, `SENTRY_DSN`                                                                                                   |
-| Database                | Hosted Supabase project linked to this repo; migrations via `npx supabase db push`, all 14 applied as of 2026-10-24                            |
-| Deploy                  | Manual: `npm run deploy` (`astro build && wrangler deploy`) from `master` after CI is green. No Workers Builds.                                |
-| Rollback                | `npx wrangler deployments list` → `npx wrangler rollback <version-id>`                                                                         |
-| Gates before a deploy   | GitHub Actions `ci` (lint, `astro check`, unit tests, build) and `smoke` (pgTAP, build, Cloudflare preview, `npm run smoke` on local Supabase) |
-| Production verification | Manual: hosted Supabase keeps "Confirm email" on, so `npm run smoke` stays local/CI only                                                       |
-| Keep-alive              | `.github/workflows/supabase-keep-alive.yml` stops the free hosted project from pausing                                                         |
+| Item                    | Value                                                                                                                                                                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Production URL          | https://planner.10xplanner.workers.dev                                                                                                                                                                                    |
+| Worker                  | `planner` (`wrangler.jsonc`), entry `src/worker.ts` (Sentry `withSentry` around Astro's handler)                                                                                                                          |
+| Worker secrets          | `SUPABASE_URL`, `SUPABASE_KEY`, `SENTRY_DSN`                                                                                                                                                                              |
+| Database                | Hosted Supabase project linked to this repo; migrations via `npx supabase db push`, all 14 applied as of 2026-10-24                                                                                                       |
+| Deploy                  | Automatic: Cloudflare Workers Builds deploys every push to `master`; `npm run deploy` stays for a one-off manual deploy                                                                                                   |
+| Rollback                | `npx wrangler deployments list` → `npx wrangler rollback <version-id>`                                                                                                                                                    |
+| Gates before a deploy   | By convention only (no branch protection on GitHub Free): merge a pull request after `ci` (lint, `astro check`, unit tests, build) and `smoke` (pgTAP, build, Cloudflare preview, `npm run smoke` on local Supabase) pass |
+| Production verification | Manual: hosted Supabase keeps "Confirm email" on, so `npm run smoke` stays local/CI only                                                                                                                                  |
+| Keep-alive              | `.github/workflows/supabase-keep-alive.yml` stops the free hosted project from pausing                                                                                                                                    |
 
 Still open: the manual sign-up → confirm email → sign-in pass on production (Phase 5), with the Supabase Site URL checked against the URL above, and the Pages-vs-Workers callout in `CLAUDE.md` (Phase 8).

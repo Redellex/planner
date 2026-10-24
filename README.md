@@ -97,7 +97,7 @@ After changing a migration, regenerate the types with `npx supabase gen types ty
 The app runs on Cloudflare Workers (`wrangler.jsonc`, entry `src/worker.ts`) against a hosted Supabase project.
 
 1. Apply new migrations to the hosted project: `npx supabase db push`.
-2. Deploy from `master` once CI is green: `npm run deploy`.
+2. Merge to `master` only once CI is green: Cloudflare Workers Builds deploys every push to `master` (the repository is private on GitHub Free, so there is no branch protection to enforce this). `npm run deploy` deploys by hand.
 3. Worker secrets: `SUPABASE_URL`, `SUPABASE_KEY` and optional `SENTRY_DSN`, set with `npx wrangler secret put <NAME>`.
 4. Roll back with `npx wrangler deployments list` and `npx wrangler rollback <version-id>`.
 
