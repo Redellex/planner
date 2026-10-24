@@ -16,9 +16,19 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          status=$(curl -s -o /dev/null -w "%{http_code}" \
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "::error::The SUPABASE_URL or SUPABASE_KEY repository secret is not set (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          status=$(curl -sS --max-time 30 -o /dev/null -w "%{http_code}" \
             "$SUPABASE_URL/rest/v1/profiles?select=id&limit=1" \
             -H "apikey: $SUPABASE_KEY" \
-            -H "Authorization: Bearer $SUPABASE_KEY")
+            -H "Authorization: Bearer $SUPABASE_KEY") || {
+            echo "::error::Could not reach Supabase (curl exit code $?)."
+            exit 1
+          }
           echo "Supabase answered HTTP $status"
-          test "$status" = "200"
+          if [ "$status" != "200" ]; then
+            echo "::error::Supabase answered HTTP $status, expected 200 (401/403: check SUPABASE_KEY; 5xx: the project may be paused)."
+            exit 1
+          fi
