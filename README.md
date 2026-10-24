@@ -12,9 +12,18 @@ Monthly shift scheduling for a 24/7 gas station. Employees enter when they can w
 
 ## Try it
 
-1. Open https://planner.10xplanner.workers.dev and sign up. Production keeps email confirmation on, so confirm the link in your inbox, then sign in.
+Demo accounts on the live app (shared sample data, removed after the review):
+
+| Role     | Email                      | Password               |
+| -------- | -------------------------- | ---------------------- |
+| Manager  | `reviewer@planner.example` | `WNWboBEZhYFkLxeOWAUe` |
+| Employee | `demo-full-a@example.com`  | `7Ym4xh5XOu8-0IlQkXGL` |
+
+The other demo employees (`demo-full-b@`, `demo-part-c@`, `demo-part-d@`, `demo-part-e@example.com`) use the employee password too.
+
+1. Open https://planner.10xplanner.workers.dev and sign in with an account above, or sign up. Production keeps email confirmation on, so confirm the link in your inbox, then sign in.
 2. As an **employee**: open **Availability**, pick a day next month and add a window (for example 06:00–18:00, repeated on that weekday). Edit it and delete it. Open **Schedule** to see a published month, or "Not published yet".
-3. As a **manager** (a reviewer account is given with the submission, since new sign-ups are employees): open **Team availability** to see the 5 demo employees' availability, then **Manage schedule** → Generate for an upcoming month. Days 10 and 20 have no one available on purpose. Look at the Uncovered shifts and the fairness summary. Change who works a shift and Save the day (a pick outside someone's availability asks "Assign anyway" first), then Publish. Publishing is refused while a day has no one. Every signed-in user then sees the month on **Schedule**.
+3. As a **manager** (the manager account above, since new sign-ups are employees): open **Team availability** to see the 5 demo employees' availability, then **Manage schedule** → Generate for an upcoming month. Days 10 and 20 have no one available on purpose. Look at the Uncovered shifts and the fairness summary. Change who works a shift and Save the day (a pick outside someone's availability asks "Assign anyway" first), then Publish. Publishing is refused while a day has no one. Every signed-in user then sees the month on **Schedule**.
 
 ## Tech stack
 
@@ -107,8 +116,8 @@ The **Demo data** workflow (`.github/workflows/demo-data.yml`, run by hand from 
 
 1. Add the repository secrets (Settings → Secrets and variables → Actions): `SUPABASE_SECRET_KEY` (Supabase dashboard → Project Settings → API keys → secret key), `DEMO_TEAM_PASSWORD`, `DEMO_MANAGER_EMAIL` (any address, for example `reviewer@planner.example`; no mail is sent to it) and `DEMO_MANAGER_PASSWORD` (12+ characters each). `SUPABASE_URL` is already there.
 2. Actions → Demo data → Run workflow, with `seed` and an empty month. Each of the next 3 months gets demo availability; a month that is already locked (for example one a reviewer generated) is skipped.
-3. Give the reviewer `DEMO_MANAGER_EMAIL` and `DEMO_MANAGER_PASSWORD` in the submission, never in the repo.
-4. Afterwards, run it with `remove` to delete the demo employees and the reviewer account. Months they locked stay locked; discard the drafts and unlock them on `/manager/months`.
+3. Keep the passwords in the **Try it** table above equal to `DEMO_MANAGER_PASSWORD` and `DEMO_TEAM_PASSWORD`. If you change a secret, update the table and run `seed` again: it resets the accounts' passwords.
+4. Afterwards, run it with `remove` to delete the demo employees and the reviewer account, and take the table out of this README. Months they locked stay locked; discard the drafts and unlock them on `/manager/months`.
 
 The first manager is promoted once in the Supabase SQL editor after they sign up: `update public.profiles set role = 'manager' where email = '<email>';`. Production keeps email confirmation on, so production is checked by hand, and `npm run smoke` runs only against a local or CI Supabase. Details: `context/changes/deployment/deployment-plan.md` (Outcome).
 
