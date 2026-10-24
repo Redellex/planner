@@ -3,13 +3,13 @@ project: Planner
 version: 1
 status: draft
 created: 2026-09-24
-updated: 2026-10-08
+updated: 2026-10-24
 prd_version: —
 main_goal: low-complexity
 top_blocker: capacity
 milestone_id: smoother-navigation-and-assignment
 milestone_seq: 2
-milestone_status: open
+milestone_status: done
 ---
 
 # Roadmap: Planner
@@ -20,7 +20,7 @@ milestone_status: open
 
 ## Milestone
 
-**M-2: Smoother navigation and assignment** — Status: open
+**M-2: Smoother navigation and assignment** — Status: done
 
 - **Intent:** Make the shipped app quicker to move around and to assign shifts in: sign-in lands on the dashboard, which becomes the home page; every page carries navigation limited to what the viewer's role may open; a day's manual assignments save at once; and the last legacy views move onto the design tokens.
 - **Source materials:** user description (2026-10-08), verbatim: "1. Sign in should redirect to dashboard automaticaly. Current main page should be changed to dashboard. 2. All pages and subpages should have in the top right navigation tab with links to pages that user role is allowed to go. Currently there is one navigation bar on current main page (not dashboard) but it's outdated. 3. When you choose persons to shifts manually then i want one save button for that day so i don't need to save 2-3 times. 4. Update the UI task/issue since we won't have current main page - it will change to dashboard."
@@ -166,6 +166,7 @@ No foundations are needed for this milestone.
 ## Milestone History
 
 - **M-1: First valid monthly schedule** (`first-valid-monthly-schedule`) — closed 2026-10-08. The full must-have path (FR-001–FR-007, US-01) shipped: availability, team view, fair generation, override and publish, and the published grid (F-01, S-01–S-05; PRs #10–#39).
+- **M-2: Smoother navigation and assignment** (`smoother-navigation-and-assignment`) — closed 2026-10-24. Sign-in lands on the dashboard at `/`, every page has a role-aware top bar, a station day's manual assignments save with one all-or-nothing Save, and the last legacy views are on the design tokens (S-06–S-09; PRs #46–#52), plus the Playwright E2E layer for risk #5 (T-05, T-06; PRs #55, #58).
 
 ## Done
 
