@@ -19,7 +19,7 @@ on:
         options: [seed, remove]
         default: seed
       month:
-        description: "YYYY-MM to seed; empty seeds each of the next 3 months, skipping locked ones"
+        description: "Leave empty to seed each of the next 3 months (skipping locked ones). Or YYYY-MM, several separated by commas; only the next 3 months, not the current one"
         required: false
         default: ""
 
@@ -53,11 +53,8 @@ jobs:
           done
           if [ "$ACTION" = "remove" ]; then
             node scripts/seed-demo-team.mjs --hosted --remove
-          elif [ -n "$MONTH" ]; then
-            if ! [[ "$MONTH" =~ ^[0-9]{4}-[0-9]{2}$ ]]; then
-              echo "::error::month must be YYYY-MM or empty."
-              exit 1
-            fi
+          elif [ -n "${MONTH//[[:space:],]/}" ]; then
+            # One or more YYYY-MM separated by commas/spaces; the script checks the format and that each is upcoming.
             node scripts/seed-demo-team.mjs --hosted --month "$MONTH"
           else
             node scripts/seed-demo-team.mjs --hosted --all-upcoming

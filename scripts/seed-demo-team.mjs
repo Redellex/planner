@@ -9,9 +9,9 @@
 // supabase/seed.sql seeds the same team (fixed ids) on every local reset; keep the two in step.
 //
 // Local (reads the URL and secret key from `npx supabase status`):
-//   npm run seed:demo [-- --month YYYY-MM] [-- --remove]
+//   npm run seed:demo [-- --month YYYY-MM[,YYYY-MM…]] [-- --remove]
 // Hosted (secret key from the dashboard, API keys; never commit it — `.env.*.local` is gitignored):
-//   node --env-file=.env.seed.local scripts/seed-demo-team.mjs --hosted [--month YYYY-MM | --all-upcoming] [--remove]
+//   node --env-file=.env.seed.local scripts/seed-demo-team.mjs --hosted [--month YYYY-MM[,YYYY-MM…] | --all-upcoming] [--remove]
 //   with SUPABASE_URL, SUPABASE_SECRET_KEY and DEMO_TEAM_PASSWORD in that file.
 // GitHub Actions: the "Demo data" workflow (.github/workflows/demo-data.yml) runs the hosted form from repository
 // secrets, so the secret key never has to be on a machine.
@@ -20,6 +20,8 @@
 // that account is created confirmed (or its password reset) and made a manager, so someone without an inbox on the
 // project can sign in and drive /manager/schedule over the demo team.
 //
+// --month takes one month or several separated by commas or spaces, each one of the next 3 (the months a draft can be
+// generated for; the current month cannot). Default: next month.
 // Re-running replaces the demo accounts' windows in that month. It refuses a locked month (a draft may be built on it);
 // --all-upcoming seeds each of the next 3 months and skips a locked one instead.
 // --remove deletes the 5 demo accounts and the reviewer manager (their windows go with them; their draft shifts become
@@ -46,17 +48,26 @@ function fail(message) {
 }
 
 function parseArgs(argv) {
-  const args = { hosted: false, remove: false, month: null, allUpcoming: false };
+  const args = { hosted: false, remove: false, months: null, allUpcoming: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--hosted") args.hosted = true;
     else if (arg === "--remove") args.remove = true;
-    else if (arg === "--month") args.month = argv[(index += 1)] ?? fail("--month needs YYYY-MM");
+    else if (arg === "--month") args.months = parseMonths(argv[(index += 1)]);
     else if (arg === "--all-upcoming") args.allUpcoming = true;
     else fail(`unknown argument ${arg}`);
   }
-  if (args.month && args.allUpcoming) fail("use either --month or --all-upcoming, not both.");
+  if (args.months && args.allUpcoming) fail("use either --month or --all-upcoming, not both.");
   return args;
+}
+
+/** `--month`'s value: one or more `YYYY-MM`, separated by commas and/or spaces, without duplicates. */
+function parseMonths(value) {
+  const months = [...new Set((value ?? "").split(/[\s,]+/).filter(Boolean))];
+  if (months.length === 0) fail("--month needs YYYY-MM (or several, separated by commas).");
+  const malformed = months.filter((month) => !/^\d{4}-(0[1-9]|1[0-2])$/.test(month));
+  if (malformed.length > 0) fail(`--month: ${malformed.join(", ")} is not YYYY-MM.`);
+  return months;
 }
 
 // The current station month + `offset`, as `YYYY-MM`.
@@ -233,9 +244,13 @@ async function seed(supabase, month, ids) {
 
 const args = parseArgs(process.argv.slice(2));
 const upcoming = [1, 2, 3].map(stationMonthPlus);
-const months = args.allUpcoming ? upcoming : [args.month ?? upcoming[0]];
-if (!args.remove && !months.every((month) => upcoming.includes(month))) {
-  fail(`--month must be one of the months a draft can be generated for: ${upcoming.join(", ")}.`);
+const months = args.allUpcoming ? upcoming : (args.months ?? [upcoming[0]]);
+const notUpcoming = months.filter((month) => !upcoming.includes(month));
+if (!args.remove && notUpcoming.length > 0) {
+  fail(
+    `${notUpcoming.join(", ")}: a draft can be generated only for the next 3 months, ${upcoming.join(", ")} ` +
+      `(not the current month). Pick from those, or leave --month out with --all-upcoming to seed all three.`,
+  );
 }
 
 const { url, key, password, manager } = connection(args.hosted);

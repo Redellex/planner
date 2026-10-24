@@ -84,7 +84,7 @@ After changing a migration, regenerate the types with `npx supabase gen types ty
 | `npx playwright test`               | Playwright E2E tests against a local build (needs the local stack and `.dev.vars.e2e`, see `context/foundation/test-stack.md`) |
 | `npm run smoke`                     | HTTP smoke test of auth, roles, availability and the draft schedule flow (`BASE_URL`, default `http://localhost:4321`)         |
 | `npm run check:ui`                  | Fails on colour literals in views that use the design tokens                                                                   |
-| `npm run seed:demo`                 | Puts the demo team into a database (`-- --month YYYY-MM`, `-- --all-upcoming`, `-- --remove`)                                  |
+| `npm run seed:demo`                 | Puts the demo team into a database (`-- --month YYYY-MM[,YYYY-MM]`, `-- --all-upcoming`, `-- --remove`)                        |
 | `npx stryker run`                   | Manual mutation testing of `src/lib/availability.ts`                                                                           |
 
 ## Pages
@@ -115,7 +115,7 @@ The app runs on Cloudflare Workers (`wrangler.jsonc`, entry `src/worker.ts`) aga
 The **Demo data** workflow (`.github/workflows/demo-data.yml`, run by hand from the Actions tab) puts the 5-person demo team and a reviewer manager account into the hosted project. It runs `scripts/seed-demo-team.mjs --hosted` with the secret key from repository secrets, so the key is never on a laptop.
 
 1. Add the repository secrets (Settings → Secrets and variables → Actions): `SUPABASE_SECRET_KEY` (Supabase dashboard → Project Settings → API keys → secret key), `DEMO_TEAM_PASSWORD`, `DEMO_MANAGER_EMAIL` (any address, for example `reviewer@planner.example`; no mail is sent to it) and `DEMO_MANAGER_PASSWORD` (12+ characters each). `SUPABASE_URL` is already there.
-2. Actions → Demo data → Run workflow, with `seed` and an empty month. Each of the next 3 months gets demo availability; a month that is already locked (for example one a reviewer generated) is skipped.
+2. Actions → Demo data → Run workflow, with `seed` and an empty month. Each of the next 3 months gets demo availability; a month that is already locked (for example one a reviewer generated) is skipped. The month field also takes one or more of those 3 months (`2026-11,2026-12`); the current month is refused, since no draft can be generated for it.
 3. Keep the passwords in the **Try it** table above equal to `DEMO_MANAGER_PASSWORD` and `DEMO_TEAM_PASSWORD`. If you change a secret, update the table and run `seed` again: it resets the accounts' passwords.
 4. Afterwards, run it with `remove` to delete the demo employees and the reviewer account, and take the table out of this README. Months they locked stay locked; discard the drafts and unlock them on `/manager/months`.
 
