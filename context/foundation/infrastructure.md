@@ -18,14 +18,14 @@ The repo already ships with `@astrojs/cloudflare` v14.3.1 and `wrangler` v4.131.
 
 ## Platform Comparison
 
-| Platform | CLI-first | Managed/Serverless | Agent-readable docs | Stable deploy API | MCP/Integration |
-|---|---|---|---|---|---|
-| **Cloudflare Workers** | Pass | Pass | Pass | Pass | Partial |
-| Netlify | Pass | Pass | Pass | Pass | Partial |
-| Render | Partial | Pass | Pass | Pass | Pass |
-| Railway | Partial | Pass | Pass | Pass | Partial |
-| Fly.io | Partial | Partial | Pass | Pass | Pass |
-| Vercel | Pass | Pass | Pass | Partial | Partial |
+| Platform               | CLI-first | Managed/Serverless | Agent-readable docs | Stable deploy API | MCP/Integration |
+| ---------------------- | --------- | ------------------ | ------------------- | ----------------- | --------------- |
+| **Cloudflare Workers** | Pass      | Pass               | Pass                | Pass              | Partial         |
+| Netlify                | Pass      | Pass               | Pass                | Pass              | Partial         |
+| Render                 | Partial   | Pass               | Pass                | Pass              | Pass            |
+| Railway                | Partial   | Pass               | Pass                | Pass              | Partial         |
+| Fly.io                 | Partial   | Partial            | Pass                | Pass              | Pass            |
+| Vercel                 | Pass      | Pass               | Pass                | Partial           | Partial         |
 
 **Cloudflare Workers** — `wrangler deploy`/`wrangler tail`/`wrangler rollback` are all GA and cover the full operational loop unattended. Fully serverless (Workers Static Assets + SSR), no OS/patching surface. Docs are markdown-native (`/index.md` suffix, `llms.txt` per product) and GA as of the research date. Deploy is deterministic and scriptable. The official Cloudflare MCP servers exist but are explicitly labeled work-in-progress.
 
@@ -57,7 +57,7 @@ Third because it requires both an adapter swap and a paid tier (~$7/month for an
 
 ### Devil's Advocate — Weaknesses
 
-1. `@supabase/ssr`'s dynamic `require("stream")` call is an open, unresolved GitHub issue (supabase/supabase#37592) against Workers' `nodejs_compat` layer — even with the flag set, edge cases in session-refresh may throw at runtime in paths a quick smoke test won't exercise.
+1. `@supabase/ssr`'s dynamic `require("stream")` call was reported in GitHub issue supabase/supabase#37592 (closed 2025-09-04 for inactivity, with no confirmed reproduction once `nodejs_compat` was set) against Workers' `nodejs_compat` layer — even with the flag set, edge cases in session-refresh may throw at runtime in paths a quick smoke test won't exercise.
 2. Wrangler v4's dev server runs in real `workerd`, not Node — Node-specific dependency behavior can diverge between `astro dev` and the deployed Workers runtime, undermining the "closer to prod" promise in subtle ways.
 3. Most tutorials, Stack Overflow answers, and even LLM training-data defaults still describe the now-unsupported Cloudflare Pages flow (`@astrojs/cloudflare` v14+ dropped Pages support entirely) — a stale `wrangler pages deploy` reference could burn real debugging time mid-project.
 4. CPU-time limits (10ms/request on the free tier) are a real ceiling for any future compute-heavy feature (e.g. the shift-scheduling algorithm from the PRD's core value proposition), unlike the long-lived containers on Fly.io/Railway/Render.
@@ -69,7 +69,7 @@ The team deployed the Astro 7 + Supabase MVP to Cloudflare Workers under time pr
 
 ### Unknown Unknowns
 
-- Workers bills by CPU-ms, not wall-clock time — a slow *external* call (e.g. Supabase's auth token exchange) doesn't burn CPU budget while waiting on I/O, so cost estimates based on "requests per month" alone can be misleadingly reassuring once compute-heavy work (the scheduling algorithm) is added.
+- Workers bills by CPU-ms, not wall-clock time — a slow _external_ call (e.g. Supabase's auth token exchange) doesn't burn CPU budget while waiting on I/O, so cost estimates based on "requests per month" alone can be misleadingly reassuring once compute-heavy work (the scheduling algorithm) is added.
 - `compatibility_date` is not a narrow feature gate — bumping it opportunistically can silently change existing runtime behavior across the board, unlike a typical npm dependency bump.
 - Training-data and most public content still describe the Pages-based deployment flow as canonical, so any future troubleshooting session (human or AI agent) has a real chance of reverting to the wrong command (`wrangler pages deploy`) by default and needs to be corrected back to Workers-only commands.
 - Cloudflare's official MCP servers are explicitly labeled work-in-progress — not yet a reliable path if agent-driven live-infra ops (vs. CLI) is ever the goal.
@@ -86,14 +86,14 @@ The team deployed the Astro 7 + Supabase MVP to Cloudflare Workers under time pr
 
 ## Risk Register
 
-| Risk | Source | Likelihood | Impact | Mitigation |
-|---|---|---|---|---|
-| `@supabase/ssr` hits the unresolved `nodejs_compat` `require("stream")` issue (supabase/supabase#37592) on a code path not covered by a quick smoke test (e.g. token refresh) | Devil's advocate | M | H | Set `compatibility_flags: ["nodejs_compat"]` and `compatibility_date >= "2024-09-23"` in `wrangler.jsonc`; extend `npm run smoke` (or a manual pass) to include a session that lives long enough to trigger a token refresh, not just sign-in/sign-out |
-| Stale Pages-era guidance (tutorials, blog posts, training data) leads to a future troubleshooting session running `wrangler pages deploy` against an adapter that no longer supports Pages | Devil's advocate / Unknown unknowns | M | M | Document in this repo's `CLAUDE.md` or `AGENTS.md` that Cloudflare Pages is unsupported by `@astrojs/cloudflare` v14+ and only `wrangler deploy` (Workers) is canonical |
-| Silent runtime failure if `nodejs_compat` or `compatibility_date` is misconfigured — discovered in production, not at deploy time | Devil's advocate | L | H | Commit `wrangler.jsonc` with the required flags checked in from day one (see Getting Started); add a post-deploy smoke check that exercises an authenticated request |
-| CPU-ms billing model makes "requests/month" cost estimates misleading once compute-heavy work (shift-scheduling algorithm) is added | Unknown unknowns | L | M | Re-estimate cost once the scheduling algorithm is implemented and its typical CPU time per generate-schedule request is known; the PRD's own NFR ("a few seconds... with visible progress") suggests this could exceed free-tier CPU-ms per invocation and needs measuring, not assuming |
-| Cloudflare's MCP servers are explicitly work-in-progress | Research finding | L | L | Continue using `wrangler` CLI directly for all operational tasks; revisit MCP only if a recurring pattern of CLI `--help` traversal emerges |
-| Dev/prod parity gap: Node-specific dependency behavior differs between `astro dev` (workerd-backed) and deployed Workers runtime for any future dependency | Devil's advocate | L | M | Before adding a new npm dependency, check for documented Workers/`nodejs_compat` support; run `wrangler dev` (not just `astro dev`) before deploying features that touch new dependencies |
+| Risk                                                                                                                                                                                                                   | Source                              | Likelihood | Impact | Mitigation                                                                                                                                                                                                                                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ---------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@supabase/ssr` hits the `nodejs_compat` `require("stream")` issue (supabase/supabase#37592, closed 2025-09-04 without a confirmed reproduction) on a code path not covered by a quick smoke test (e.g. token refresh) | Devil's advocate                    | M          | H      | Set `compatibility_flags: ["nodejs_compat"]` and `compatibility_date >= "2024-09-23"` in `wrangler.jsonc`; extend `npm run smoke` (or a manual pass) to include a session that lives long enough to trigger a token refresh, not just sign-in/sign-out                                   |
+| Stale Pages-era guidance (tutorials, blog posts, training data) leads to a future troubleshooting session running `wrangler pages deploy` against an adapter that no longer supports Pages                             | Devil's advocate / Unknown unknowns | M          | M      | Document in this repo's `CLAUDE.md` or `AGENTS.md` that Cloudflare Pages is unsupported by `@astrojs/cloudflare` v14+ and only `wrangler deploy` (Workers) is canonical                                                                                                                  |
+| Silent runtime failure if `nodejs_compat` or `compatibility_date` is misconfigured — discovered in production, not at deploy time                                                                                      | Devil's advocate                    | L          | H      | Commit `wrangler.jsonc` with the required flags checked in from day one (see Getting Started); add a post-deploy smoke check that exercises an authenticated request                                                                                                                     |
+| CPU-ms billing model makes "requests/month" cost estimates misleading once compute-heavy work (shift-scheduling algorithm) is added                                                                                    | Unknown unknowns                    | L          | M      | Re-estimate cost once the scheduling algorithm is implemented and its typical CPU time per generate-schedule request is known; the PRD's own NFR ("a few seconds... with visible progress") suggests this could exceed free-tier CPU-ms per invocation and needs measuring, not assuming |
+| Cloudflare's MCP servers are explicitly work-in-progress                                                                                                                                                               | Research finding                    | L          | L      | Continue using `wrangler` CLI directly for all operational tasks; revisit MCP only if a recurring pattern of CLI `--help` traversal emerges                                                                                                                                              |
+| Dev/prod parity gap: Node-specific dependency behavior differs between `astro dev` (workerd-backed) and deployed Workers runtime for any future dependency                                                             | Devil's advocate                    | L          | M      | Before adding a new npm dependency, check for documented Workers/`nodejs_compat` support; run `wrangler dev` (not just `astro dev`) before deploying features that touch new dependencies                                                                                                |
 
 ## Getting Started
 
@@ -106,6 +106,7 @@ The team deployed the Astro 7 + Supabase MVP to Cloudflare Workers under time pr
 ## Out of Scope
 
 The following were not evaluated in this research:
+
 - Docker image configuration
 - CI/CD pipeline setup
 - Production-scale architecture (multi-region, HA, DR)

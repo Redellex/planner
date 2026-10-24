@@ -5,7 +5,7 @@ project_name: planner
 hints:
   language_family: js
   team_size: solo
-  deployment_target: cloudflare-pages
+  deployment_target: cloudflare-workers # was cloudflare-pages; @astrojs/cloudflare v14+ is Workers-only
   ci_provider: github-actions
   ci_default_flow: auto-deploy-on-merge
   bootstrapper_confidence: first-class

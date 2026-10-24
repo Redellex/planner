@@ -4,8 +4,8 @@ source: context/foundation/roadmap.md (v1)
 tracker: GitHub Issues
 repo: Redellex/planner
 migrated: 2026-09-25
-updated: 2026-10-08
-milestone: M-2 (GitHub milestone #2); M-1 (#1) closed 2026-10-08
+updated: 2026-10-24
+milestone: none open; M-1 (#1) closed 2026-10-08, M-2 (#2) closed 2026-10-24
 ---
 
 # Task Tracker: Roadmap → GitHub Issues
@@ -37,27 +37,27 @@ The roadmap's Backlog Handoff table already asks for "stable human-readable iden
 
 ## Issue map
 
-| Roadmap ID | Issue | Title                                                                                   | Labels                                         | Milestone            | Blocked by |
-| ---------- | ----- | --------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------- | ---------- |
-| F-01       | #1    | [F-01] Add manager/employee roles to auth                                               | roadmap, foundation — **closed** (done)        | M-1                  | —          |
-| S-01       | #2    | [S-01] Employee availability CRUD with monthly lock                                     | roadmap, slice — **closed** (done)             | M-1                  | #1         |
-| S-02       | #3    | [S-02] Manager view of all employee availability                                        | roadmap, slice — **closed** (done)             | M-1                  | #1, #2     |
-| S-03       | #4    | [S-03] Auto-generate conflict-free, fairly-rotated monthly schedule                     | roadmap, slice, north-star — **closed** (done) | M-1                  | #2         |
-| S-04       | #5    | [S-04] Manager review/override/publish workflow for generated schedule                  | roadmap, slice — **closed** (done)             | M-1                  | #4         |
-| S-05       | #6    | [S-05] Published schedule grid view for employees and managers                          | roadmap, slice — **closed** (done)             | M-1                  | #5         |
-| T-01       | #24   | [T-01] Test runner and station-time logic (unit tests on UTC)                           | roadmap, testing — **closed** (done)           | —                    | —          |
-| T-02       | #27   | [T-02] Database rules: ownership, month lock and roles (pgTAP)                          | roadmap, testing — **closed** (done)           | —                    | —          |
-| QG-01      | #29   | [QG-01] Quality-gate hooks: agent hooks and pre-commit tests on staged files            | roadmap, testing — **closed** (done)           | —                    | —          |
-| T-03       | #31   | [T-03] Route gating and honest availability reads                                       | roadmap, testing — **closed** (done)           | —                    | —          |
-| T-05       | #54   | [T-05] E2E layer and the day-save override confirm (risk #5, Playwright)                | roadmap, testing — **closed** (done)           | —                    | —          |
-| T-06       | #57   | [T-06] E2E: generating a draft schedule — complete draft and gaps (risk #5, Playwright) | roadmap, testing — **closed** (done)           | —                    | —          |
-| S-06       | #41   | [S-06] Sign-in lands on the dashboard, which becomes the home page                      | roadmap, slice — **closed** (done)             | M-2                  | —          |
-| S-07       | #42   | [S-07] Role-aware top-right navigation on every page                                    | roadmap, slice — **closed** (done)             | M-2                  | #41        |
-| S-08       | #43   | [S-08] One Save per day for manual shift assignments                                    | roadmap, slice, north-star — **closed** (done) | M-2                  | —          |
-| S-09       | #44   | [S-09] Legacy views cleanup: dashboard, auth, 403, /manager/months on design tokens     | roadmap, slice — **closed** (done)             | M-2                  | #41, #42   |
-| Q-01       | #7    | [Q-01] Expected request and data volume (qps)?                                          | roadmap, question                              | M-2 (moved from M-1) | —          |
-| P-01       | #8    | [P-01] Export/print schedule (FR-008)                                                   | roadmap, parked                                | —                    | —          |
-| P-02       | #9    | [P-02] Notify employees when schedule is published (FR-009)                             | roadmap, parked                                | —                    | —          |
+| Roadmap ID | Issue | Title                                                                                   | Labels                                         | Milestone        | Blocked by |
+| ---------- | ----- | --------------------------------------------------------------------------------------- | ---------------------------------------------- | ---------------- | ---------- |
+| F-01       | #1    | [F-01] Add manager/employee roles to auth                                               | roadmap, foundation — **closed** (done)        | M-1              | —          |
+| S-01       | #2    | [S-01] Employee availability CRUD with monthly lock                                     | roadmap, slice — **closed** (done)             | M-1              | #1         |
+| S-02       | #3    | [S-02] Manager view of all employee availability                                        | roadmap, slice — **closed** (done)             | M-1              | #1, #2     |
+| S-03       | #4    | [S-03] Auto-generate conflict-free, fairly-rotated monthly schedule                     | roadmap, slice, north-star — **closed** (done) | M-1              | #2         |
+| S-04       | #5    | [S-04] Manager review/override/publish workflow for generated schedule                  | roadmap, slice — **closed** (done)             | M-1              | #4         |
+| S-05       | #6    | [S-05] Published schedule grid view for employees and managers                          | roadmap, slice — **closed** (done)             | M-1              | #5         |
+| T-01       | #24   | [T-01] Test runner and station-time logic (unit tests on UTC)                           | roadmap, testing — **closed** (done)           | —                | —          |
+| T-02       | #27   | [T-02] Database rules: ownership, month lock and roles (pgTAP)                          | roadmap, testing — **closed** (done)           | —                | —          |
+| QG-01      | #29   | [QG-01] Quality-gate hooks: agent hooks and pre-commit tests on staged files            | roadmap, testing — **closed** (done)           | —                | —          |
+| T-03       | #31   | [T-03] Route gating and honest availability reads                                       | roadmap, testing — **closed** (done)           | —                | —          |
+| T-05       | #54   | [T-05] E2E layer and the day-save override confirm (risk #5, Playwright)                | roadmap, testing — **closed** (done)           | —                | —          |
+| T-06       | #57   | [T-06] E2E: generating a draft schedule — complete draft and gaps (risk #5, Playwright) | roadmap, testing — **closed** (done)           | —                | —          |
+| S-06       | #41   | [S-06] Sign-in lands on the dashboard, which becomes the home page                      | roadmap, slice — **closed** (done)             | M-2              | —          |
+| S-07       | #42   | [S-07] Role-aware top-right navigation on every page                                    | roadmap, slice — **closed** (done)             | M-2              | #41        |
+| S-08       | #43   | [S-08] One Save per day for manual shift assignments                                    | roadmap, slice, north-star — **closed** (done) | M-2              | —          |
+| S-09       | #44   | [S-09] Legacy views cleanup: dashboard, auth, 403, /manager/months on design tokens     | roadmap, slice — **closed** (done)             | M-2              | #41, #42   |
+| Q-01       | #7    | [Q-01] Expected request and data volume (qps)?                                          | roadmap, question                              | — (was M-1, M-2) | —          |
+| P-01       | #8    | [P-01] Export/print schedule (FR-008)                                                   | roadmap, parked                                | —                | —          |
+| P-02       | #9    | [P-02] Notify employees when schedule is published (FR-009)                             | roadmap, parked                                | —                | —          |
 
 The issues were created in the order the roadmap lists them, so the numbers match that order. S-02 and S-03 can run in parallel; each issue mentions the other.
 
@@ -155,6 +155,7 @@ The Outcome, PRD refs, Unknowns and Risk sections are copied word for word from 
 - It holds 7 issues (F-01, S-01..S-05, Q-01). Parked issues are left out on purpose so they don't count toward M-1 progress.
 - **M-1 closed 2026-10-08** with 6/6 F/S issues closed; Q-01 (#7) moved to M-2.
 - **M-2: Smoother navigation and assignment** (GitHub milestone #2, opened 2026-10-08): description = the roadmap Intent + "Done when: every S-NN issue is closed" + scope anchors MS-01..MS-04. It holds S-06..S-09 (#41–#44) and Q-01 (#7). Slice numbering continues from M-1 so `[S-NN]` titles stay unique.
+- **M-2 closed 2026-10-24** with 4/4 S issues closed. Q-01 (#7) stays open with no milestone until the next one opens.
 
 ## Decisions made during import
 
@@ -226,7 +227,7 @@ The temporary body files were kept in the session scratchpad and are not in the 
 
 ## What to do next
 
-Status as of 2026-10-08: M-1 is closed (6/6 done); M-2 is open with 4/4 done (every slice closed; close M-2 via `/10x-roadmap`).
+Status as of 2026-10-24: M-1 (6/6) and M-2 (4/4) are closed; no milestone is open. Open the next one with `/10x-roadmap`.
 
 M-1 delivery:
 
@@ -244,6 +245,6 @@ M-2 delivery:
 - #44 (S-09) was delivered in PR #50 and archived to `context/archive/2026-10-08-legacy-views-ui-tokens/`.
 - #43 (S-08, north star) was delivered in PR #52 and archived to `context/archive/2026-10-08-schedule-day-save/`.
 
-1. **Finish M-2.** Run `npx supabase db push` (migrations `20261008120000_save_schedule_day.sql` and `20261008130000_save_schedule_day_idempotent.sql`) before deploying the Worker with S-08, then close M-2 via `/10x-roadmap` (Q-01 #7 is a question, not a slice).
-2. **Hosted state:** every M-1 migration through `20261007160000_published_schedule_is_own.sql` was pushed and the app deployed on 2026-10-08. Still worth doing once: check a generate request's `cpuTime` with `wrangler tail`.
+1. **Hosted state (2026-10-24):** all 14 migrations through `20261008130000_save_schedule_day_idempotent.sql` are on the hosted project (`npx supabase migration list --linked`), and the Worker is live at `https://planner.10xplanner.workers.dev`.
+2. **Still worth doing once:** check a generate request's `cpuTime` with `wrangler tail`.
 3. Q-01 (#7) and the parked #8/#9 stay open; the roadmap's `## Parked` also lists the M-1 follow-ups that have no issue.
