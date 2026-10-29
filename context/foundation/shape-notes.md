@@ -1,126 +1,187 @@
 ---
-project: Planner
-context_type: greenfield
-created: 2026-09-19
-updated: 2026-09-19
-product_type: web-app
-target_scale:
-  users: small
-timeline_budget:
-  mvp_weeks: 3
-  hard_deadline: null
-  after_hours_only: true
+project: "Close-out command"
+context_type: brownfield
+created: 2026-10-28
+updated: 2026-10-28
 checkpoint:
   current_phase: 8
-  phases_completed: [1, 2, 3, 4, 5, 6, 7]
+  phases_completed: [1, 2, 3, 4, 5, 6, 7, 8]
   gray_areas_resolved:
-    - topic: "pain category"
-      decision: "coordination overhead + decision paralysis"
+    - topic: "change category"
+      decision: "new module — a dev-only command next to the app; Planner itself is unchanged"
     - topic: "insight"
-      decision: "generic scheduling tools don't model shift rotation/fairness"
+      decision: "never thought about it; the close-out grew step by step with the workflow"
     - topic: "primary persona scope"
-      decision: "a specific role inside one org (single station manager)"
-    - topic: "auth model"
-      decision: "login (email + password), two roles (Manager, Employee)"
-    - topic: "schedule visibility for employees"
-      decision: "employees see the full published schedule, not just their own shifts"
+      decision: "the solo developer and their agent (the agent runs it inside /10x-archive, the developer by hand)"
+    - topic: "access model"
+      decision: "no change — runs locally as the developer with the existing gh login; dry run needs no write access"
+    - topic: "when it runs"
+      decision: "before merge, inside the implementation PR — one extra commit there, no separate close-out PR"
+    - topic: "who closes the issue"
+      decision: 'GitHub, through "Closes #N" in the PR description; the command only warns when it is missing'
+    - topic: "success window"
+      decision: "the next 3 changes"
   frs_drafted: 9
   quality_check_status: accepted
+product_type: cli # new surface next to the existing web-app, which is unchanged
+target_scale:
+  users: small
+  qps: low
+  data_volume: small
+timeline_budget:
+  delivery_weeks: 3
+  hard_deadline: null
+  after_hours_only: true
 ---
 
 # Shape Notes
 
-Seed idea (from `idea-notes.md`):
+Seed idea:
 
-> Ustalanie grafiku pracy w zakresie jednego miesiaca dla stacji benzynowej. Jeden kierownik ktory ustala grafik i reszta pracownikow ktorzy maja ustalone swoje grafiki dostepnosci. Grafik powinien ustalac sensownie zmiany w pracy.
+> Close-out command: `npm run closeout -- <change-id>` that archives the change folder, sets the roadmap row to done, updates tasks-linear.md and closes the GitHub issue in one commit. Dry run first.
+
+Background evidence: `context/team/opportunity-map.md`, `context/team/mom-test-validation.md`, `context/team/mom-test-answers.md`.
+
+Previous session (Planner product shaping) archived to `context/foundation/archive/shape-notes-2026-10-28-2207.md`.
+
+## Current System
+
+Closing a change is a step of the `/10x` skill workflow. After an implementation PR merges, the developer tells the agent to do every close-out step: archive the change folder, update `context/foundation/roadmap.md` and `context/foundation/tasks-linear.md`, and close the GitHub issue — usually in a separate PR.
+
+- **Tech stack involved**: markdown files under `context/`, GitHub Issues via the `gh` CLI, git and pull requests, Node scripts, Prettier (via lint-staged).
+- **Users**: one solo developer, working through an agent.
 
 ## Vision & Problem Statement
 
-Every month, the manager of a single gas station has to build a work schedule for their team by hand in a spreadsheet, cross-referencing each employee's individually submitted availability windows and deciding who works which 6–12 hour shift while trying to rotate who takes the longer shifts fairly. This is slow and error-prone, and requires holding many people's constraints in your head at once — the pain is both coordination overhead (gathering and reconciling availability from multiple employees) and decision paralysis (deciding a fair, conflict-free assignment across all of them).
+After every task the developer repeats the same close-out — closing the task, updating issues and `.md` files — and ends up reopening PRs to fix them. It has never been automated because it grew step by step with the workflow.
 
-Generic scheduling and calendar tools handle time slots but don't model domain rules like shift rotation and fairness across a small team's availability constraints — there is no drop-in tool built for this specific shape of problem, which is why a manual spreadsheet is still the default.
+This change adds a new, dev-only command that does the close-out. The Planner app itself does not change.
 
 ## User & Persona
 
-**Primary persona**: The station manager (kierownik) at a single gas station — responsible for producing the upcoming month's work schedule for their team. They reach for this product once a month when building the schedule, holding every employee's availability constraints and needing to assign 6–12 hour shifts fairly and without conflicts.
-
-### Secondary persona
-
-Station employees, who each maintain their own availability schedule that the manager consumes when building the monthly schedule. They don't build schedules themselves — only their own availability.
+- **Primary**: the solo developer of this repo, together with their agent. The agent runs the command as a step of `/10x-archive`; the developer can run it by hand.
 
 ## Access Control
 
-Login via email + password. Two roles: **Manager** (kierownik) and **Employee** (pracownik).
+No changes planned — current model preserved. The command runs locally as the developer, with their existing git setup and GitHub CLI login (`Redellex`); it has exactly the permissions the developer already has. No new tokens, accounts or roles. The dry run only reads.
 
-- **Manager**: full write access to the monthly work schedule; can view every employee's availability schedule.
-- **Employee**: can create/edit only their own availability schedule; can view the full published work schedule (everyone's shifts, not just their own).
+## Smallest Change (delta sequence)
+
+1. The code is done, the implementation PR is open and its description has "Closes #N".
+2. The agent runs `npm run closeout -- <change-id>` (dry run, the default).
+3. The developer reads the planned edits: the change folder moved to the archive, the rows in `roadmap.md` and `tasks-linear.md`, and a warning if the PR has no "Closes #N".
+4. If the list is right, `--write` adds one commit to the same PR.
+5. Merge. GitHub closes the issue.
+
+- **Blast radius**: if the command fails, the developer is back to today's manual close-out — no PR, merge conflicts, issues left open. Nothing in the Planner app is touched.
+- **Timeline**: shippable in 3 weeks of after-hours work (developer's estimate).
 
 ## Success Criteria
 
 ### Primary
-- Manager can generate a monthly schedule that assigns 6–12h shifts to employees, respecting every employee's stated availability, rotating who takes long shifts, and flagging/preventing any assignment that conflicts with availability. Everyone should have atleast few shifts during month.
+
+- No separate close-out PR for the next 3 changes.
+- No merge conflict in the `roadmap.md` or `tasks-linear.md` tables for the next 3 changes.
 
 ### Secondary
-- Manager can export/print the schedule for sharing outside the app.
-- Employees get notified when a new schedule is published.
-- Manager can manually override any suggested assignment.
+
+- None stated.
 
 ### Guardrails
-- Never silently assign a shift outside an employee's stated availability — any conflict must be surfaced to the manager and require an explicit override.
 
-## Functional Requirements
-
-### Availability & scheduling
-- FR-001: Employee can create and edit their own availability schedule for the upcoming month, until the manager begins generating that month's schedule — after which availability for that month becomes locked. Priority: must-have
-  > Socrates: Counter-argument considered: "editing should be locked once the manager starts building the schedule, so availability doesn't silently change out from under an in-progress schedule." Resolution: accepted — availability becomes read-only for the target month once the manager starts generating a schedule for it.
-- FR-002: Manager can view all employees' availability schedules. Priority: must-have
-  > Socrates: Counter-argument considered: "full visibility could feel like surveillance; maybe aggregate-only view is enough." Resolution: kept as written — the manager needs per-employee availability to build a valid schedule; aggregate-only isn't sufficient for FR-003/FR-004.
-- FR-003: Manager can generate a proposed schedule that assigns 6–12h shifts, respecting employee availability and rotating who takes the longer shifts. Priority: must-have
-  > Socrates: Counter-argument considered: "auto-generation is the riskiest, most complex piece — cut to manual-only for v1." Resolution: kept as written — this is the core value proposition distinguishing the product from a generic calendar.
-- FR-004: System validates each proposed assignment against an employee's stated availability and warns the manager of any conflict, requiring explicit confirmation to override. Priority: must-have
-  > Socrates: Counter-argument considered: "validation should warn, not hard-block, since a manager may legitimately need to override in an emergency." Resolution: accepted — validation warns and requires explicit override (via FR-005) rather than hard-blocking.
-- FR-005: Manager can manually adjust or override any assignment before publishing. Priority: must-have
-  > Socrates: Counter-argument considered: "overrides should require a reason/note to avoid later disputes." Resolution: kept as written — no reason capture in MVP; noted as a possible future refinement, not blocking.
-- FR-006: Manager can publish the schedule. Priority: must-have
-  > Socrates: Counter-argument considered: "publishing should require confirmation, since employees rely on it once published." Resolution: kept as written — publish is treated as a deliberate manager action in the UI; explicit confirmation UX is a downstream design detail, not a scope change.
-- FR-007: Employee and Manager can view the published schedule as a simple visual grid of who works when. Priority: must-have
-  > Socrates: Counter-argument considered: "unpublished/draft schedule shouldn't be visible to employees." Resolution: kept as written — this FR only covers the *published* schedule; drafts are implicitly manager-only since employees have no path to a draft view.
-
-### Sharing & notifications
-- FR-008: Manager can export/print the schedule. Priority: nice-to-have
-  > Socrates: Counter-argument considered: none raised. Resolution: kept as written, nice-to-have.
-- FR-009: Employee is notified when a new schedule is published. Priority: nice-to-have
-  > Socrates: Counter-argument considered: "notifications add infrastructure for marginal benefit when employees already log in to submit availability." Resolution: kept as written, nice-to-have — user chose not to drop it, but it remains explicitly out of must-have scope.
+- The archive folder layout stays as it is.
+- The `roadmap.md` and `tasks-linear.md` tables keep their format.
+- Only the right GitHub issue is closed; its labels, DoD and links stay intact.
 
 ## User Stories
 
-### US-01: Manager generates a valid monthly schedule
+### US-01: Close a change inside its implementation PR
 
-- **Given** a manager with all employees' availability submitted for the month
-- **When** Manager generates a schedule
-- **Then** the system proposes 6–12h shift assignments that respect every employee's availability and rotate who takes the longer shifts, with no conflicts
+- **Given** an open implementation PR with "Closes #N" and the change folder in `context/changes/`
+- **When** the agent runs the dry run, the developer checks the list, and the agent runs `--write`
+- **Then** one commit on that PR archives the folder and marks the rows, and merging the PR closes the issue
+- _Before:_ a separate close-out PR after the merge, often reopened or in conflict.
 
-#### Acceptance Criteria
-- No proposed assignment falls outside an employee's stated availability
-- Long (12h) shifts rotate across eligible employees rather than repeatedly landing on the same person
-- Every shift in the month has exactly one assigned employee
-- Work time should be as close to each other as possible
+## Functional Requirements
+
+### Dry run
+
+- FR-001: Developer can run `npm run closeout -- <change-id>` and see the planned edits without any file changing. Change: new. Priority: must-have
+
+  > Socratic: after a few good runs the dry run looks like a wasted step. Resolution: it stays the default; writing always needs an explicit `--write`, and the agent runs both steps anyway.
+
+- FR-002: Developer is warned when the open PR's description has no "Closes #N" for the change's issue. Change: new. Priority: must-have
+
+  > Socratic: with no pushed PR `gh` finds nothing, and GitHub already shows linked issues on the PR. Resolution: it stays; with no PR found the command says it could not check "Closes #N" and carries on.
+
+### Write
+
+- FR-003: With `--write`, the command moves `context/changes/<change-id>` to `context/archive/<date>-<change-id>` and marks its `change.md` as archived. Change: new. Priority: must-have
+
+  > Socratic: `/10x-archive` already moves the folder and stamps `change.md`; two implementations would drift. Resolution: the command does both, and `/10x-archive` calls the command instead of doing it itself — one implementation.
+
+- FR-004: With `--write`, the command marks the change done in `roadmap.md` (At a glance, Backlog Handoff, Done) and points it at the archive folder. Change: new. Priority: must-have
+
+  > Socratic: the rows come in several variants and parsing markdown tables is fragile; a bad match could break a table. Resolution: it changes only rows it recognises; anything else is refused with nothing written, and the developer edits by hand.
+
+- FR-005: With `--write`, the command updates the change's row in `tasks-linear.md`. Change: new. Priority: must-have
+
+  > Socratic: `tasks-linear.md` copies state GitHub already holds; automating it keeps the duplicate alive. Resolution: it stays in v1; whether to drop the file is an open question.
+
+- FR-006: With `--write`, all edits land in one commit, formatted with Prettier. Change: new. Priority: must-have
+
+  > Socratic: committing before merge marks the change done before the PR is actually merged. Resolution: the commit stays, and the close-out is the last commit of the PR; if anything lands after it, the developer runs it again or reverts it.
+
+### Refusals
+
+- FR-007: The command refuses an unknown `<change-id>` and changes nothing; for an already archived change it reports "already closed" and exits successfully. Change: new. Priority: must-have
+
+  > Socratic: an agent retrying the command should not get an error for a change that is already closed. Resolution: archived → "already closed", success; unknown → error.
+
+- FR-008: The command refuses `--write` when any file it would change has uncommitted changes, and commits only its own files. Change: new. Priority: must-have
+
+  > Socratic: the repo almost always has unrelated uncommitted changes, so refusing on any of them would block the command constantly. Resolution: only its own files count.
+
+### Preserved
+
+- FR-009: GitHub closes the change's issue on merge through "Closes #N"; the command never closes, relabels or edits issues. Change: preserved. Priority: must-have
+
+  > Socratic: today's close-out also ticks the issue's DoD and sets labels, so that part stays manual. Resolution: issues stay manual in v1; ticking the DoD goes to Non-Goals as a v2 candidate.
 
 ## Business Logic
 
-Given a set of employees' availability windows for the month, the schedule generator assigns one employee to each 6–12h shift such that every assignment falls within that employee's stated availability, and the longer shifts rotate across eligible employees rather than repeatedly falling on the same person. Work time should be as close to each other as possible in month/schedule.
+No domain logic change. This is an infrastructure/technical change. The command's own rules are FR-001…FR-009.
 
+## Constraints & Preserved Behavior
 
-The rule consumes each employee's stated availability windows for the month and the recent history of who has worked long shifts. Its output is a proposed, conflict-free monthly shift assignment — one employee per shift — that the manager then reviews, optionally adjusts, and publishes. The user encounters this rule at the moment they click "generate schedule": rather than staring at a blank grid, they see a starting assignment they can accept or edit.
+- The archive folder layout stays as it is: `context/archive/<YYYY-MM-DD>-<change-id>`, so existing archives and links keep matching.
+- The `roadmap.md` and `tasks-linear.md` tables keep their format.
+- Only the right GitHub issue is closed (by GitHub, through "Closes #N"); its labels, DoD and links stay intact.
+- `/10x-archive` keeps working and stays the entry point; it calls the command instead of moving the folder itself.
+- The command changes only files under `context/`; application code and configuration are never touched.
+- The close-out commit goes through the normal CI on the PR like any other commit; nothing bypasses it.
 
 ## Non-Functional Requirements
 
-- A manager sees a proposed schedule within a few seconds of clicking "generate," with continuous visible progress if it takes longer.
-- An employee's submitted availability is visible only to that employee and the manager — never to other employees.
+- Readable output: one line per planned edit, readable by the developer and the agent; a non-zero exit code when the command refuses.
+
+## Product Framing
+
+- **Product type**: a new developer-only command-line tool next to the existing Planner web app, which does not change.
+- **Users**: no change — one solo developer and their agent; Planner's users never see it.
+- **Timing**: no hard deadline; after-hours work, 3 weeks.
 
 ## Non-Goals
 
-- **No labor-law enforcement** (e.g. mandatory rest days after a 12h shift) — the schedule generator does not encode legal rest-period rules in the MVP; the manager is responsible for compliance.
-- **No sick leave / vacation (L4/urlopy) tracking** — availability windows are the only input; time off is not modeled.
-- **No multi-employee shifts** — every shift is assigned to exactly one employee by default; shift-sharing/overlap is out of scope.
-- **No native mobile app** — web-only for MVP; mobile-web usability is not a guaranteed target.
+- Ticking the DoD or changing labels on GitHub issues — they stay manual in v1 (FR-009); a v2 candidate.
+- Running automatically on PR merge (GitHub Action) — in v1 the agent or the developer runs it; that is the direction once it proves itself.
+- Any change to the Planner app — code, database or UI.
+
+## Open Questions
+
+- Drop `tasks-linear.md` once the command works, since it copies state GitHub already holds (FR-005)?
+
+## Forward: technical-roadmap
+
+- `/10x-archive` calls the command instead of moving the folder itself (FR-003).
+- Direction if it proves valuable: a GitHub Action that runs the close-out when the implementation PR merges.
