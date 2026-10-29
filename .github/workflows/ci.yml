@@ -16,8 +16,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # reviewer/ is a separate package; the root ESLint lints it with type-aware rules, so its types must be installed
+      - run: npm ci --prefix reviewer
       - run: npx astro sync
       - run: npm run lint
+      - run: npm run typecheck --prefix reviewer
       - run: npx astro check
       - run: npm test
       - run: npm run build

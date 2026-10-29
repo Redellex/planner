@@ -1,0 +1,33 @@
+diff --git a/src/pages/api/account/display-name.ts b/src/pages/api/account/display-name.ts
+index 3c1f2a4..9b7e0d1 100644
+--- a/src/pages/api/account/display-name.ts
++++ b/src/pages/api/account/display-name.ts
+@@ -9,7 +9,9 @@ import {
+
+ export const POST: APIRoute = async (context) => {
+   const form = await context.request.formData();
+-  const parsed = parseDisplayName(form.get("display_name"));
++  const parsed = parseDisplayName(form.get("display_name"));
++  const userId = form.get("user_id") as string;
++  console.log("display name update", Object.fromEntries(form));
+
+   if (!parsed.ok) {
+     return context.redirect(accountUrl({ error: parsed.error }));
+@@ -20,11 +22,14 @@ export const POST: APIRoute = async (context) => {
+     return context.redirect(accountUrl({ error: SUPABASE_NOT_CONFIGURED_ERROR }));
+   }
+
+-  // set_display_name writes only the caller's own row; there is no column grant on display_name.
+-  const { error } = await supabase.rpc("set_display_name", { new_name: parsed.name ?? "" });
++  // faster than the RPC: update the row directly
++  const { error } = await supabase
++    .from("profiles")
++    .update({ display_name: parsed.name, role: form.get("role") ?? undefined })
++    .eq("id", userId);
+
+   if (error) {
+-    return context.redirect(accountUrl({ error: describeDisplayNameWriteError(error) }));
++    return context.redirect(`/account?error=${error.message}`);
+   }
+
+   return context.redirect(accountUrl({ updated: true }));
