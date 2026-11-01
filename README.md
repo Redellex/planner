@@ -106,7 +106,7 @@ After changing a migration, regenerate the types with `npx supabase gen types ty
 The app runs on Cloudflare Workers (`wrangler.jsonc`, entry `src/worker.ts`) against a hosted Supabase project.
 
 1. Apply new migrations to the hosted project: `npx supabase db push`.
-2. Merge to `master` through a pull request: Cloudflare Workers Builds deploys every push to `master`. The repository is public, and ruleset "Protect master" lets only the admin update `master`, only through a PR, and requires the `ai-cr/verdict` status (see [AI code review](#ai-code-review)). The admin can merge past a pending or failed verdict only with an explicit bypass on the PR. Waiting for a green CI (`ci`, `smoke`) is still a convention, not a required check. `npm run deploy` deploys by hand.
+2. Merge to `master` through a pull request: Cloudflare Workers Builds deploys every push to `master`. The repository is public, and ruleset "Protect master" forbids deleting and force-pushing `master` and requires the `ai-cr/verdict` status (see [AI code review](#ai-code-review)): a PR whose head passed the review merges normally, and a direct push is refused unless the pushed commit already has a `success` status. The admin can merge past a pending or failed verdict only with an explicit bypass on the PR. Waiting for a green CI (`ci`, `smoke`) is still a convention, not a required check. `npm run deploy` deploys by hand.
 3. Worker secrets: `SUPABASE_URL`, `SUPABASE_KEY` and optional `SENTRY_DSN`, set with `npx wrangler secret put <NAME>`.
 4. Roll back with `npx wrangler deployments list` and `npx wrangler rollback <version-id>`.
 

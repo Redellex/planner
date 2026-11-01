@@ -327,6 +327,8 @@ gh api -X PUT repos/Redellex/planner/rulesets/26309273 --input - <<'JSON'
 JSON
 ```
 
+**Addendum 2026-11-01 (rollout):** with the three old rules kept, #69 stayed `BLOCKED` with every check green, `ai-cr/verdict` included: rule `update` lets only bypass actors update `master`, so every merge needed the bypass, and the bypass skips the verdict too. On the owner's decision the ruleset keeps `deletion`, `non_fast_forward` and `required_status_checks` only; #69 then reported `CLEAN`. A direct push to `master` now needs a commit that already carries a `success` status.
+
 #### 3. SHA pinning enforcement
 
 **Intent**: Turn on `sha_pinning_required` once master holds only pinned actions (after the merge).
@@ -376,7 +378,7 @@ At Sonnet 5.5 ($2 / $10 per MTok), the $0.1 cap fits roughly 30–40k input toke
 
 ## Migration Notes
 
-Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back to the three rules with bypass mode `always`; delete the two workflow files and the action. Existing PR comments and labels can stay. `ai-cr/verdict` statuses on old SHAs are harmless once the context isn't required.
+Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back to the three original rules (`update`, `deletion`, `non_fast_forward`) with bypass mode `always`; delete the two workflow files and the action. Existing PR comments and labels can stay. `ai-cr/verdict` statuses on old SHAs are harmless once the context isn't required.
 
 ## References
 
@@ -444,7 +446,7 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 #### Automated
 
-- [x] 5.1 The ruleset requires the status and bypasses via PR — 2026-11-01: bypass `pull_request`, rules update, deletion, non_fast_forward, required_status_checks (`ai-cr/verdict`)
+- [x] 5.1 The ruleset requires the status and bypasses via PR — 2026-11-01: bypass `pull_request`, rules deletion, non_fast_forward, required_status_checks (`ai-cr/verdict`); `update` dropped (Phase 5 addendum)
 - [x] 5.2 SHA pinning is enforced — 2026-11-01: `sha_pinning_required` true
 - [x] 5.3 CI still starts and passes with enforcement on — #69 head 9e76cea, run 41311373877: `ci` and `smoke` green with `sha_pinning_required` on
 
@@ -452,5 +454,5 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 - [x] 5.4 The follow-up PR's dispatched review posted comment, label and status — #69 run 41311129014: comment with SHA, scores and summary, `ai-cr:passed`, status success
 - [x] 5.5 The throwaway buggy PR got fail; a closed-PR dispatch posted nothing — #70 run 41311135613: fail, `ai-cr:failed`, status failure, job failed; closed #70 run 41311255027 failed, nothing posted
-- [ ] 5.6 With the gate on, a pending or failed `ai-cr/verdict` blocks merge except by admin bypass (2026-11-01: #69 with `ai-cr/verdict` pending reports `mergeStateStatus` BLOCKED; owner to confirm the merge box)
+- [ ] 5.6 With the gate on, a pending or failed `ai-cr/verdict` blocks merge except by admin bypass (2026-11-01: without `update`, #69 went BLOCKED → CLEAN once its head passed; a new head is BLOCKED until reviewed; owner to confirm the merge box)
 - [ ] 5.7 Each run's cost is in the step summary and recorded in `prompt-baseline.md` (costs recorded from the run logs; owner to glance at one run's step summary)
