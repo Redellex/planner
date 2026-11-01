@@ -409,10 +409,10 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 #### Automated
 
-- [x] 2.1 Every `uses:` in the new files is local or a 40-character SHA with a `# vX.Y.Z` comment
-- [x] 2.2 No `${{ }}` expression carrying PR text appears inside a `run:` block
-- [ ] 2.3 After pushing the branch, the notify run succeeds
-- [ ] 2.4 The PR head carries `ai-cr/verdict` = `pending`
+- [x] 2.1 Every `uses:` in the new files is local or a 40-character SHA with a `# vX.Y.Z` comment — dc5b609
+- [x] 2.2 No `${{ }}` expression carrying PR text appears inside a `run:` block — dc5b609
+- [x] 2.3 After pushing the branch, the notify run succeeds — dc5b609
+- [x] 2.4 The PR head carries `ai-cr/verdict` = `pending` — dc5b609
 
 #### Manual
 
@@ -423,7 +423,7 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 #### Automated
 
-- [ ] 3.1 No tag-referenced action remains anywhere in `.github`
+- [x] 3.1 No tag-referenced action remains anywhere in `.github`
 - [ ] 3.2 The PR's `ci` and `smoke` jobs pass with the v7 actions and the reviewer test step
 
 #### Manual
