@@ -1,10 +1,15 @@
 // Code-review agent: a git diff in (stdin or a file path), the structured review as JSON on stdout.
-// Usage and cost go to stderr, so stdout stays pure JSON for the CI gate (M5L3).
+// Optional PR context from the environment: PR_TITLE and PR_BODY (the body is capped, see prompt.ts).
+// Usage and cost go to stderr, so stdout stays pure JSON for the CI gate (M5L3); any error exits 2.
 //   git diff | npm --prefix reviewer run review
 //   npm --prefix reviewer run review -- fixtures/sample-buggy.diff   (path relative to reviewer/)
+// CI (.github/actions/ai-reviewer) passes an absolute diff path, PR_TITLE/PR_BODY via env and
+// REVIEW_MAX_BUDGET_USD=0.1. The verdict rule (any score <= 4 fails) is enforced in verdict.ts.
 import { readFile } from "node:fs/promises";
 import { query, type SDKResultMessage } from "@anthropic-ai/claude-agent-sdk";
+import { buildReviewPrompt } from "./prompt.ts";
 import { REVIEW_JSON_SCHEMA, REVIEW_SCHEMA, SYSTEM_PROMPT, type Review } from "./review-schema.ts";
+import { enforceVerdictRule } from "./verdict.ts";
 
 const MODEL = process.env.REVIEW_MODEL ?? "claude-sonnet-5-5";
 // Hard cap per run; the SDK estimate can pass it slightly, so it stays well under what a run may cost.
@@ -39,8 +44,8 @@ async function review(diff: string): Promise<Review> {
   let result: SDKResultMessage | undefined;
   try {
     for await (const message of query({
-      // The diff is untrusted input: fenced in tags so instructions inside it read as data.
-      prompt: `Zrecenzuj ten diff:\n\n<diff>\n${diff}\n</diff>`,
+      // Title, body and diff are untrusted input: fenced in tags so instructions inside them read as data.
+      prompt: buildReviewPrompt({ diff, title: process.env.PR_TITLE, body: process.env.PR_BODY }),
       options: {
         systemPrompt: SYSTEM_PROMPT,
         model: MODEL,
@@ -67,7 +72,8 @@ async function review(diff: string): Promise<Review> {
 
   const parsed = REVIEW_SCHEMA.safeParse(result.structured_output);
   if (!parsed.success) throw new Error(`Invalid structured output: ${parsed.error.message}`);
-  return parsed.data;
+  // Throws on a score outside 1-10 (exit 2); turns a pass with any score <= 4 into fail.
+  return enforceVerdictRule(parsed.data);
 }
 
 try {

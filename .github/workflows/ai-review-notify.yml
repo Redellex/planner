@@ -1,0 +1,38 @@
+# AI Code Review notify — marks every new same-repo PR head to master with ai-cr/verdict = pending (M5L3).
+# Its Details link opens the "AI Code Review" workflow page, where the owner starts the review with the PR
+# number (ai-review.yml). No checkout and no secrets. Fork PRs get a read-only token, so they are skipped;
+# the owner dispatches their review by hand.
+name: AI Code Review notify
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  statuses: write
+
+jobs:
+  pending:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SHA: ${{ github.event.pull_request.head.sha }}
+      PR: ${{ github.event.pull_request.number }}
+      TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/ai-review.yml
+    steps:
+      - name: Mark the head commit not reviewed
+        run: |
+          # A reopen keeps the head SHA: never overwrite a verdict (or a running review) already on it.
+          existing=$(gh api "repos/$GH_REPO/commits/$SHA/statuses?per_page=100" \
+            --jq '[.[] | select(.context == "ai-cr/verdict")] | length')
+          if [ "$existing" != 0 ]; then
+            echo "ai-cr/verdict already set on ${SHA:0:7}; leaving it."
+            exit 0
+          fi
+          gh api -X POST "repos/$GH_REPO/statuses/$SHA" --silent \
+            -f state=pending -f context=ai-cr/verdict \
+            -f description="Not reviewed. Run AI Code Review with pr=$PR" -f target_url="$TARGET_URL"
+          echo "ai-cr/verdict pending on ${SHA:0:7}"

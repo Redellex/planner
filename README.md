@@ -106,7 +106,7 @@ After changing a migration, regenerate the types with `npx supabase gen types ty
 The app runs on Cloudflare Workers (`wrangler.jsonc`, entry `src/worker.ts`) against a hosted Supabase project.
 
 1. Apply new migrations to the hosted project: `npx supabase db push`.
-2. Merge to `master` only once CI is green: Cloudflare Workers Builds deploys every push to `master` (the repository is private on GitHub Free, so there is no branch protection to enforce this). `npm run deploy` deploys by hand.
+2. Merge to `master` through a pull request: Cloudflare Workers Builds deploys every push to `master`. The repository is public, and ruleset "Protect master" lets only the admin update `master`, only through a PR, and requires the `ai-cr/verdict` status (see [AI code review](#ai-code-review)). The admin can merge past a pending or failed verdict only with an explicit bypass on the PR. Waiting for a green CI (`ci`, `smoke`) is still a convention, not a required check. `npm run deploy` deploys by hand.
 3. Worker secrets: `SUPABASE_URL`, `SUPABASE_KEY` and optional `SENTRY_DSN`, set with `npx wrangler secret put <NAME>`.
 4. Roll back with `npx wrangler deployments list` and `npx wrangler rollback <version-id>`.
 
@@ -120,6 +120,35 @@ The **Demo data** workflow (`.github/workflows/demo-data.yml`, run by hand from 
 4. Afterwards, run it with `remove` to delete the demo employees and the reviewer account, and take the table out of this README. Months they locked stay locked; discard the drafts and unlock them on `/manager/months`.
 
 The first manager is promoted once in the Supabase SQL editor after they sign up: `update public.profiles set role = 'manager' where email = '<email>';`. Production keeps email confirmation on, so production is checked by hand, and `npm run smoke` runs only against a local or CI Supabase. Details: `context/changes/deployment/deployment-plan.md` (Outcome).
+
+## AI code review
+
+Every same-repo pull request opened against `master` gets an `ai-cr/verdict` status, **pending** (`Not reviewed. Run AI Code Review with pr=<n>`) until someone reviews it. The review is the `reviewer/` agent (Claude Agent SDK, `claude-sonnet-5-5`) and is started by hand.
+
+**Start a review** (needs write access to the repository; today only the owner has it):
+
+- On the PR, click **Details** next to `ai-cr/verdict`. This opens Actions → **AI Code Review**. Click **Run workflow**, keep the branch `master`, enter the PR number in `pr` and run it.
+- Or from a terminal: `gh workflow run ai-review.yml -f pr=<n>`.
+
+The run reviews the PR head commit it finds at the start, using the reviewer code on `master` (a run dispatched from any other branch is refused). To review again, for example after a push, run it again; each push marks the new head commit pending.
+
+**What it posts**
+
+- A comment with the verdict (`PASS` or `FAIL`), the reviewed commit, six scores from 1 to 10 and a short summary. Any score of 4 or lower fails the review.
+- The label `ai-cr:passed` or `ai-cr:failed` (the other one is removed).
+- The `ai-cr/verdict` status on the reviewed commit: `success` on pass, `failure` on fail. The run itself fails on `fail`.
+
+The status is the gate, and it belongs to one commit. The label only shows the last verdict: after a new push it may still say `ai-cr:passed` while the new head is pending.
+
+**When it could not run**, the comment says "could not run", labels stay as they were, and the status is `error`. This happens when the diff is over 70 kB (larger diffs would reach the cost cap anyway), when it holds only excluded files, when the agent errors (API error, the cost cap, invalid output), or when the PR changed during the run so that the recorded commit is no longer in it (a force-push). Look at the run log, then run it again (or split the PR). A closed PR, a PR to another branch, or a `pr` that is not a number fails the run and posts nothing.
+
+**Cost and scope.** The diff is `master...<head>` without `package-lock.json` files (root and `reviewer/`) and the generated `src/db/database.types.ts`. Each run is capped at $0.1 (`max-budget-usd` in `.github/workflows/ai-review.yml`); the cost line is in the run's step summary. The API key is the `ANTHROPIC_API_KEY` repository secret.
+
+**Trust boundary.** The gate holds against fork PRs and accidents, not against people with write access: a same-repo PR runs its own copy of the notify workflow, and a dispatch from another branch runs that branch's copy of the review workflow, so either could set the status. Today the owner is the only collaborator. Before adding one, move the status to a GitHub App that only `master` can use.
+
+**Fork PRs** get no pending status (their token cannot set one), so the required check shows as "expected". The owner dispatches the review by hand the same way; it runs `master`'s code and only reads the fork's diff.
+
+Code: `.github/workflows/ai-review.yml`, `.github/workflows/ai-review-notify.yml`, `.github/actions/ai-reviewer/`. Design and decisions: `context/changes/ci-cd-code-review/`.
 
 ## License
 

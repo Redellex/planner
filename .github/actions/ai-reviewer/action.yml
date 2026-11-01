@@ -1,0 +1,171 @@
+# AI Reviewer — runs Planner's code-review agent (reviewer/, Claude Agent SDK) on a prepared diff file (M5L3).
+# Based on .claude/config-templates/m5l3-action.yml.template, adapted to reviewer/: no build step (tsx),
+# ANTHROPIC_API_KEY, Node from .nvmrc. Expects the repository checked out at $GITHUB_WORKSPACE
+# (ai-review.yml checks out master, so the reviewer code is always master's).
+# It never fails on a review problem: it reports `outcome` and writes a comment for every outcome,
+# and the calling workflow decides the comment, label, status and gate.
+name: AI Reviewer
+description: Run Planner's code review agent on a pull request diff and report the outcome
+
+inputs:
+  api-key:
+    description: Anthropic API key (repository secret ANTHROPIC_API_KEY)
+    required: true
+  diff-file:
+    description: Absolute path to the PR diff, exclusions already applied (a file avoids output size and newline limits)
+    required: true
+  pr-title:
+    description: Pull request title (untrusted; reaches the agent through env only)
+    required: false
+    default: ""
+  pr-body:
+    description: Pull request description (untrusted; the agent caps it at 4,000 characters)
+    required: false
+    default: ""
+  head-sha:
+    description: The reviewed PR head commit, shown in the comment
+    required: false
+    default: ""
+  run-url:
+    description: URL of the workflow run, linked from the comment
+    required: false
+    default: ""
+  model:
+    description: Model id passed to the reviewer
+    required: false
+    default: claude-sonnet-5-5
+  max-budget-usd:
+    description: Per-run cost cap passed to the reviewer (REVIEW_MAX_BUDGET_USD)
+    required: false
+    default: "0.1"
+  max-diff-bytes:
+    description: Diffs larger than this are refused without calling the model (70 kB stays under a $0.1 cap)
+    required: false
+    default: "70000"
+
+outputs:
+  outcome:
+    description: "reviewed | empty | too-large | error"
+    value: ${{ steps.report.outputs.outcome }}
+  verdict:
+    description: "pass | fail when outcome is reviewed, otherwise empty"
+    value: ${{ steps.report.outputs.verdict }}
+  review-file:
+    description: Path to the agent's JSON review (written only when the agent ran)
+    value: ${{ steps.paths.outputs.review-file }}
+  comment-file:
+    description: Path to the Markdown comment for this outcome
+    value: ${{ steps.paths.outputs.comment-file }}
+
+runs:
+  using: composite
+  steps:
+    - name: Prepare paths
+      id: paths
+      shell: bash
+      run: |
+        {
+          echo "review-file=$RUNNER_TEMP/ai-review.json"
+          echo "log-file=$RUNNER_TEMP/ai-review.log"
+          echo "comment-file=$RUNNER_TEMP/ai-review-comment.md"
+        } >> "$GITHUB_OUTPUT"
+
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version-file: .nvmrc
+        cache: npm
+        cache-dependency-path: reviewer/package-lock.json
+
+    - name: Check diff size
+      id: size
+      shell: bash
+      env:
+        DIFF_FILE: ${{ inputs.diff-file }}
+        MAX_DIFF_BYTES: ${{ inputs.max-diff-bytes }}
+      run: |
+        if [ ! -f "$DIFF_FILE" ]; then
+          echo "::error::Diff file not found: $DIFF_FILE"
+          outcome=error bytes=0
+        else
+          bytes=$(wc -c < "$DIFF_FILE")
+          if ! grep -q '[^[:space:]]' "$DIFF_FILE"; then
+            outcome=empty
+          elif [ "$bytes" -gt "$MAX_DIFF_BYTES" ]; then
+            outcome=too-large
+          else
+            outcome=run
+          fi
+        fi
+        echo "Diff: $bytes bytes (limit $MAX_DIFF_BYTES) -> $outcome"
+        { echo "outcome=$outcome"; echo "bytes=$bytes"; } >> "$GITHUB_OUTPUT"
+
+    - name: Install reviewer
+      id: install
+      if: steps.size.outputs.outcome == 'run'
+      shell: bash
+      # Never --omit=optional: the SDK's Linux binary is an optional dependency.
+      run: |
+        if npm ci --prefix "$GITHUB_WORKSPACE/reviewer" --no-audit --no-fund; then
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "::error::npm ci for reviewer/ failed"
+          echo "ok=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Run agent
+      id: agent
+      if: steps.install.outputs.ok == 'true'
+      shell: bash
+      # Untrusted PR text and the key reach the agent through env only, never interpolated into the script.
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.api-key }}
+        PR_TITLE: ${{ inputs.pr-title }}
+        PR_BODY: ${{ inputs.pr-body }}
+        REVIEW_MODEL: ${{ inputs.model }}
+        REVIEW_MAX_BUDGET_USD: ${{ inputs.max-budget-usd }}
+        DIFF_FILE: ${{ inputs.diff-file }}
+        REVIEW_FILE: ${{ steps.paths.outputs.review-file }}
+        LOG_FILE: ${{ steps.paths.outputs.log-file }}
+      run: |
+        set +e
+        npm --prefix "$GITHUB_WORKSPACE/reviewer" run --silent review -- "$DIFF_FILE" > "$REVIEW_FILE" 2> "$LOG_FILE"
+        code=$?
+        set -e
+        # The agent's stderr holds only [review] usage/cost and error lines, never the key or the env.
+        # Error lines can quote model text, so workflow commands (::...) are off while it is printed.
+        stop_token="ai-review-$(openssl rand -hex 16)"
+        echo "::stop-commands::$stop_token"
+        cat "$LOG_FILE"
+        echo "::$stop_token::"
+        echo "Agent exit code: $code"
+        if [ "$code" -eq 0 ]; then outcome=reviewed; else outcome=error; fi
+        echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
+
+    - name: Log cost
+      if: always() && steps.agent.outcome != 'skipped'
+      shell: bash
+      env:
+        LOG_FILE: ${{ steps.paths.outputs.log-file }}
+      run: |
+        {
+          echo "### AI review cost"
+          echo
+          echo '```'
+          grep -E '^\[review\] [a-z_]+, [0-9]+ turns' "$LOG_FILE" 2>/dev/null || echo "No cost line (the agent stopped before reporting usage)."
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Write comment
+      id: report
+      if: always()
+      shell: bash
+      env:
+        OUTCOME: ${{ steps.agent.outputs.outcome || steps.size.outputs.outcome }}
+        REVIEW_FILE: ${{ steps.paths.outputs.review-file }}
+        COMMENT_FILE: ${{ steps.paths.outputs.comment-file }}
+        HEAD_SHA: ${{ inputs.head-sha }}
+        RUN_URL: ${{ inputs.run-url }}
+        DIFF_BYTES: ${{ steps.size.outputs.bytes }}
+        MAX_DIFF_BYTES: ${{ inputs.max-diff-bytes }}
+      # format-comment.mjs maps any unexpected OUTCOME (e.g. "run" after a failed install) to error.
+      run: node "$GITHUB_ACTION_PATH/format-comment.mjs"

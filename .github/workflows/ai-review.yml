@@ -1,0 +1,190 @@
+# AI Code Review — started by hand for one pull request (M5L3; context/changes/ci-cd-code-review).
+#   Actions → AI Code Review → Run workflow (branch master) → pr = <number>
+#   gh workflow run ai-review.yml -f pr=<number>
+# Reviews the PR head commit recorded at the start with master's reviewer code, posts a comment, sets the
+# ai-cr:passed / ai-cr:failed label and the ai-cr/verdict commit status on that head (the merge gate once
+# ruleset "Protect master" requires it). A dispatch run's own checks attach to master, not to the PR head,
+# so the gate is the explicit status. ai-review-notify.yml marks every new PR head pending.
+name: AI Code Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number to review
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write # labels live on the issues API
+  statuses: write
+
+concurrency:
+  # The ref is part of the group: a refused dispatch from another branch must not cancel master's run.
+  group: ai-cr-${{ github.ref }}-${{ inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    # GH_TOKEN is set only on the steps that call gh, never on npm ci or the agent (least privilege).
+    env:
+      GH_REPO: ${{ github.repository }}
+      STATUS_CONTEXT: ai-cr/verdict
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      # The file can be dispatched from any branch (--ref); only master's reviewer may set the gate.
+      - name: Refuse any ref but master
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" != refs/heads/master ]; then
+            echo "::error::AI Code Review runs only from master (dispatched from $REF)."
+            exit 1
+          fi
+
+      - name: Read the pull request
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_INPUT: ${{ inputs.pr }}
+        run: |
+          if ! [[ "$PR_INPUT" =~ ^[1-9][0-9]{0,9}$ ]]; then
+            echo "::error::pr must be a pull request number."
+            exit 1
+          fi
+          pr_json="$RUNNER_TEMP/pr.json"
+          gh pr view "$PR_INPUT" --json state,baseRefName,headRefOid,title,body > "$pr_json"
+          state=$(jq -r .state "$pr_json")
+          base=$(jq -r .baseRefName "$pr_json")
+          sha=$(jq -r .headRefOid "$pr_json")
+          if [ "$state" != OPEN ]; then
+            echo "::error::PR #$PR_INPUT is $state, not open. Nothing posted."
+            exit 1
+          fi
+          if [ "$base" != master ]; then
+            echo "::error::PR #$PR_INPUT targets $base, not master. Nothing posted."
+            exit 1
+          fi
+          if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Unexpected head SHA for PR #$PR_INPUT."
+            exit 1
+          fi
+          echo "Reviewing PR #$PR_INPUT at $sha"
+          # Title and body are untrusted multi-line text: a random delimiter keeps them from forging outputs.
+          delim="EOF_$(openssl rand -hex 8)"
+          {
+            echo "number=$PR_INPUT"
+            echo "sha=$sha"
+            echo "title<<$delim"
+            jq -r '.title // ""' "$pr_json"
+            echo "$delim"
+            echo "body<<$delim"
+            jq -r '.body // ""' "$pr_json"
+            echo "$delim"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Mark the review running
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          gh api -X POST "repos/$GH_REPO/statuses/$SHA" --silent \
+            -f state=pending -f context="$STATUS_CONTEXT" \
+            -f description="AI review running" -f target_url="$RUN_URL"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # full history: the three-dot diff needs the merge base with master
+          persist-credentials: false # public repo: the PR fetch needs no token, so none is left in .git/config
+
+      - name: Fetch the PR head
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          git fetch --no-tags origin "+refs/pull/$PR/head:refs/remotes/origin/pr/$PR"
+          if ! git cat-file -e "$SHA^{commit}" 2>/dev/null; then
+            echo "::error::Commit $SHA is no longer in PR #$PR (the PR changed during the run). Run the review again."
+            exit 1
+          fi
+
+      - name: Compute the diff
+        env:
+          SHA: ${{ steps.pr.outputs.sha }}
+        # Lockfiles (root and reviewer/) and the generated database types are not reviewed; `glob` lets **/ match the root.
+        run: |
+          git diff "origin/master...$SHA" -- . ':(exclude,glob)**/package-lock.json' ':(exclude)src/db/database.types.ts' \
+            > "$RUNNER_TEMP/pr.diff"
+          git diff --stat "origin/master...$SHA" -- . ':(exclude,glob)**/package-lock.json' ':(exclude)src/db/database.types.ts' | tail -n 1
+
+      - name: Review
+        id: review
+        # Local action from master's checkout (the ref guard above).
+        uses: ./.github/actions/ai-reviewer
+        with:
+          api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          diff-file: ${{ runner.temp }}/pr.diff
+          pr-title: ${{ steps.pr.outputs.title }}
+          pr-body: ${{ steps.pr.outputs.body }}
+          head-sha: ${{ steps.pr.outputs.sha }}
+          run-url: ${{ env.RUN_URL }}
+          max-budget-usd: "0.1"
+          # Calibrated from prompt-baseline.md: about $0.014 + $0.0011 per kB, so 70 kB stays under the $0.1 cap.
+          max-diff-bytes: "70000"
+
+      # Runs once the head SHA is known, whatever failed after it; a cancelled run (superseded) reports nothing.
+      - name: Comment, label and set the status
+        if: ${{ !cancelled() && steps.pr.outputs.sha != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.pr.outputs.number }}
+          SHA: ${{ steps.pr.outputs.sha }}
+          OUTCOME: ${{ steps.review.outputs.outcome }}
+          VERDICT: ${{ steps.review.outputs.verdict }}
+          COMMENT_FILE: ${{ steps.review.outputs.comment-file }}
+        run: |
+          failed=0
+          body_file="$COMMENT_FILE"
+          if [ -z "$body_file" ] || [ ! -s "$body_file" ]; then
+            body_file="$RUNNER_TEMP/fallback-comment.md"
+            printf '## AI Code Review: could not run\n\nThe review did not complete for commit `%s`; see the [run log](%s).\n' \
+              "${SHA:0:7}" "$RUN_URL" > "$body_file"
+          fi
+          gh pr comment "$PR" --body-file "$body_file" || failed=1
+
+          if [ "$OUTCOME" = reviewed ] && { [ "$VERDICT" = pass ] || [ "$VERDICT" = fail ]; }; then
+            gh label create ai-cr:passed --color 0E8A16 --description "AI code review passed" --force || failed=1
+            gh label create ai-cr:failed --color B60205 --description "AI code review failed" --force || failed=1
+            if [ "$VERDICT" = pass ]; then
+              add=ai-cr:passed drop=ai-cr:failed state=success description="AI review passed"
+            else
+              add=ai-cr:failed drop=ai-cr:passed state=failure description="AI review failed: see the PR comment"
+            fi
+            gh pr edit "$PR" --add-label "$add" --remove-label "$drop" || failed=1
+          else
+            # No verdict: labels stay as they were.
+            state=error description="AI review could not run: see the PR comment"
+          fi
+
+          # Fixed descriptions only (the API caps them at 140 characters); never model or PR text.
+          gh api -X POST "repos/$GH_REPO/statuses/$SHA" --silent \
+            -f state="$state" -f context="$STATUS_CONTEXT" \
+            -f description="$description" -f target_url="$RUN_URL" || failed=1
+          echo "ai-cr/verdict on ${SHA:0:7}: $state"
+          exit "$failed"
+
+      - name: Gate on verdict
+        if: ${{ !cancelled() }}
+        env:
+          OUTCOME: ${{ steps.review.outputs.outcome }}
+          VERDICT: ${{ steps.review.outputs.verdict }}
+        run: |
+          if [ "$OUTCOME" = reviewed ] && [ "$VERDICT" = pass ]; then
+            echo "AI review verdict: pass"
+          else
+            echo "::error::AI review outcome: ${OUTCOME:-none}, verdict: ${VERDICT:-none}"
+            exit 1
+          fi
