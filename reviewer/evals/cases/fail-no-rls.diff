@@ -1,0 +1,20 @@
+diff --git a/supabase/migrations/20261102120000_create_shift_notes.sql b/supabase/migrations/20261102120000_create_shift_notes.sql
+new file mode 100644
+index 0000000..4d2c9a1
+--- /dev/null
++++ b/supabase/migrations/20261102120000_create_shift_notes.sql
+@@ -0,0 +1,14 @@
++-- Handover notes a person leaves on their shift for whoever comes next.
++create table public.shift_notes (
++  id uuid primary key default gen_random_uuid(),
++  shift_id uuid not null references public.schedule_shifts (id) on delete cascade,
++  author_id uuid not null default auth.uid() references public.profiles (id),
++  body text not null,
++  created_at timestamp without time zone not null default now()
++);
++
++-- Everyone signed in needs to read and write notes.
++grant select, insert, update, delete on public.shift_notes to authenticated;
++grant select on public.shift_notes to anon;
++
++create index shift_notes_shift_id_idx on public.shift_notes (shift_id);
