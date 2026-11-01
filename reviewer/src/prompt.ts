@@ -11,18 +11,27 @@ export interface ReviewPromptInput {
   body?: string;
 }
 
+// A closing fence tag inside any input would end its fence early, and the text after it would read as
+// instructions outside the untrusted region. So every closing fence tag in title, body and diff is
+// neutralised (`</pr_body>` -> `<\/pr_body>`) before fencing; the reviewer still sees what was written.
+const FENCE_CLOSING_TAG = /<\/(pr_title|pr_body|diff)\s*>/gi;
+
+export function neutraliseFenceTags(text: string): string {
+  return text.replace(FENCE_CLOSING_TAG, "<\\/$1>");
+}
+
 export function buildReviewPrompt({ diff, title, body }: ReviewPromptInput): string {
   const parts = ["Review this pull request."];
   const trimmedTitle = title?.trim();
-  if (trimmedTitle) parts.push(`<pr_title>\n${trimmedTitle}\n</pr_title>`);
+  if (trimmedTitle) parts.push(`<pr_title>\n${neutraliseFenceTags(trimmedTitle)}\n</pr_title>`);
   const trimmedBody = body?.trim();
   if (trimmedBody) {
     const capped =
       trimmedBody.length > PR_BODY_MAX_CHARS
         ? `${trimmedBody.slice(0, PR_BODY_MAX_CHARS)}\n${PR_BODY_TRUNCATION_MARKER}`
         : trimmedBody;
-    parts.push(`<pr_body>\n${capped}\n</pr_body>`);
+    parts.push(`<pr_body>\n${neutraliseFenceTags(capped)}\n</pr_body>`);
   }
-  parts.push(`<diff>\n${diff}\n</diff>`);
+  parts.push(`<diff>\n${neutraliseFenceTags(diff)}\n</diff>`);
   return parts.join("\n\n");
 }

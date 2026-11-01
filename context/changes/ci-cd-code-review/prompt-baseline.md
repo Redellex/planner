@@ -30,8 +30,8 @@ In its place, this file records a hand-run before/after on two fixed inputs. It 
 - **Verdict/score consistency.** The old prompt returned `pass` on M5L2 with test-risk coverage at **4**: under the new rule that is a `fail`, and `verdict.ts` would now flip it. The new prompt scored it 5 and passed, consistent with the rule.
 - **Planner-specific.** On the fixture the new summary names the repo rule the change breaks (the `set_display_name` RPC as the only writer of the caller's own row, `role` taken from the form as self-promotion, `describeDisplayNameWriteError`/`accountUrl` for allow-listed errors, a pgTAP test that a user cannot change their own role). On M5L2 it cites the wall-clock time model, RLS, the route gating in `route-access.ts` and the ≤ 4 verdict rule. The old summaries were Polish and more generic ("add a schema test", "add validation").
 - **Format.** The new summaries are English bullets with file paths, ready as a PR comment. The old ones were Polish with a heading.
-- **Cost.** Both prompts cost about the same: about $0.016 for 1.5 kB and about $0.04 for 24 kB of diff, well under the CI cap of `$0.1`. A rough extrapolation (about $0.04 per 25 kB) puts the 100 kB refusal limit near the cap; calibrate from the Phase 5 CI runs.
+- **Cost.** Both prompts cost about the same: about $0.016 for 1.5 kB and about $0.04 for 24 kB of diff, well under the CI cap of `$0.1`. Fitting the two points gives about $0.014 fixed plus $0.0011 per kB, so a diff reaches the $0.1 cap near 75–80 kB and would cost about $0.13 at 100 kB. The planned 100 kB refusal limit would therefore let 75–100 kB diffs pay and still end as `error`, so the limit is now 70 kB (implementation review F4). Calibrate from the Phase 5 CI runs.
 
 ## CI runs (Phase 5)
 
-To be filled after merge: each dispatched run's cost from the step summary, to calibrate the `$0.1` / 100 kB pair.
+To be filled after merge: each dispatched run's cost from the step summary, to calibrate the `$0.1` / 70 kB pair.

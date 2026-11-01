@@ -35,6 +35,20 @@ function readReview(path) {
   }
 }
 
+// The summary is model text that PR content can steer: it is capped, @mentions are broken (no pings from the bot),
+// and it is quoted under a fixed heading so it cannot pass itself off as the verdict heading or the score table.
+const SUMMARY_MAX_CHARS = 4000;
+
+function quoteSummary(summary) {
+  const capped =
+    summary.length > SUMMARY_MAX_CHARS ? `${summary.slice(0, SUMMARY_MAX_CHARS)}\n[summary truncated]` : summary;
+  return capped
+    .replace(/@(?=[A-Za-z0-9])/g, "@‍")
+    .split(/\r?\n/)
+    .map((line) => (line ? `> ${line}` : ">"))
+    .join("\n");
+}
+
 function reviewedComment(review) {
   const rows = CRITERIA.map(([key, label]) => `| ${label} | ${review[key]} |`);
   return [
@@ -46,7 +60,9 @@ function reviewedComment(review) {
     "| --- | ---: |",
     ...rows,
     "",
-    review.summary,
+    "### Summary (written by the model)",
+    "",
+    quoteSummary(review.summary),
     "",
   ].join("\n");
 }

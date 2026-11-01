@@ -22,14 +22,15 @@ permissions:
   statuses: write
 
 concurrency:
-  group: ai-cr-${{ inputs.pr }}
+  # The ref is part of the group: a refused dispatch from another branch must not cancel master's run.
+  group: ai-cr-${{ github.ref }}-${{ inputs.pr }}
   cancel-in-progress: true
 
 jobs:
   review:
     runs-on: ubuntu-latest
+    # GH_TOKEN is set only on the steps that call gh, never on npm ci or the agent (least privilege).
     env:
-      GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       STATUS_CONTEXT: ai-cr/verdict
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -47,6 +48,7 @@ jobs:
       - name: Read the pull request
         id: pr
         env:
+          GH_TOKEN: ${{ github.token }}
           PR_INPUT: ${{ inputs.pr }}
         run: |
           if ! [[ "$PR_INPUT" =~ ^[1-9][0-9]{0,9}$ ]]; then
@@ -86,6 +88,7 @@ jobs:
 
       - name: Mark the review running
         env:
+          GH_TOKEN: ${{ github.token }}
           SHA: ${{ steps.pr.outputs.sha }}
         run: |
           gh api -X POST "repos/$GH_REPO/statuses/$SHA" --silent \
@@ -95,6 +98,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # full history: the three-dot diff needs the merge base with master
+          persist-credentials: false # public repo: the PR fetch needs no token, so none is left in .git/config
 
       - name: Fetch the PR head
         env:
@@ -128,12 +132,14 @@ jobs:
           head-sha: ${{ steps.pr.outputs.sha }}
           run-url: ${{ env.RUN_URL }}
           max-budget-usd: "0.1"
-          max-diff-bytes: "100000"
+          # Calibrated from prompt-baseline.md: about $0.014 + $0.0011 per kB, so 70 kB stays under the $0.1 cap.
+          max-diff-bytes: "70000"
 
       # Runs once the head SHA is known, whatever failed after it; a cancelled run (superseded) reports nothing.
       - name: Comment, label and set the status
         if: ${{ !cancelled() && steps.pr.outputs.sha != '' }}
         env:
+          GH_TOKEN: ${{ github.token }}
           PR: ${{ steps.pr.outputs.number }}
           SHA: ${{ steps.pr.outputs.sha }}
           OUTCOME: ${{ steps.review.outputs.outcome }}

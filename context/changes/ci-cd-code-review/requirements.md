@@ -12,7 +12,7 @@ Source: `.claude/prompts/m5l3-requirements.md`, with the six criteria rewritten 
 
 - pull request title
 - pull request description (?? cost tradeoff) — decided 2026-11-01 (planning): included, fenced as untrusted `<pr_body>`, cut to 4,000 characters with a truncation marker (`reviewer/src/prompt.ts`).
-- git diff against the base branch — decided 2026-11-01 (planning): `origin/master...<head>` without `**/package-lock.json` and `src/db/database.types.ts`; a diff over 100,000 bytes (or empty after the exclusions) is refused before any model call, never truncated.
+- git diff against the base branch — decided 2026-11-01 (planning): `origin/master...<head>` without `**/package-lock.json` and `src/db/database.types.ts`; a diff over 100,000 bytes (or empty after the exclusions) is refused before any model call, never truncated. Changed 2026-11-01 (implementation review F4): the limit is 70,000 bytes, because the baseline costs reach the $0.1 cap near 75 kB.
 
 ## Code Review Criteria
 
