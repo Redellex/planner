@@ -403,7 +403,7 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 #### Manual
 
-- [ ] 1.6 `prompt-baseline.md` holds the exception and both before/after rows, and the new reviews read as Planner-specific
+- [x] 1.6 `prompt-baseline.md` holds the exception and both before/after rows, and the new reviews read as Planner-specific — owner read-through 2026-11-01
 
 ### Phase 2: Composite action and workflows
 
@@ -416,8 +416,8 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 #### Manual
 
-- [ ] 2.5 On the PR page the `ai-cr/verdict` row shows the pending description and its Details link opens the workflow page
-- [ ] 2.6 Read-through confirms the dispatch ref guard, absolute diff path, `error` path and no env/key echo
+- [ ] 2.5 On the PR page the `ai-cr/verdict` row shows the pending description and its Details link opens the workflow page (2026-11-01: description shown; Details answers 404 until `ai-review.yml` is on master, recheck after merge)
+- [x] 2.6 Read-through confirms the dispatch ref guard, absolute diff path, `error` path and no env/key echo — owner read-through 2026-11-01
 
 ### Phase 3: Pin existing workflows
 
@@ -428,7 +428,7 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 #### Manual
 
-- [ ] 3.3 The Actions tab shows no "workflow file issue" for `demo-data.yml`
+- [x] 3.3 The Actions tab shows no "workflow file issue" for `demo-data.yml` — 2026-11-01: workflow active, no failed `demo-data.yml` run on any branch commit
 
 ### Phase 4: Documentation
 
@@ -438,7 +438,7 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 #### Manual
 
-- [ ] 4.2 The owner can start a review from the README "AI code review" section alone
+- [x] 4.2 The owner can start a review from the README "AI code review" section alone — owner read-through 2026-11-01
 
 ### Phase 5: Rollout on GitHub (after merge)
 
