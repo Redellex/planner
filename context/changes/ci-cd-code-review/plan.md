@@ -395,11 +395,11 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 #### Automated
 
-- [x] 1.1 Reviewer unit tests pass: `npm --prefix reviewer test`
-- [x] 1.2 Reviewer type-check passes: `npm --prefix reviewer run typecheck`
-- [x] 1.3 Root lint passes, including `reviewer/src`: `npm run lint`
-- [x] 1.4 Root Vitest ignores the reviewer tests: `npx vitest related reviewer/src/verdict.test.ts --run` exits 0 without running them
-- [x] 1.5 The new prompt still fails the fixture: `npm --prefix reviewer run review -- fixtures/sample-buggy.diff` exits 0 with `"verdict": "fail"`
+- [x] 1.1 Reviewer unit tests pass: `npm --prefix reviewer test` — d1e19c2
+- [x] 1.2 Reviewer type-check passes: `npm --prefix reviewer run typecheck` — d1e19c2
+- [x] 1.3 Root lint passes, including `reviewer/src`: `npm run lint` — d1e19c2
+- [x] 1.4 Root Vitest ignores the reviewer tests: `npx vitest related reviewer/src/verdict.test.ts --run` exits 0 without running them — d1e19c2
+- [x] 1.5 The new prompt still fails the fixture: `npm --prefix reviewer run review -- fixtures/sample-buggy.diff` exits 0 with `"verdict": "fail"` — d1e19c2
 
 #### Manual
 
@@ -409,8 +409,8 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 #### Automated
 
-- [ ] 2.1 Every `uses:` in the new files is local or a 40-character SHA with a `# vX.Y.Z` comment
-- [ ] 2.2 No `${{ }}` expression carrying PR text appears inside a `run:` block
+- [x] 2.1 Every `uses:` in the new files is local or a 40-character SHA with a `# vX.Y.Z` comment
+- [x] 2.2 No `${{ }}` expression carrying PR text appears inside a `run:` block
 - [ ] 2.3 After pushing the branch, the notify run succeeds
 - [ ] 2.4 The PR head carries `ai-cr/verdict` = `pending`
 

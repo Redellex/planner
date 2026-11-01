@@ -71,7 +71,8 @@ const astroConfig = defineConfig({
 });
 
 const scriptsConfig = defineConfig({
-  files: ["scripts/**/*.mjs"],
+  // Plain Node scripts outside the TS project: dev scripts and the CI review action's helpers.
+  files: ["scripts/**/*.mjs", ".github/actions/**/*.mjs"],
   extends: [tseslint.configs.disableTypeChecked],
   languageOptions: { globals: { console: true, process: true, fetch: true, URL: true, URLSearchParams: true } },
   rules: { "no-console": "off" },
