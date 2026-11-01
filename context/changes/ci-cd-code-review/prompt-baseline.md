@@ -34,4 +34,14 @@ In its place, this file records a hand-run before/after on two fixed inputs. It 
 
 ## CI runs (Phase 5)
 
-To be filled after merge: each dispatched run's cost from the step summary, to calibrate the `$0.1` / 70 kB pair.
+Dispatched from master on 2026-11-01 (`gh workflow run ai-review.yml -f pr=<n>`), model `claude-sonnet-5-5`, cap `$0.1`, limit 70,000 bytes. Cost from the `[review]` line in the run log and the step summary.
+
+| PR                                 | Diff (bytes) | Outcome   | Verdict / scores                    | Cost    | Turns | Run         |
+| ---------------------------------- | -----------: | --------- | ----------------------------------- | ------- | ----: | ----------- |
+| #69 rollout (plan tick, docs only) |          979 | reviewed  | pass, 10/10/10/9/9/10               | $0.0123 |     2 | 41311129014 |
+| #70 throwaway buggy endpoint       |        1,775 | reviewed  | fail, 2/3/6/2/4/1                   | $0.0092 |     2 | 41311135613 |
+| #71 throwaway 126 kB text file     |      128,651 | too-large | none (no model call, status error)  | $0      |     0 | 41311142364 |
+| #70 again, after closing it        |            — | refused   | none ("PR #70 is CLOSED, not open") | $0      |     0 | 41311255027 |
+
+- **Comments.** #69 and #70 got the verdict heading, the reviewed SHA, the score table and the quoted summary. On #70 the summary names the self-promotion through `role` from the form, the logged form data and the raw error in the URL, and points to `set_display_name`, `describeDisplayNameWriteError` and `accountUrl`, as the local fixture run did. #71 got the "could not run" comment with the byte count and no label. The closed-PR dispatch failed at "Read the pull request" and posted no comment and no status.
+- **Calibration.** Small diffs cost about $0.01 in CI, below the local runs ($0.016 for 1.5 kB), because the two runs started seconds apart shared the prompt cache (#70 read 2,132 cached tokens). No large diff ran in CI yet, so the 70 kB / `$0.1` pair stays as derived above; revisit it after the first review of a diff over 30 kB.

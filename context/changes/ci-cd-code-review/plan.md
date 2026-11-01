@@ -444,13 +444,13 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 #### Automated
 
-- [ ] 5.1 The ruleset requires the status and bypasses via PR
-- [ ] 5.2 SHA pinning is enforced
+- [x] 5.1 The ruleset requires the status and bypasses via PR — 2026-11-01: bypass `pull_request`, rules update, deletion, non_fast_forward, required_status_checks (`ai-cr/verdict`)
+- [x] 5.2 SHA pinning is enforced — 2026-11-01: `sha_pinning_required` true
 - [ ] 5.3 CI still starts and passes with enforcement on
 
 #### Manual
 
-- [ ] 5.4 The follow-up PR's dispatched review posted comment, label and status
-- [ ] 5.5 The throwaway buggy PR got fail; a closed-PR dispatch posted nothing
+- [x] 5.4 The follow-up PR's dispatched review posted comment, label and status — #69 run 41311129014: comment with SHA, scores and summary, `ai-cr:passed`, status success
+- [x] 5.5 The throwaway buggy PR got fail; a closed-PR dispatch posted nothing — #70 run 41311135613: fail, `ai-cr:failed`, status failure, job failed; closed #70 run 41311255027 failed, nothing posted
 - [ ] 5.6 With the gate on, a pending or failed `ai-cr/verdict` blocks merge except by admin bypass
 - [ ] 5.7 Each run's cost is in the step summary and recorded in `prompt-baseline.md`
