@@ -34,7 +34,7 @@ Run the existing `reviewer/` agent (Claude Agent SDK, M5L2) on pull requests to 
 
 ## What We're NOT Doing
 
-- promptfoo evals and model comparison: that's the separate `code-review-evals` change. Here the prompt change gets only a hand-run before/after baseline (recorded exception to the eval-first rule).
+- promptfoo evals and model comparison: that's the separate `code-review-evals` change. Here the prompt change gets only a hand-run before/after baseline (recorded exception to the eval-first rule). **Addendum 2026-11-01:** on the owner's decision the eval set was folded into this change as Phase 6, so `code-review-evals` is no longer a separate change.
 - The `ai-cr:review` label retry and any `pull_request`-triggered review. A rerun means dispatching again.
 - Business alignment, architectural fit, reading the change's `plan.md` as input (parked in requirements).
 - Truncating oversized diffs. Over 100 kB, the review is refused, not partial.
@@ -354,6 +354,48 @@ JSON
 
 ---
 
+## Phase 6: Eval set and model comparison (promptfoo)
+
+### Overview
+
+Added 2026-11-01 on the owner's decision (it closes the M5L3 task "compare models with evals"). A promptfoo set runs the real reviewer CLI on fixed diffs with three Claude models side by side, records pass/fail, cost and time, and stays as the regression gate before any prompt, schema or model change.
+
+### Changes Required:
+
+#### 1. Provider
+
+**File**: `reviewer/evals/provider.ts`
+**Intent**: A promptfoo provider that spawns `src/index.ts` (same flags as `npm run review`) with the test's `diff` var on stdin and `REVIEW_MODEL`/`REVIEW_MAX_BUDGET_USD` from its config, clears `PR_TITLE`/`PR_BODY`, returns stdout as the output and reads cost, turns and duration from the `[review]` stderr line. A non-zero exit is a provider error. promptfoo is not a dependency, so its types are declared locally; `reviewer/tsconfig.json` includes `evals/**/*` so lint and the type-check cover it.
+
+#### 2. Config and cases
+
+**File**: `reviewer/evals/promptfooconfig.yaml`, `reviewer/evals/cases/*.diff`
+**Intent**: Providers Haiku 5.5, Sonnet 5.5 and Opus 5.5 (budget `$0.5` each, so the `cost` assertion measures against CI's `$0.1`). Judge `claude-fable-5-1`, none of the reviewers. Default asserts: `is-json`, the contract after `verdict.ts` (javascript), `cost` ≤ 0.1. Cases: three planted failures (the fixture's self-promotion, PR #72's wall-clock CSV, a migration without RLS) with a `javascript` verdict check and an `llm-rubric` naming the flaws; two real clean commits (ed51737's `src/lib` part, 02cca7b) expected to `pass`.
+
+#### 3. Scripts and results
+
+**File**: `reviewer/package.json`, `context/changes/ci-cd-code-review/eval-results.md`
+**Intent**: `npm --prefix reviewer run eval` (`npx promptfoo@0.125.1 eval … --env-file .env --no-share`) and `eval:view`. Record the 3-repeat matrix and the model decision. Not wired into CI: promptfoo needs Node 22.22+ and every run costs money.
+
+#### 4. Docs
+
+**File**: `CLAUDE.md`, `README.md`, `context/changes/ci-cd-code-review/prompt-baseline.md`
+**Intent**: Point the "eval set first" rule at the new command and results; note in the baseline that the exception is closed.
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- Reviewer type-check and unit tests pass with `evals/` included: `npm --prefix reviewer run typecheck && npm --prefix reviewer test`
+- Root lint passes, including `reviewer/evals/provider.ts`: `npm run lint`
+- The eval set runs green on three models: `npm --prefix reviewer run eval -- --repeat 3` reports 45 passed, 0 failed, 0 errors
+
+#### Manual Verification:
+
+- `eval-results.md` holds the matrix (pass/fail, cost, time per model) and the model decision, and reads as a basis for choosing a model
+
+---
+
 ## Testing Strategy
 
 ### Unit Tests:
@@ -456,3 +498,15 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 - [x] 5.5 The throwaway buggy PR got fail; a closed-PR dispatch posted nothing — #70 run 41311135613: fail, `ai-cr:failed`, status failure, job failed; closed #70 run 41311255027 failed, nothing posted
 - [ ] 5.6 With the gate on, a pending or failed `ai-cr/verdict` blocks merge except by admin bypass (2026-11-01: without `update`, #69 went BLOCKED → CLEAN once its head passed; a new head is BLOCKED until reviewed; owner to confirm the merge box)
 - [ ] 5.7 Each run's cost is in the step summary and recorded in `prompt-baseline.md` (costs recorded from the run logs; owner to glance at one run's step summary)
+
+### Phase 6: Eval set and model comparison (promptfoo)
+
+#### Automated
+
+- [x] 6.1 Reviewer type-check and unit tests pass with `evals/` included — 2026-11-01: tsc clean, 10/10 tests
+- [x] 6.2 Root lint passes, including `reviewer/evals/provider.ts` — 2026-11-01
+- [x] 6.3 The eval set runs green on three models (45 passed, 0 failed, 0 errors) — 2026-11-01: `--repeat 3`, 45/45, 0 unstable, reviewers $0.42 in total
+
+#### Manual
+
+- [ ] 6.4 `eval-results.md` holds the matrix and the model decision

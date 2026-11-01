@@ -1,0 +1,99 @@
+# Code-review evals (M5L3): the same diffs through the real reviewer on three models.
+# Run from the repo root: npm --prefix reviewer run eval   (results: npm --prefix reviewer run eval:view)
+# Needs Node 22.22+ (promptfoo's engines) and ANTHROPIC_API_KEY in reviewer/.env: the llm-rubric
+# judge calls the Messages API directly. The reviewer itself uses the key too, or the Claude Code login.
+# Regression gate: run this before changing the review prompt, schema or model (CLAUDE.md, M5L3 hard rules)
+# and compare with the matrix in context/changes/ci-cd-code-review/eval-results.md.
+description: Planner code reviewer — same diffs, three Claude models
+
+# The provider ignores the prompt text and reviews the test's `diff` var, exactly as CI does.
+prompts:
+  - "Planner PR review (diff from vars.diff)"
+
+providers:
+  - id: file://provider.ts
+    label: haiku-5.5
+    config: { model: claude-haiku-5-5, maxBudgetUsd: 0.5 }
+  - id: file://provider.ts
+    label: sonnet-5.5
+    config: { model: claude-sonnet-5-5, maxBudgetUsd: 0.5 }
+  - id: file://provider.ts
+    label: opus-5.5
+    config: { model: claude-opus-5-5, maxBudgetUsd: 0.5 }
+
+defaultTest:
+  options:
+    # The judge is not one of the three reviewers, so no model grades its own summary.
+    provider: anthropic:messages:claude-fable-5-1
+  assert:
+    # The CI gate parses stdout as JSON.
+    - type: is-json
+    # The contract after verdict.ts: six integer scores 1-10, a verdict, a non-empty summary.
+    - type: javascript
+      value: |
+        const r = JSON.parse(output);
+        const keys = ["implementationCorrectness", "idiomaticity", "complexity", "testRiskCoverage", "documentation", "securitySafety"];
+        return keys.every((k) => Number.isInteger(r[k]) && r[k] >= 1 && r[k] <= 10)
+          && ["pass", "fail"].includes(r.verdict) && typeof r.summary === "string" && r.summary.trim().length > 0;
+    # The run must fit the CI budget cap (REVIEW_MAX_BUDGET_USD 0.1 in .github/workflows/ai-review.yml).
+    - type: cost
+      threshold: 0.1
+
+tests:
+  - description: "fail: self-promotion through a direct profiles update (fixture)"
+    vars:
+      diff: file://cases/fail-self-promotion.diff
+    assert:
+      - type: javascript
+        value: JSON.parse(output).verdict === "fail" && JSON.parse(output).securitySafety <= 3
+      - type: llm-rubric
+        value: >-
+          The output is a JSON code review. Its summary must name at least two of these three planted flaws:
+          (1) the role taken from the form in a direct profiles update, letting a user promote themselves
+          (with the RPC set_display_name bypassed); (2) the whole form logged with console.log;
+          (3) the raw database error message put into the redirect URL instead of an allow-listed message.
+          Fail it if the summary names fewer than two of them.
+
+  - description: "fail: wall-clock timestamps through new Date in a CSV export (PR #72)"
+    vars:
+      diff: file://cases/fail-wall-clock-csv.diff
+    assert:
+      - type: javascript
+        value: JSON.parse(output).verdict === "fail"
+      - type: llm-rubric
+        value: >-
+          The output is a JSON code review. Its summary must say that starts_at/ends_at are Europe/Warsaw
+          wall-clock strings that must not pass through new Date (shifted times or dates on a UTC Worker,
+          wrong hours on DST days). Extra credit, not required: unescaped CSV fields or formula injection,
+          missing tests. Fail it if the time-model problem is not named.
+
+  - description: "fail: new table without row level security (planted migration)"
+    vars:
+      diff: file://cases/fail-no-rls.diff
+    assert:
+      - type: javascript
+        value: JSON.parse(output).verdict === "fail" && JSON.parse(output).securitySafety <= 3
+      - type: llm-rubric
+        value: >-
+          The output is a JSON code review. Its summary must say the new shift_notes table has no row level
+          security (RLS not enabled, no per-operation policies) while authenticated gets full write grants
+          and anon gets select, so anyone can read or change every note. Fail it if missing RLS is not named.
+
+  - description: "pass: day-form row cap with tests (real commit ed51737)"
+    vars:
+      diff: file://cases/pass-day-save-cap.diff
+    assert:
+      - type: javascript
+        value: JSON.parse(output).verdict === "pass"
+      - type: llm-rubric
+        value: >-
+          The output is a JSON code review of a small, correct change (a cap on form rows, with tests). Pass it
+          if the summary raises no blocking bug or security flaw that is not really in the diff; minor
+          suggestions are fine. Fail it if it invents a serious problem.
+
+  - description: "pass: docs-only plan checkbox tick (real commit 02cca7b)"
+    vars:
+      diff: file://cases/pass-docs-tick.diff
+    assert:
+      - type: javascript
+        value: JSON.parse(output).verdict === "pass"

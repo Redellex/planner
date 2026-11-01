@@ -6,6 +6,8 @@
 
 In its place, this file records a hand-run before/after on two fixed inputs. It is the baseline `code-review-evals` should reproduce and extend. The model stays `claude-sonnet-5-5`, so only the prompt changed.
 
+**Closed 2026-11-01:** the eval set now exists (Phase 6 of this change, `reviewer/evals/`, results in `eval-results.md`), so the exception no longer applies to later prompt or model changes.
+
 ## Setup
 
 - Date: 2026-11-01, local runs from `reviewer/` with `reviewer/.env` (model `claude-sonnet-5-5`, code default budget `$0.5` for all four runs so none stopped at the cap).
