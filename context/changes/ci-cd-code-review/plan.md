@@ -434,7 +434,7 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 #### Automated
 
-- [x] 4.1 Markdown formatting is clean
+- [x] 4.1 Markdown formatting is clean — 3ea841e
 
 #### Manual
 
