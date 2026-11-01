@@ -423,8 +423,8 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 #### Automated
 
-- [x] 3.1 No tag-referenced action remains anywhere in `.github`
-- [ ] 3.2 The PR's `ci` and `smoke` jobs pass with the v7 actions and the reviewer test step
+- [x] 3.1 No tag-referenced action remains anywhere in `.github` — 09f24a3
+- [x] 3.2 The PR's `ci` and `smoke` jobs pass with the v7 actions and the reviewer test step — 09f24a3
 
 #### Manual
 
@@ -434,7 +434,7 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 #### Automated
 
-- [ ] 4.1 Markdown formatting is clean
+- [x] 4.1 Markdown formatting is clean
 
 #### Manual
 

@@ -11,8 +11,8 @@ Source: `.claude/prompts/m5l3-requirements.md`, with the six criteria rewritten 
 ## Input parameters
 
 - pull request title
-- pull request description (?? cost tradeoff)
-- git diff against the base branch
+- pull request description (?? cost tradeoff) — decided 2026-11-01 (planning): included, fenced as untrusted `<pr_body>`, cut to 4,000 characters with a truncation marker (`reviewer/src/prompt.ts`).
+- git diff against the base branch — decided 2026-11-01 (planning): `origin/master...<head>` without `**/package-lock.json` and `src/db/database.types.ts`; a diff over 100,000 bytes (or empty after the exclusions) is refused before any model call, never truncated.
 
 ## Code Review Criteria
 
@@ -47,6 +47,7 @@ Each criterion is scored on a 1–10 scale, where 1 is the worst outcome and 10 
 - binding `verdict`: `pass` | `fail`, next to the six scores and a Markdown `summary` (contract: `reviewer/src/review-schema.ts`)
 - rule for the agent: `fail` when any criterion is ≤ 4, or when the diff contains a blocking bug or a security flaw regardless of the scores; otherwise `pass`
 - the merge gate reads only `verdict`
+- decided 2026-11-01 (planning): the "≤ 4 → fail" rule and the 1–10 integer range are also enforced in code after parsing (`reviewer/src/verdict.ts`), so the verdict cannot contradict the scores
 
 ## Parked for later
 
@@ -57,12 +58,14 @@ Each criterion is scored on a 1–10 scale, where 1 is the worst outcome and 10 
 ## Expected side-effects
 
 - PR comment with summary
+- decided 2026-11-01 (planning): when no verdict could be produced (diff too large or empty after exclusions, agent error or budget cap, PR changed mid-run) the run posts a short "could not run" comment, leaves the labels alone, sets `ai-cr/verdict` = `error` and fails
 - labels: `ai-cr:failed` (red) OR `ai-cr:passed` (green)
 
 ## Expected behavior
 
 - ~~on-demand retry when label `ai-cr:review` is added~~ — replaced 2026-11-01: rerun = run the workflow again for the PR
-- the `ai-cr/verdict` commit status on the PR head is `failure` on a `fail` verdict and `success` on `pass` (merge gate once the context is required in ruleset "Protect master")
+- the `ai-cr/verdict` commit status on the PR head is `failure` on a `fail` verdict and `success` on `pass` (merge gate once the context is required in ruleset "Protect master") — decided 2026-11-01 (planning): required in the ruleset after merge, with the admin bypass changed from `always` to `pull_request` (bypass only explicitly on a PR)
+- decided 2026-11-01 (planning): every action in `.github` (including `ci.yml` and `demo-data.yml`) is pinned to a commit SHA, and `sha_pinning_required` is turned on after merge
 - prompt and criteria in English (2026-11-01); model `claude-sonnet-5-5`, CI budget cap `REVIEW_MAX_BUDGET_USD=0.1` (2026-11-01)
 - cost per run logged (Hard rule: track cost per run, budget cap stays)
 
