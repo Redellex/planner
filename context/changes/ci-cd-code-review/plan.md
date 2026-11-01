@@ -416,7 +416,7 @@ Rollback, in reverse rollout order: `sha_pinning_required` off; ruleset PUT back
 
 #### Manual
 
-- [ ] 2.5 On the PR page the `ai-cr/verdict` row shows the pending description and its Details link opens the workflow page (2026-11-01: description shown; Details answers 404 until `ai-review.yml` is on master, recheck after merge)
+- [x] 2.5 On the PR page the `ai-cr/verdict` row shows the pending description and its Details link opens the workflow page — 2026-11-01 after merge: description shown, Details opens the AI Code Review workflow page
 - [x] 2.6 Read-through confirms the dispatch ref guard, absolute diff path, `error` path and no env/key echo — owner read-through 2026-11-01
 
 ### Phase 3: Pin existing workflows
